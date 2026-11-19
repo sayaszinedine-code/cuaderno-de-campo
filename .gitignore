@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+.env*
+!.env.example
+entrega/
+cuaderno-app/android/app/build/
+cuaderno-app/android/build/
+cuaderno-app/android/.gradle/
+cuaderno-app/android/local.properties
+cuaderno-app/www/vendor/
+docs/fuentes/*.pdf
+docs/fuentes/*.pptx
+.superpowers/
+test-results/
+playwright-report/

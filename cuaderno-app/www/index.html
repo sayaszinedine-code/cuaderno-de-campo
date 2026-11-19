@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1F7A6D">
+<meta name="description" content="Cuaderno de campo para docentes de educación inicial: registros con fotos, asistencia, agenda y asistente de redacción.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Cuaderno de Campo Inicial</title>
+<style>
+@font-face{font-family:"Baloo 2";font-weight:500;font-style:normal;font-display:swap;src:url(fonts/baloo-2-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Baloo 2";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/baloo-2-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Baloo 2";font-weight:700;font-style:normal;font-display:swap;src:url(fonts/baloo-2-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Nunito Sans";font-weight:400;font-style:normal;font-display:swap;src:url(fonts/nunito-sans-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Nunito Sans";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/nunito-sans-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Nunito Sans";font-weight:700;font-style:normal;font-display:swap;src:url(fonts/nunito-sans-latin-700-normal.woff2) format("woff2")}
+
+/* Layout: cuaderno de aula — barra lateral en escritorio, pestañas abajo en celular; registros como fichas con sello de fecha */
+:root{
+  --bg:#F3F6F4; --surface:#FFFFFF; --surface-2:#E8EFEB; --ink:#1E2B3A; --muted:#5B6B78; --line:#D3DDD8;
+  --accent:#1F7A6D; --accent-ink:#FFFFFF; --accent-soft:#D6EEEA; --sun:#E8A33D; --sun-soft:#FBEBCF;
+  --ok:#2E8B57; --warn:#C27C0E; --bad:#C2453A; --ok-soft:#DCF1E4; --bad-soft:#F7DEDB;
+  --f-display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --f-body:"Nunito Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:12px; --shadow:0 1px 2px rgba(30,43,58,.06),0 4px 14px rgba(30,43,58,.06);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111A1F; --surface:#18242B; --surface-2:#203038; --ink:#E6EEF0; --muted:#9AAAB3; --line:#2C3D46;
+  --accent:#4CC2AE; --accent-ink:#0B1A17; --accent-soft:#1B3B37; --sun:#F0B654; --sun-soft:#3A2E17;
+  --ok:#5BC48A; --warn:#E3A64A; --bad:#EE7B6F; --ok-soft:#1D3A2A; --bad-soft:#40211E;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111A1F; --surface:#18242B; --surface-2:#203038; --ink:#E6EEF0; --muted:#9AAAB3; --line:#2C3D46;
+  --accent:#4CC2AE; --accent-ink:#0B1A17; --accent-soft:#1B3B37; --sun:#F0B654; --sun-soft:#3A2E17;
+  --ok:#5BC48A; --warn:#E3A64A; --bad:#EE7B6F; --ok-soft:#1D3A2A; --bad-soft:#40211E;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+h1,h2,h3{font-family:var(--f-display);line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:1.75rem;font-weight:700}
+h2{font-size:1.3rem;font-weight:600}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+nav.side{position:sticky;top:env(safe-area-inset-top,0px);height:100vh;padding:20px 12px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;background:var(--surface)}
+.brand{font-family:var(--f-display);font-weight:700;font-size:1.2rem;padding:4px 10px 16px;line-height:1.1}
+.brand small{display:block;font-family:var(--f-body);font-weight:600;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.tab{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;border:0;background:none;cursor:pointer;text-align:left;font-weight:600;color:var(--muted)}
+.tab svg{width:20px;height:20px;flex:none}
+.tab:hover{background:var(--surface-2);color:var(--ink)}
+.tab[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+main{min-width:0;padding-block:24px 110px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.eyebrow{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer;min-height:40px}
+.btn:hover{border-color:var(--accent)}
+.btn svg{width:18px;height:18px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sun{background:var(--sun-soft);border-color:transparent;color:var(--ink)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.danger{color:var(--bad)}
+.btn.sm{min-height:32px;padding:4px 10px;font-size:.85rem}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn.mic.on{background:var(--bad);border-color:var(--bad);color:#fff}
+label.f{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:.85rem;min-width:0}
+label.f span.h{font-weight:400;color:var(--muted);font-size:.8rem}
+input[type=text],input[type=date],input[type=time],input[type=tel],input[type=search],select,textarea{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 11px;min-height:40px}
+textarea{min-height:96px;resize:vertical;line-height:1.5}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.85rem;font-weight:600;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.pill{display:inline-flex;align-items:center;border-radius:999px;padding:1px 9px;font-size:.75rem;font-weight:700;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.pill.t-obs{background:var(--accent-soft);color:var(--accent)}
+.pill.t-anec{background:var(--sun-soft);color:var(--warn)}
+.pill.t-logro{background:var(--ok-soft);color:var(--ok)}
+.pill.t-fam{background:var(--surface-2);color:var(--ink)}
+.pill.lv{background:var(--ink);color:var(--surface)}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat b{font-family:var(--f-display);font-size:1.9rem;line-height:1;font-variant-numeric:tabular-nums}
+/* ficha de registro */
+.entry{display:grid;grid-template-columns:56px 1fr;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;cursor:pointer;text-align:left;width:100%}
+.entry:hover{border-color:var(--accent)}
+.stamp{display:flex;flex-direction:column;align-items:center;justify-content:center;border:1.5px dashed var(--accent);border-radius:10px;height:56px;color:var(--accent);font-family:var(--f-display);line-height:1}
+.stamp b{font-size:1.4rem}
+.stamp span{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.entry .body{min-width:0;display:flex;flex-direction:column;gap:6px}
+.entry .txt{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:var(--surface-2)}
+.list{display:flex;flex-direction:column;gap:10px}
+.kid{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);cursor:pointer;width:100%;text-align:left}
+.kid:hover{border-color:var(--accent)}
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;flex:none;background:var(--sun-soft);color:var(--warn)}
+.kid .grow{flex:1;min-width:0}
+.alert{display:flex;gap:10px;align-items:flex-start;background:var(--sun-soft);border-radius:var(--r);padding:12px 14px}
+.empty{border:1.5px dashed var(--line);border-radius:var(--r);padding:28px 18px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+/* asistencia */
+.att{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.att:last-child{border-bottom:0}
+.att .grow{flex:1;min-width:0;font-weight:600}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:6px 11px;font-weight:700;cursor:pointer;min-width:38px;min-height:36px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"].P{background:var(--ok);color:#fff}
+.seg button[aria-pressed="true"].T{background:var(--warn);color:#fff}
+.seg button[aria-pressed="true"].F{background:var(--bad);color:#fff}
+.seg button[aria-pressed="true"].J{background:var(--muted);color:var(--surface)}
+/* agenda */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .dn{font-size:.72rem;text-align:center;color:var(--muted);font-weight:700;text-transform:uppercase}
+.cal button{aspect-ratio:1/1;max-width:100%;border:1px solid transparent;border-radius:10px;background:var(--surface);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-variant-numeric:tabular-nums;font-weight:600;padding:0}
+.cal button.out{opacity:.35}
+.cal button.today{border-color:var(--accent);color:var(--accent)}
+.cal button.sel{background:var(--accent);color:var(--accent-ink)}
+.cal i{width:6px;height:6px;border-radius:50%;background:var(--sun);display:block}
+.ev{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.ev:last-child{border-bottom:0}
+.ev .d{font-family:var(--f-display);font-weight:600;color:var(--accent);line-height:1.1;font-variant-numeric:tabular-nums}
+/* sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(10,20,25,.45);z-index:40;display:flex;justify-content:center;align-items:flex-end}
+.sheet{background:var(--bg);width:min(760px,100%);max-height:94vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
+@media (min-width:800px){.sheet-bg{align-items:center}.sheet{border-radius:18px}}
+.sheet-h{display:flex;justify-content:space-between;align-items:center;gap:8px;position:sticky;top:-18px;background:var(--bg);padding-block:6px;z-index:2}
+.ai-out{background:var(--surface);border:1px solid var(--accent);border-radius:var(--r);padding:12px 14px;white-space:pre-wrap;min-height:48px}
+.ai-out.loading{color:var(--muted);font-style:italic}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.photo{position:relative}
+.photo img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--surface-2)}
+.photo button{position:absolute;top:4px;right:4px;border:0;border-radius:50%;width:26px;height:26px;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;font-weight:700}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:60;font-weight:600;max-width:90vw}
+.note{font-size:.8rem;color:var(--muted);border-left:3px solid var(--line);padding-left:10px}
+.full-photo{max-width:100%;border-radius:12px}
+.timeline{display:flex;flex-direction:column;gap:0;border-left:2px solid var(--line);margin-left:6px}
+.tl{position:relative;padding:0 0 16px 18px}
+.tl::before{content:"";position:absolute;left:-7px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:2px solid var(--accent)}
+nav.bottom{display:none}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  nav.side{display:none}
+  nav.bottom{display:grid;grid-template-columns:repeat(6,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding:6px max(4px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-left,0px))}
+  nav.bottom .tab{flex-direction:column;gap:2px;font-size:.68rem;padding:6px 2px;justify-content:center;text-align:center}
+  .grid2{grid-template-columns:1fr}
+  .grid3{grid-template-columns:repeat(3,1fr)}
+  h1{font-size:1.5rem}
+}
+@media (max-width:420px){.stat b{font-size:1.5rem}.entry{grid-template-columns:48px 1fr;gap:10px}.stamp{height:50px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <nav class="side" id="sideNav" aria-label="Secciones"></nav>
+  <main><div class="wrap" id="view"><p class="muted">Cargando tu cuaderno…</p></div></main>
+  <nav class="bottom" id="bottomNav" aria-label="Secciones"></nav>
+</div>
+<div id="sheetRoot"></div>
+<div id="toastRoot"></div>
+
+<script src="vendor/ia.js"></script>
+<script>
+/* ---------- Datos del CNEB (ciclo II, inicial) ---------- */
+const AREAS = {
+  "Personal Social": ["Construye su identidad","Convive y participa democráticamente en la búsqueda del bien común","Construye su identidad como persona humana, amada por Dios"],
+  "Psicomotriz": ["Se desenvuelve de manera autónoma a través de su motricidad"],
+  "Comunicación": ["Se comunica oralmente en su lengua materna","Lee diversos tipos de textos escritos en su lengua materna","Escribe diversos tipos de textos en su lengua materna","Crea proyectos desde los lenguajes artísticos"],
+  "Castellano como segunda lengua": ["Se comunica oralmente en castellano como segunda lengua"],
+  "Matemática": ["Resuelve problemas de cantidad","Resuelve problemas de forma, movimiento y localización"],
+  "Ciencia y Tecnología": ["Indaga mediante métodos científicos para construir sus conocimientos"],
+  "Competencias transversales": ["Se desenvuelve en entornos virtuales generados por las TIC","Gestiona su aprendizaje de manera autónoma"]
+};
+const MOMENTOS = ["Recepción y rutinas","Juego libre en sectores","Experiencia de aprendizaje","Taller","Alimentación y recreo","Aseo y descanso","Salida","Fuera del aula / visita"];
+const TIPOS = {obs:"Observación", anec:"Anécdota / incidencia", logro:"Logro", fam:"Reunión con familia", otro:"Otro"};
+const NIVELES = {AD:"Logro destacado", A:"Logro esperado", B:"En proceso", C:"En inicio"};
+const EV_TIPOS = ["Reunión","Entrega de documentos","Actividad con niños","Fecha cívica","Capacitación","Personal"];
+const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DIAS = ["dom","lun","mar","mié","jue","vie","sáb"];
+
+/* ---------- Utilidades ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uidGen = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const pad = n => String(n).padStart(2,"0");
+const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const hoy = () => isoOf(new Date());
+const parseISO = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const fmtCorto = s => { const d = parseISO(s); return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()].slice(0,3)}`; };
+const fmtLargo = s => { const d = parseISO(s); return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`; };
+const diasEntre = (a,b) => Math.round((parseISO(b)-parseISO(a))/864e5);
+const iniciales = n => n.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
+function toast(msg){ const r=$("#toastRoot"); r.innerHTML=`<div class="toast" role="status">${esc(msg)}</div>`; clearTimeout(toast.t); toast.t=setTimeout(()=>r.innerHTML="",2600); }
+async function copiar(text, btn){
+  try{ await navigator.clipboard.writeText(text); toast("Copiado"); }
+  catch{ const out = btn?.closest(".panel,.sheet")?.querySelector(".ai-out"); if(out){ const r=document.createRange(); r.selectNodeContents(out); const s=getSelection(); s.removeAllRanges(); s.addRange(r);} toast("Texto seleccionado: cópialo con Ctrl+C"); }
+}
+const I = {
+  hoy:'<path d="M4 5h16v15H4zM4 9h16M8 3v4M16 3v4"/>',
+  cuaderno:'<path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6zM6 3v18M10 8h6M10 12h6"/>',
+  ninos:'<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 20c0-2 .8-3.7 2-4.6 2.3.3 4 2.2 4 4.6"/>',
+  asis:'<path d="M4 4h16v16H4zM8 12l3 3 5-6"/>',
+  agenda:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/>',
+  mas:'<path d="M12 4l2.2 4.6 5 .7-3.6 3.5.9 5L12 15.4 7.5 17.8l.9-5L4.8 9.3l5-.7z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  spark:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+  cam:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  dl:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'
+};
+const ico = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
+
+/* ---------- Estado ---------- */
+let st = { perfil:{}, ninos:[], agenda:[], registros:{}, asis:{} };
+const caps = { sample:false, dict:null, sampleImg:false };
+let cargado = false;
+const ui = { tab:"hoy", f:{nino:"",area:"",tipo:"",q:""}, nino:null, fechaAsis:hoy(), mes:hoy().slice(0,7), diaSel:hoy() };
+let editing = null;
+let ajustes = { apiKey:"" };
+const nativo = () => !!window.Capacitor?.isNativePlatform?.();
+
+/* ---------- Persistencia en el dispositivo (IndexedDB): funciona sin internet ---------- */
+let idbConn = null;
+function idbOpen(){ return new Promise((res,rej)=>{ const r = indexedDB.open("cuaderno-inicial",1); r.onupgradeneeded = () => { r.result.createObjectStore("kv"); r.result.createObjectStore("fotos"); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+function idbReq(store, mode, fn){ return new Promise((res,rej)=>{ const tx = idbConn.transaction(store,mode), q = fn(tx.objectStore(store)); tx.oncomplete = () => res(q?.result); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error); }); }
+const kvGet = k => idbReq("kv","readonly",s=>s.get(k));
+const kvSet = (k,v) => idbReq("kv","readwrite",s=>s.put(v,k));
+const fotoGet = k => idbReq("fotos","readonly",s=>s.get(k));
+const fotoSet = (k,b) => idbReq("fotos","readwrite",s=>s.put(b,k));
+const fotoDel = k => idbReq("fotos","readwrite",s=>s.delete(k));
+const fotoKeys = () => idbReq("fotos","readonly",s=>s.getAllKeys());
+let guardT;
+function guardar(){ clearTimeout(guardT); guardT = setTimeout(() => kvSet("estado", JSON.parse(JSON.stringify(st))).catch(() => toast("No se pudo guardar. Libera espacio en el dispositivo y exporta un respaldo.")), 150); }
+function savePerfil(){ guardar(); }
+function saveNinos(){ guardar(); }
+function saveAgenda(){ guardar(); }
+function saveRegistro(r){ const prev = st.registros[r.id]; st.registros[r.id] = r; if(prev) (prev.fotos||[]).filter(f=>f.fid && !(r.fotos||[]).some(g=>g.fid===f.fid)).forEach(f=>{ fotoDel(f.fid).catch(()=>{}); soltarURL(f.fid); }); guardar(); }
+function delRegistro(id){ (st.registros[id]?.fotos||[]).forEach(f=>{ if(f.fid){ fotoDel(f.fid).catch(()=>{}); soltarURL(f.fid); } }); delete st.registros[id]; guardar(); }
+function saveAsis(){ guardar(); }
+function guardarAjustes(){ kvSet("ajustes", {...ajustes}).catch(()=>toast("No se pudo guardar el ajuste.")); caps.sample = caps.sampleImg = !!ajustes.apiKey; }
+
+async function iniciar(){
+  render();
+  try{
+    idbConn = await idbOpen();
+    const e = await kvGet("estado"); if(e) st = Object.assign(st, e);
+    ajustes = Object.assign(ajustes, await kvGet("ajustes") || {});
+    caps.sample = caps.sampleImg = !!ajustes.apiKey;
+    // Carga las fotos y borra las que quedaron sin registro (p. ej. un registro nuevo cancelado)
+    const usadas = new Set(Object.values(st.registros).flatMap(r => (r.fotos||[]).map(f=>f.fid).filter(Boolean)));
+    for(const k of await fotoKeys()){ if(usadas.has(k)){ const b = await fotoGet(k); if(b) fotoURLs.set(k, URL.createObjectURL(b)); } else fotoDel(k).catch(()=>{}); }
+  }catch{ toast("Este navegador no permite guardar datos. Prueba con Chrome."); }
+  try{ await navigator.storage?.persist?.(); }catch{}
+  caps.dict = crearDictado();
+  if(caps.dict){
+    caps.dict.onPartial(({text}) => { const el = dictTarget && document.getElementById(dictTarget); if(el) el.placeholder = text ? "🎤 " + text : el.placeholder; });
+    caps.dict.onFinal(({text}) => { const el = dictTarget && document.getElementById(dictTarget); if(el && text){ el.value = (el.value.trim()? el.value.trimEnd()+" " : "") + text.trim(); el.dispatchEvent(new Event("input",{bubbles:true})); } });
+    caps.dict.onState(({state}) => { dictOn = state==="listening"; document.querySelectorAll(".mic").forEach(b=>b.classList.toggle("on", dictOn && b.dataset.target===dictTarget)); });
+  }
+  cargado = true; render();
+  if("serviceWorker" in navigator && location.protocol==="https:" && !nativo()) navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+
+/* ---------- Fotos ---------- */
+const fotoURLs = new Map();
+function soltarURL(fid){ const u = fotoURLs.get(fid); if(u){ URL.revokeObjectURL(u); fotoURLs.delete(fid); } }
+async function comprimir(file, max, q){
+  try{
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, max/Math.max(bmp.width,bmp.height));
+    const c = document.createElement("canvas"); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k);
+    c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+    return await new Promise(r => c.toBlob(r,"image/jpeg",q));
+  }catch{ return file; }
+}
+const blobToDataURL = b => new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(b); });
+const fotoSrc = f => f.fid ? (fotoURLs.get(f.fid) || "") : (f.src || "");
+async function subirFotos(files){
+  const out = [];
+  for(const file of files){
+    const b = await comprimir(file, 1600, .82), fid = uidGen();
+    try{ await fotoSet(fid, b); fotoURLs.set(fid, URL.createObjectURL(b)); out.push({fid}); }
+    catch{ toast("No se pudo guardar una foto: el dispositivo está sin espacio."); }
+  }
+  return out;
+}
+
+/* ---------- IA (redacción) con la clave API de la docente ---------- */
+const CONTEXTO = "Eres asistente pedagógico de una docente de educación inicial en Perú (ciclo II, 3 a 5 años), que trabaja con el Currículo Nacional (CNEB) y la evaluación formativa. Escribe en español peruano claro, respetuoso y profesional.";
+const MSG_IA = { sin_clave:"Para usar el asistente, agrega tu clave API en Más › Asistente de IA.", clave_invalida:"La clave API no es válida. Revísala en Más › Asistente de IA.", limite:"Muchas solicitudes seguidas o sin saldo en la cuenta. Espera un momento o revisa tu saldo.", rechazo:"El asistente no pudo responder a esta solicitud. Reformula el texto.", red:"Sin conexión a internet. El asistente necesita internet; el resto de la app funciona sin conexión.", otro:"No se pudo generar el texto. Inténtalo de nuevo." };
+async function iaTexto(prompt, opts={}){ return window.IA.generar(ajustes.apiKey, CONTEXTO, prompt, opts); }
+async function ia(prompt, outEl, opts={}){
+  outEl.classList.add("loading"); outEl.textContent = "Redactando…";
+  try{
+    const t = await iaTexto(prompt, { ...opts, onText: text => { outEl.classList.remove("loading"); outEl.textContent = text; } });
+    outEl.classList.remove("loading"); outEl.textContent = t; return t;
+  }catch(e){ outEl.classList.remove("loading"); outEl.textContent = MSG_IA[e?.code] || MSG_IA.otro; return null; }
+}
+
+/* ---------- Dictado: reconocimiento de voz de Android en la app, o del navegador (Chrome) ---------- */
+function crearDictado(){
+  const h = {partial:[], final:[], state:[]}, emit = (k,v) => h[k].forEach(f=>f(v));
+  const api = { onPartial:f=>h.partial.push(f), onFinal:f=>h.final.push(f), onState:f=>h.state.push(f) };
+  const SR = nativo() && window.Capacitor.Plugins?.SpeechRecognition;
+  if(SR){
+    let ultimo = "";
+    api.start = async () => {
+      const disp = await SR.available().catch(()=>({available:false}));
+      if(!disp.available){ toast("El reconocimiento de voz no está disponible. Usa el micrófono del teclado."); return; }
+      const p = await SR.requestPermissions();
+      if(p.speechRecognition !== "granted") throw {code:"not_granted"};
+      await SR.removeAllListeners();
+      ultimo = "";
+      await SR.addListener("partialResults", d => { ultimo = d.matches?.[0] || ""; emit("partial",{text:ultimo}); });
+      await SR.addListener("listeningState", d => { if(d.status==="stopped"){ emit("final",{text:ultimo}); ultimo=""; emit("partial",{text:""}); emit("state",{state:"idle"}); } });
+      emit("state",{state:"listening"});
+      SR.start({ language:"es-PE", partialResults:true, popup:false }).catch(() => emit("state",{state:"idle"}));
+    };
+    api.stop = async () => { await SR.stop(); };
+    return api;
+  }
+  const W = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!W || nativo()) return null;
+  let rec = null;
+  api.start = async () => {
+    rec = new W(); rec.lang = "es-PE"; rec.continuous = true; rec.interimResults = true;
+    rec.onresult = ev => { let parcial = ""; for(let i=ev.resultIndex;i<ev.results.length;i++){ const r = ev.results[i]; if(r.isFinal) emit("final",{text:r[0].transcript}); else parcial += r[0].transcript; } emit("partial",{text:parcial}); };
+    rec.onerror = ev => { if(ev.error==="not-allowed") toast("Sin permiso para el micrófono. Puedes seguir escribiendo."); };
+    rec.onend = () => { emit("partial",{text:""}); emit("state",{state:"idle"}); };
+    rec.start(); emit("state",{state:"listening"});
+  };
+  api.stop = async () => { rec?.stop(); };
+  return api;
+}
+
+/* ---------- Dictado ---------- */
+let dictTarget = null, dictOn = false;
+function micBtn(target){ return caps.dict ? `<button type="button" class="btn sm mic" data-act="mic" data-target="${target}" aria-label="Dictar por voz">${ico("mic")}Dictar</button>` : ""; }
+function toggleMic(target){
+  const d = caps.dict; if(!d) return;
+  if(dictOn && dictTarget===target){ d.stop().catch(()=>{}); return; }
+  if(dictOn){ d.stop().catch(()=>{}); }
+  dictTarget = target;
+  d.start().catch(e => { if(e?.code==="not_granted") toast("Sin permiso para el micrófono. Puedes seguir escribiendo."); });
+}
+
+/* ---------- Navegación ---------- */
+const TABS = [["hoy","Hoy"],["cuaderno","Cuaderno"],["ninos","Niños"],["asis","Asistencia"],["agenda","Agenda"],["mas","Más"]];
+function renderNav(){
+  const h = TABS.map(([k,l]) => `<button class="tab" data-act="tab" data-tab="${k}" ${ui.tab===k?'aria-current="page"':""}>${ico(k)}<span>${l}</span></button>`).join("");
+  $("#sideNav").innerHTML = `<div class="brand">Cuaderno de Campo<small>Educación Inicial · CNEB</small></div>` + h;
+  $("#bottomNav").innerHTML = h;
+}
+function render(){
+  renderNav();
+  const v = $("#view");
+  if(!cargado){ v.innerHTML = `<p class="muted">Cargando tu cuaderno…</p>`; return; }
+  v.innerHTML = ({hoy:vHoy, cuaderno:vCuaderno, ninos:vNinos, asis:vAsis, agenda:vAgenda, mas:vMas})[ui.tab]();
+}
+const regs = () => Object.values(st.registros).sort((a,b)=> (b.fecha+(b.hora||"")).localeCompare(a.fecha+(a.hora||"")));
+const ninoNom = id => st.ninos.find(n=>n.id===id)?.nombre || "—";
+const ninosOrden = () => [...st.ninos].sort((a,b)=>a.nombre.localeCompare(b.nombre));
+
+/* ---------- Vistas ---------- */
+function entryCard(r){
+  const d = parseISO(r.fecha);
+  const fotos = (r.fotos||[]).slice(0,4).map(f=>`<img src="${esc(fotoSrc(f))}" alt="Evidencia" loading="lazy">`).join("");
+  return `<button class="entry" data-act="openReg" data-id="${r.id}">
+    <div class="stamp"><b>${d.getDate()}</b><span>${MESES[d.getMonth()].slice(0,3)}</span></div>
+    <div class="body">
+      <div class="row"><span class="pill t-${r.tipo}">${esc(TIPOS[r.tipo]||"Registro")}</span>${r.nivel?`<span class="pill lv">${esc(r.nivel)}</span>`:""}<span class="small muted">${esc(r.momento||"")}${r.area?" · "+esc(r.area):""}</span></div>
+      ${r.ninos?.length?`<div class="small"><b>${r.ninos.map(id=>esc(ninoNom(id))).join(", ")}</b></div>`:""}
+      <p class="txt">${esc(r.hecho||"(sin descripción)")}</p>
+      ${fotos?`<div class="thumbs">${fotos}</div>`:""}
+    </div></button>`;
+}
+function vacioNinos(){
+  return `<div class="empty"><h3>Empieza registrando a tus niños y niñas</h3><p class="muted">Con la lista de tu aula podrás etiquetar observaciones, tomar asistencia y preparar informes de progreso.</p>
+  <div class="row" style="justify-content:center"><button class="btn primary" data-act="tab" data-tab="ninos">${ico("plus")}Agregar niños</button><button class="btn" data-act="ejemplo">Cargar datos de ejemplo</button></div></div>`;
+}
+function vHoy(){
+  const t = hoy(), R = regs();
+  const semana = R.filter(r => diasEntre(r.fecha,t) < 7 && diasEntre(r.fecha,t) >= 0).length;
+  const fotos = R.reduce((s,r)=>s+(r.fotos?.length||0),0);
+  const mes = t.slice(0,7), dia = st.asis[mes]?.[t] || {};
+  const presentes = Object.values(dia).filter(x=>x==="P"||x==="T").length;
+  const ultimo = {}; R.forEach(r => (r.ninos||[]).forEach(id => { if(!ultimo[id] || r.fecha>ultimo[id]) ultimo[id]=r.fecha; }));
+  const sinReg = ninosOrden().filter(n => !ultimo[n.id] || diasEntre(ultimo[n.id],t) > 14);
+  const prox = st.agenda.filter(e => e.fecha>=t && diasEntre(t,e.fecha)<=14).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora)).slice(0,5);
+  const saludo = st.perfil.nombre ? `Hola, ${esc(st.perfil.nombre.split(" ")[0])}` : "Hola";
+  return `
+  <div class="head"><div><div class="eyebrow">${esc(fmtLargo(t))}</div><h1>${saludo}</h1>${st.perfil.aula?`<p class="muted">${esc(st.perfil.aula)}${st.perfil.ie?" · "+esc(st.perfil.ie):""}</p>`:""}</div>
+  <button class="btn primary" data-act="nuevoReg">${ico("plus")}Nuevo registro</button></div>
+  ${st.ninos.length? "" : vacioNinos()}
+  <div class="grid3">
+    <div class="panel stat"><span class="eyebrow">Registros (7 días)</span><b>${semana}</b></div>
+    <div class="panel stat"><span class="eyebrow">Asistieron hoy</span><b>${presentes}<span class="muted" style="font-size:1rem">/${st.ninos.length}</span></b></div>
+    <div class="panel stat"><span class="eyebrow">Fotos de evidencia</span><b>${fotos}</b></div>
+  </div>
+  ${sinReg.length && st.ninos.length ? `<div class="alert"><div><b>${sinReg.length} ${sinReg.length===1?"niño o niña sin":"niños sin"} observaciones en las últimas 2 semanas</b><p class="small">${sinReg.slice(0,8).map(n=>esc(n.nombre)).join(", ")}${sinReg.length>8?"…":""}. Observar a todos ayuda a tener evidencias para el informe de progreso.</p></div></div>`:""}
+  <div class="grid2">
+    <section class="panel"><div class="row" style="justify-content:space-between"><h2>Próximos 14 días</h2><button class="btn sm ghost" data-act="tab" data-tab="agenda">Ver agenda</button></div>
+      ${prox.length? prox.map(e=>`<div class="ev"><div class="d">${esc(fmtCorto(e.fecha))}</div><div><b>${esc(e.titulo)}</b><div class="small muted">${esc(e.tipo)}${e.hora?" · "+esc(e.hora):""}</div></div><span></span></div>`).join("") : `<p class="muted small">No tienes actividades próximas. Agrégalas en la Agenda.</p>`}
+    </section>
+    <section class="panel"><h2>Resumen de la semana</h2><p class="small muted">Arma un resumen con tus registros de los últimos 7 días para tu reflexión docente o tu reunión con la directora.</p>
+      <button class="btn sun" data-act="resumenSem" ${semana?"":"disabled"}>${ico("spark")}Generar resumen</button>
+      <div class="ai-out" id="outSem" hidden></div>
+    </section>
+  </div>
+  <section class="list"><div class="row" style="justify-content:space-between"><h2>Últimos registros</h2><button class="btn sm ghost" data-act="tab" data-tab="cuaderno">Ver todos</button></div>
+    ${R.length? R.slice(0,4).map(entryCard).join("") : `<p class="muted">Todavía no hay registros. Toca “Nuevo registro” para tu primera observación.</p>`}
+  </section>`;
+}
+function vCuaderno(){
+  const f = ui.f, q = f.q.toLowerCase();
+  const R = regs().filter(r => (!f.nino || r.ninos?.includes(f.nino)) && (!f.area || r.area===f.area) && (!f.tipo || r.tipo===f.tipo) && (!q || (r.hecho+" "+(r.interpretacion||"")+" "+(r.ninos||[]).map(ninoNom).join(" ")).toLowerCase().includes(q)));
+  return `<div class="head"><div><div class="eyebrow">Cuaderno de campo</div><h1>Registros y evidencias</h1></div><button class="btn primary" data-act="nuevoReg">${ico("plus")}Nuevo registro</button></div>
+  <div class="panel"><div class="grid2">
+    <label class="f">Buscar<input type="search" id="fq" value="${esc(f.q)}" placeholder="Palabra, nombre…"></label>
+    <label class="f">Niño o niña<select id="fnino"><option value="">Todos</option>${ninosOrden().map(n=>`<option value="${n.id}" ${f.nino===n.id?"selected":""}>${esc(n.nombre)}</option>`).join("")}</select></label>
+    <label class="f">Área<select id="farea"><option value="">Todas</option>${Object.keys(AREAS).map(a=>`<option ${f.area===a?"selected":""}>${esc(a)}</option>`).join("")}</select></label>
+    <label class="f">Tipo<select id="ftipo"><option value="">Todos</option>${Object.entries(TIPOS).map(([k,l])=>`<option value="${k}" ${f.tipo===k?"selected":""}>${l}</option>`).join("")}</select></label>
+  </div></div>
+  <p class="small muted">${R.length} ${R.length===1?"registro":"registros"}</p>
+  <div class="list">${R.length? R.map(entryCard).join("") : `<div class="empty"><p class="muted">No hay registros con estos filtros.</p></div>`}</div>`;
+}
+function vNinos(){
+  if(ui.nino && st.ninos.find(n=>n.id===ui.nino)) return vFicha(ui.nino);
+  const R = regs();
+  return `<div class="head"><div><div class="eyebrow">Mi aula</div><h1>Niños y niñas</h1></div><span class="pill">${st.ninos.length} en lista</span></div>
+  <form class="panel" id="formNino"><h3>Agregar niño o niña</h3>
+    <div class="grid2">
+      <label class="f">Nombres y apellidos<input type="text" id="nNom" required placeholder="Ej. Valentina Quispe Huamán"></label>
+      <label class="f">Fecha de nacimiento<input type="date" id="nNac"></label>
+      <label class="f">Madre, padre o apoderado<input type="text" id="nApo"></label>
+      <label class="f">Teléfono<input type="tel" id="nTel"></label>
+    </div>
+    <label class="f">Notas <span class="h">Salud, alergias, NEE, lengua materna, datos a tener en cuenta</span><input type="text" id="nNot"></label>
+    <div class="row"><button class="btn primary" type="submit">${ico("plus")}Agregar</button>${st.ninos.length?"":`<button class="btn" type="button" data-act="ejemplo">Cargar datos de ejemplo</button>`}</div>
+  </form>
+  <div class="list">${ninosOrden().map(n => { const c = R.filter(r=>r.ninos?.includes(n.id)).length;
+    return `<button class="kid" data-act="ficha" data-id="${n.id}"><span class="av">${esc(iniciales(n.nombre))}</span><span class="grow"><b>${esc(n.nombre)}</b><span class="small muted" style="display:block">${n.nac?edadDe(n.nac)+" · ":""}${c} ${c===1?"registro":"registros"}</span></span><span class="muted">›</span></button>`; }).join("")}</div>`;
+}
+function edadDe(nac){ const n=parseISO(nac), t=new Date(); let a=t.getFullYear()-n.getFullYear(), m=t.getMonth()-n.getMonth(); if(t.getDate()<n.getDate()) m--; if(m<0){a--;m+=12;} return `${a} años ${m} m`; }
+function asisNino(id){ let P=0,T=0,F=0,J=0; Object.values(st.asis).forEach(mes=>Object.values(mes).forEach(d=>{ const v=d[id]; if(v==="P")P++; else if(v==="T")T++; else if(v==="F")F++; else if(v==="J")J++; })); const tot=P+T+F+J; return {P,T,F,J,tot,pct: tot? Math.round((P+T)/tot*100):null}; }
+function vFicha(id){
+  const n = st.ninos.find(x=>x.id===id), R = regs().filter(r=>r.ninos?.includes(id)), a = asisNino(id);
+  const porArea = {}; R.forEach(r=>{ if(r.area) porArea[r.area]=(porArea[r.area]||0)+1; });
+  return `<div class="row"><button class="btn sm ghost" data-act="volverNinos">‹ Volver a la lista</button></div>
+  <div class="head"><div class="row" style="gap:14px"><span class="av" style="width:56px;height:56px;font-size:1.3rem">${esc(iniciales(n.nombre))}</span><div><div class="eyebrow">Ficha</div><h1>${esc(n.nombre)}</h1><p class="muted small">${n.nac?edadDe(n.nac):""}${n.apo?" · Apoderado: "+esc(n.apo):""}${n.tel?" · "+esc(n.tel):""}</p></div></div>
+  <div class="row"><button class="btn primary" data-act="nuevoReg" data-nino="${id}">${ico("plus")}Registrar</button><button class="btn" data-act="portafolio" data-id="${id}">${ico("dl")}Portafolio</button></div></div>
+  ${n.notas?`<p class="note">${esc(n.notas)}</p>`:""}
+  <div class="grid3">
+    <div class="panel stat"><span class="eyebrow">Registros</span><b>${R.length}</b></div>
+    <div class="panel stat"><span class="eyebrow">Asistencia</span><b>${a.pct===null?"—":a.pct+"%"}</b><span class="small muted">${a.F} faltas · ${a.T} tardanzas</span></div>
+    <div class="panel stat"><span class="eyebrow">Fotos</span><b>${R.reduce((s,r)=>s+(r.fotos?.length||0),0)}</b></div>
+  </div>
+  <section class="panel"><h2>Conclusión descriptiva</h2><p class="small muted">Redacta un borrador para el informe de progreso a partir de los registros de un área. Revísalo y ajústalo con tu criterio.</p>
+    <div class="grid2"><label class="f">Área<select id="cdArea">${Object.keys(AREAS).map(ar=>`<option ${ar===Object.keys(porArea)[0]?"selected":""}>${esc(ar)}${porArea[ar]?` (${porArea[ar]})`:""}</option>`).join("")}</select></label>
+    <label class="f">Desde<input type="date" id="cdDesde" value="${R.length?R[R.length-1].fecha:hoy()}"></label></div>
+    <div class="row"><button class="btn sun" data-act="conclusion" data-id="${id}">${ico("spark")}Redactar conclusión</button><button class="btn sm" data-act="copiarOut" data-out="outCd">Copiar</button></div>
+    <div class="ai-out" id="outCd" hidden></div>
+  </section>
+  <section class="panel"><h2>Línea de tiempo</h2>
+    ${R.length? `<div class="timeline">${R.map(r=>`<div class="tl"><div class="small muted">${esc(fmtCorto(r.fecha))} · ${esc(TIPOS[r.tipo]||"")}${r.area?" · "+esc(r.area):""}${r.nivel?" · "+r.nivel:""}</div><p>${esc(r.hecho)}</p>${r.fotos?.length?`<div class="thumbs" style="margin-top:6px">${r.fotos.map(f=>`<img src="${esc(fotoSrc(f))}" alt="Evidencia">`).join("")}</div>`:""}<button class="btn sm ghost" data-act="openReg" data-id="${r.id}">Abrir</button></div>`).join("")}</div>` : `<p class="muted">Aún no hay registros de ${esc(n.nombre.split(" ")[0])}.</p>`}
+  </section>
+  <section class="panel"><h3>Editar datos</h3>
+    <form id="formEditNino" data-id="${id}" class="list">
+      <div class="grid2"><label class="f">Nombres y apellidos<input type="text" id="eNom" value="${esc(n.nombre)}" required></label><label class="f">Fecha de nacimiento<input type="date" id="eNac" value="${esc(n.nac||"")}"></label>
+      <label class="f">Apoderado<input type="text" id="eApo" value="${esc(n.apo||"")}"></label><label class="f">Teléfono<input type="tel" id="eTel" value="${esc(n.tel||"")}"></label></div>
+      <label class="f">Notas<input type="text" id="eNot" value="${esc(n.notas||"")}"></label>
+      <div class="row"><button class="btn primary" type="submit">Guardar cambios</button><span id="delNinoBox"><button class="btn danger" type="button" data-act="delNinoAsk">Quitar de la lista</button></span></div>
+    </form>
+  </section>`;
+}
+function vAsis(){
+  const f = ui.fechaAsis, mes = f.slice(0,7), dia = st.asis[mes]?.[f] || {};
+  const N = ninosOrden();
+  const cnt = k => Object.values(dia).filter(v=>v===k).length;
+  return `<div class="head"><div><div class="eyebrow">Asistencia</div><h1>${esc(fmtLargo(f))}</h1></div>
+    <div class="row"><input type="date" id="asisFecha" value="${f}" style="width:auto"><button class="btn" data-act="todosP" ${N.length?"":"disabled"}>Todos presentes</button></div></div>
+  ${N.length? `<div class="row"><span class="pill" style="background:var(--ok-soft);color:var(--ok)">${cnt("P")} presentes</span><span class="pill" style="background:var(--sun-soft);color:var(--warn)">${cnt("T")} tardanzas</span><span class="pill" style="background:var(--bad-soft);color:var(--bad)">${cnt("F")} faltas</span><span class="pill">${cnt("J")} justificadas</span><span class="pill">${N.length-Object.keys(dia).length} sin marcar</span></div>
+  <div class="panel" style="padding:4px 6px;gap:0">${N.map(n=>`<div class="att"><span class="av" style="width:32px;height:32px;font-size:.8rem">${esc(iniciales(n.nombre))}</span><span class="grow">${esc(n.nombre)}</span>
+    <div class="seg" role="group" aria-label="Asistencia de ${esc(n.nombre)}">${["P","T","F","J"].map(k=>`<button class="${k}" data-act="marca" data-id="${n.id}" data-k="${k}" aria-pressed="${dia[n.id]===k}" title="${({P:"Presente",T:"Tardanza",F:"Falta",J:"Falta justificada"})[k]}">${k}</button>`).join("")}</div></div>`).join("")}</div>
+  <p class="small muted">P presente · T tardanza · F falta · J falta justificada. Exporta el mes en “Más”.</p>` : vacioNinos()}`;
+}
+function vAgenda(){
+  const [y,m] = ui.mes.split("-").map(Number), first = new Date(y,m-1,1), t = hoy();
+  const start = new Date(first); start.setDate(1 - ((first.getDay()+6)%7));
+  const conEv = new Set(st.agenda.map(e=>e.fecha));
+  let cells = ""; for(let i=0;i<42;i++){ const d = new Date(start); d.setDate(start.getDate()+i); const iso = isoOf(d);
+    cells += `<button data-act="dia" data-d="${iso}" class="${d.getMonth()!==m-1?"out":""} ${iso===t?"today":""} ${iso===ui.diaSel?"sel":""}" aria-label="${esc(fmtLargo(iso))}">${d.getDate()}${conEv.has(iso)?"<i></i>":""}</button>`; }
+  const delDia = st.agenda.filter(e=>e.fecha===ui.diaSel).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+  const prox = st.agenda.filter(e=>e.fecha>=t).sort((a,b)=>(a.fecha+(a.hora||"")).localeCompare(b.fecha+(b.hora||""))).slice(0,10);
+  const evRow = e => `<div class="ev"><div class="d">${esc(fmtCorto(e.fecha))}</div><div style="min-width:0"><b>${esc(e.titulo)}</b><div class="small muted">${esc(e.tipo)}${e.hora?" · "+esc(e.hora):""}${e.nota?" · "+esc(e.nota):""}</div></div><button class="btn sm ghost danger" data-act="delEv" data-id="${e.id}" aria-label="Eliminar ${esc(e.titulo)}">✕</button></div>`;
+  return `<div class="head"><div><div class="eyebrow">Agenda</div><h1>${MESES[m-1][0].toUpperCase()+MESES[m-1].slice(1)} ${y}</h1></div>
+    <div class="row"><button class="btn sm" data-act="mes" data-d="-1" aria-label="Mes anterior">‹</button><button class="btn sm" data-act="mesHoy">Hoy</button><button class="btn sm" data-act="mes" data-d="1" aria-label="Mes siguiente">›</button></div></div>
+  <div class="grid2">
+    <div class="panel"><div class="cal">${["lun","mar","mié","jue","vie","sáb","dom"].map(d=>`<span class="dn">${d}</span>`).join("")}${cells}</div></div>
+    <form class="panel" id="formEv"><h3>Agregar el ${esc(fmtCorto(ui.diaSel))}</h3>
+      <label class="f">Título<input type="text" id="evTit" required placeholder="Ej. Reunión con familias"></label>
+      <div class="grid2"><label class="f">Tipo<select id="evTipo">${EV_TIPOS.map(x=>`<option>${x}</option>`).join("")}</select></label><label class="f">Hora<input type="time" id="evHora"></label></div>
+      <label class="f">Nota<input type="text" id="evNota" placeholder="Lugar, materiales, pendientes…"></label>
+      <button class="btn primary" type="submit">${ico("plus")}Agregar</button>
+      ${delDia.length? `<div>${delDia.map(evRow).join("")}</div>` : `<p class="small muted">Nada programado este día.</p>`}
+    </form>
+  </div>
+  <section class="panel"><h2>Próximas actividades</h2>${prox.length? prox.map(evRow).join("") : `<p class="muted small">Sin actividades próximas.</p>`}</section>`;
+}
+const PLANTILLAS = {
+  "Comunicado a las familias":"Redacta un comunicado breve y cálido para madres, padres y apoderados. Incluye saludo, mensaje principal, fecha y hora si las hay, lo que deben traer o hacer, y despedida firmada por la docente.",
+  "Acta de reunión con familias":"Redacta un acta formal de reunión: lugar, fecha y hora, asistentes, agenda, acuerdos numerados, responsables y firmas (deja líneas para firmar).",
+  "Informe de incidencia":"Redacta un informe de incidencia objetivo: datos generales, descripción de los hechos sin juicios de valor, acciones inmediatas tomadas, comunicación a la familia y seguimiento previsto.",
+  "Experiencia de aprendizaje (borrador)":"Redacta un borrador de experiencia de aprendizaje para inicial: título, situación significativa, propósito, competencias y desempeños del CNEB, actividades sugeridas por días, evidencias y criterios de evaluación.",
+  "Reflexión docente semanal":"Ayuda a redactar una reflexión docente en primera persona: qué funcionó, qué dificultades hubo, qué aprendieron los niños y qué ajustaré la próxima semana.",
+  "Mejorar redacción":"Mejora la redacción del texto: ortografía, claridad, tono profesional y respetuoso. Mantén el contenido y no inventes datos."
+};
+function vMas(){
+  const p = st.perfil;
+  return `<div class="head"><div><div class="eyebrow">Herramientas</div><h1>Redactar, exportar y perfil</h1></div></div>
+  <section class="panel"><h2>Asistente de redacción</h2>
+    <label class="f">¿Qué necesitas?<select id="plTipo">${Object.keys(PLANTILLAS).map(k=>`<option>${esc(k)}</option>`).join("")}</select></label>
+    <label class="f">Tus notas o ideas <span class="h">Escribe o dicta en desorden; el asistente lo ordena</span><textarea id="plNotas" placeholder="Ej. reunión viernes 22 a las 3pm, traer DNI del niño, hablar de la salida a la granja, cuota de S/ 5 para la movilidad"></textarea></label>
+    <div class="row">${micBtn("plNotas")}<button class="btn sun" data-act="redactar">${ico("spark")}Redactar</button><button class="btn sm" data-act="copiarOut" data-out="outPl">Copiar</button></div>
+    <div class="ai-out" id="outPl" hidden></div>
+  </section>
+  <div class="grid2">
+    <form class="panel" id="formPerfil"><h2>Mi perfil</h2>
+      <label class="f">Nombre de la docente<input type="text" id="pNom" value="${esc(p.nombre||"")}"></label>
+      <label class="f">Institución educativa<input type="text" id="pIe" value="${esc(p.ie||"")}" placeholder="Ej. IEI N.° 123 …"></label>
+      <label class="f">Aula / edad<input type="text" id="pAula" value="${esc(p.aula||"")}" placeholder="Ej. Aula Girasoles · 4 años"></label>
+      <label class="f">UGEL<input type="text" id="pUgel" value="${esc(p.ugel||"")}"></label>
+      <button class="btn primary" type="submit">Guardar perfil</button>
+    </form>
+    <section class="panel"><h2>Exportar y respaldo</h2>
+      <label class="f">Asistencia del mes<input type="month" id="expMes" value="${hoy().slice(0,7)}"></label>
+      <button class="btn" data-act="expAsis">${ico("dl")}Descargar asistencia (CSV, abre en Excel)</button>
+      <button class="btn" data-act="backup">${ico("dl")}Descargar respaldo completo (JSON)</button>
+      <label class="f">Restaurar respaldo<input type="file" id="impFile" accept="application/json,.json"></label>
+      <p class="note">Tus datos y fotos se guardan solo en este dispositivo y funcionan sin internet. Si desinstalas la app o borras los datos del navegador, se pierden: descarga un respaldo cada semana y guárdalo en Drive o en tu correo.</p>
+    </section>
+  </div>
+  <section class="panel"><h2>Asistente de IA</h2>
+    <p class="small">Para redactar con IA necesitas una clave API de Anthropic (Claude). Créala en <b>console.anthropic.com</b> › API Keys y carga saldo en la cuenta. Cada redacción cuesta aproximadamente entre 1 y 3 céntimos de dólar. El asistente necesita internet; lo demás funciona sin conexión.</p>
+    <label class="f">Clave API <span class="h">${ajustes.apiKey ? "Guardada: termina en …" + esc(ajustes.apiKey.slice(-4)) : "Aún no configurada"}</span><input type="password" id="iaKey" autocomplete="off" placeholder="sk-ant-…"></label>
+    <div class="row"><button class="btn primary" data-act="guardarClave">Guardar clave</button><button class="btn" data-act="probarClave" ${ajustes.apiKey?"":"disabled"}>Probar</button>${ajustes.apiKey?`<button class="btn danger" data-act="borrarClave">Borrar clave</button>`:""}</div>
+    <div class="ai-out" id="outKey" hidden></div>
+    <p class="note">La clave se guarda solo en este dispositivo y se usa únicamente para hablar con la API de Anthropic. No se incluye en los respaldos.</p>
+  </section>`;
+}
+
+/* ---------- Formulario de registro ---------- */
+function nuevoReg(ninoId){
+  editing = { id:uidGen(), nuevo:true, fecha:hoy(), hora:new Date().toTimeString().slice(0,5), momento:MOMENTOS[1], tipo:"obs", area:"", comp:"", nivel:"", ninos: ninoId?[ninoId]:[], hecho:"", interpretacion:"", acciones:"", fotos:[] };
+  abrirSheet();
+}
+function abrirReg(id){ const r = st.registros[id]; if(!r) return; editing = JSON.parse(JSON.stringify(r)); abrirSheet(); }
+function syncForm(){
+  if(!editing || !$("#rFecha")) return;
+  Object.assign(editing, { fecha:$("#rFecha").value||hoy(), hora:$("#rHora").value, momento:$("#rMom").value, tipo:$("#rTipo").value, area:$("#rArea").value, comp:$("#rComp").value, nivel:$("#rNivel").value, hecho:$("#rHecho").value, interpretacion:$("#rInt").value, acciones:$("#rAcc").value });
+}
+function abrirSheet(){
+  const e = editing, comps = e.area ? AREAS[e.area] : [];
+  $("#sheetRoot").innerHTML = `<div class="sheet-bg" data-act="cerrarBg"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shTit">
+    <div class="sheet-h"><h2 id="shTit">${e.nuevo?"Nuevo registro":"Registro del "+esc(fmtCorto(e.fecha))}</h2><div class="row"><button class="btn ghost" data-act="cerrar">Cancelar</button><button class="btn primary" data-act="guardarReg">Guardar</button></div></div>
+    <div class="grid2">
+      <label class="f">Fecha<input type="date" id="rFecha" value="${e.fecha}"></label>
+      <label class="f">Hora<input type="time" id="rHora" value="${e.hora||""}"></label>
+      <label class="f">Momento de la jornada<select id="rMom">${MOMENTOS.map(x=>`<option ${x===e.momento?"selected":""}>${x}</option>`).join("")}</select></label>
+      <label class="f">Tipo de registro<select id="rTipo">${Object.entries(TIPOS).map(([k,l])=>`<option value="${k}" ${k===e.tipo?"selected":""}>${l}</option>`).join("")}</select></label>
+    </div>
+    <div class="f" style="font-weight:700;font-size:.85rem">Niños y niñas observados
+      ${st.ninos.length? `<div class="chips" id="rNinos">${ninosOrden().map(n=>`<button type="button" class="chip" data-act="chipNino" data-id="${n.id}" aria-pressed="${e.ninos.includes(n.id)}">${esc(n.nombre.split(" ").slice(0,2).join(" "))}</button>`).join("")}<button type="button" class="chip" data-act="chipTodos">Todo el grupo</button></div>` : `<span class="small muted" style="font-weight:400">Agrega niños en la pestaña Niños para etiquetarlos.</span>`}
+    </div>
+    <label class="f">¿Qué observaste? <span class="h">Describe los hechos: qué hizo, qué dijo (entre comillas), con quién, cómo</span><textarea id="rHecho" placeholder="Ej. En el sector de construcción, Mateo agrupó los bloques por color y dijo: “estos rojos son más”. Contó hasta 7 señalando cada bloque.">${esc(e.hecho)}</textarea></label>
+    <div class="row">${micBtn("rHecho")}<button type="button" class="btn sm sun" data-act="iaObjetivo">${ico("spark")}Redactar de forma objetiva</button><button type="button" class="btn sm sun" data-act="iaComp">${ico("spark")}Sugerir competencia</button></div>
+    <div class="ai-out" id="outReg" hidden></div>
+    <div class="row" id="usarBox" hidden><button type="button" class="btn sm primary" data-act="usarTexto">Usar este texto</button><button type="button" class="btn sm ghost" data-act="descartar">Descartar</button></div>
+    <div class="grid2">
+      <label class="f">Área<select id="rArea"><option value="">Sin área</option>${Object.keys(AREAS).map(a=>`<option ${a===e.area?"selected":""}>${esc(a)}</option>`).join("")}</select></label>
+      <label class="f">Nivel de logro (opcional)<select id="rNivel"><option value="">Sin calificar</option>${Object.entries(NIVELES).map(([k,l])=>`<option value="${k}" ${k===e.nivel?"selected":""}>${k} · ${l}</option>`).join("")}</select></label>
+    </div>
+    <label class="f">Competencia<select id="rComp"><option value="">${e.area?"Elige una competencia":"Elige primero un área"}</option>${comps.map(c=>`<option ${c===e.comp?"selected":""}>${esc(c)}</option>`).join("")}</select></label>
+    <label class="f">Interpretación <span class="h">¿Qué evidencia esto sobre su aprendizaje?</span><textarea id="rInt" style="min-height:72px">${esc(e.interpretacion||"")}</textarea></label>
+    <div class="row">${micBtn("rInt")}</div>
+    <label class="f">Acciones o retroalimentación<textarea id="rAcc" style="min-height:64px" placeholder="Ej. Proponer juegos de comparación de cantidades; comentar a la familia.">${esc(e.acciones||"")}</textarea></label>
+    <div class="f" style="font-weight:700;font-size:.85rem">Fotos de evidencia
+      <div class="photo-grid" id="rFotos">${e.fotos.map((f,i)=>`<div class="photo"><img src="${esc(fotoSrc(f))}" alt="Evidencia ${i+1}"><button type="button" data-act="quitarFoto" data-i="${i}" aria-label="Quitar foto">✕</button></div>`).join("")}</div>
+      <div class="row"><label class="btn">${ico("cam")}Tomar o subir fotos<input type="file" id="rFile" accept="image/*" capture="environment" multiple hidden></label>
+      ${caps.sampleImg && e.fotos.length? `<button type="button" class="btn sm sun" data-act="iaFoto">${ico("spark")}Describir la foto</button>`:""}<span class="small muted" id="fotoEstado"></span></div>
+    </div>
+    ${e.nuevo? "" : `<div class="row" id="delRegBox" style="justify-content:flex-end"><button type="button" class="btn danger" data-act="delRegAsk">Eliminar registro</button></div>`}
+  </div></div>`;
+}
+function cerrarSheet(){ if(dictOn) caps.dict?.stop().catch(()=>{}); editing=null; $("#sheetRoot").innerHTML=""; render(); }
+let iaPendiente = "";
+
+/* ---------- Eventos ---------- */
+document.addEventListener("click", async ev => {
+  const b = ev.target.closest("[data-act]"); if(!b) return;
+  const a = b.dataset.act;
+  if(a==="cerrarBg"){ if(ev.target===b) cerrarSheet(); return; }
+  switch(a){
+    case "tab": ui.tab=b.dataset.tab; ui.nino=null; render(); scrollTo(0,0); break;
+    case "nuevoReg": nuevoReg(b.dataset.nino); break;
+    case "openReg": abrirReg(b.dataset.id); break;
+    case "cerrar": cerrarSheet(); break;
+    case "chipNino": { syncForm(); const id=b.dataset.id, i=editing.ninos.indexOf(id); i<0?editing.ninos.push(id):editing.ninos.splice(i,1); b.setAttribute("aria-pressed", i<0); break; }
+    case "chipTodos": { syncForm(); const all = editing.ninos.length===st.ninos.length; editing.ninos = all?[]:st.ninos.map(n=>n.id); document.querySelectorAll('#rNinos [data-act="chipNino"]').forEach(c=>c.setAttribute("aria-pressed", !all)); break; }
+    case "quitarFoto": syncForm(); editing.fotos.splice(+b.dataset.i,1); abrirSheet(); break;
+    case "guardarReg": {
+      syncForm();
+      if(!editing.hecho.trim() && !editing.fotos.length){ toast("Escribe qué observaste o agrega una foto."); return; }
+      const r = {...editing}; delete r.nuevo; r.actualizado = Date.now();
+      saveRegistro(r); toast("Registro guardado"); cerrarSheet(); break;
+    }
+    case "delRegAsk": $("#delRegBox").innerHTML = `<span class="small">¿Eliminar este registro? No se puede deshacer.</span><button type="button" class="btn sm ghost" data-act="delRegNo">No</button><button type="button" class="btn sm danger" data-act="delRegSi">Sí, eliminar</button>`; break;
+    case "delRegNo": $("#delRegBox").innerHTML = `<button type="button" class="btn danger" data-act="delRegAsk">Eliminar registro</button>`; break;
+    case "delRegSi": delRegistro(editing.id); toast("Registro eliminado"); cerrarSheet(); break;
+    case "mic": toggleMic(b.dataset.target); break;
+    case "iaObjetivo": {
+      syncForm(); if(!editing.hecho.trim()){ toast("Primero escribe o dicta tus notas."); return; }
+      const out = $("#outReg"); out.hidden=false; $("#usarBox").hidden=true;
+      const nombres = editing.ninos.map(ninoNom).join(", ");
+      const t = await ia(`Convierte estas notas en un registro de cuaderno de campo (observación) bien redactado. Reglas: describe solo hechos observables, en tercera persona y pasado; usa los nombres; cita entre comillas lo que dijeron los niños si aparece; sin juicios de valor ni diagnósticos (evita palabras como "flojo", "hiperactivo", "malcriado"); máximo 6 oraciones; no inventes datos. Devuelve solo el texto final.\n\nMomento: ${editing.momento}\nNiños: ${nombres||"no indicado"}\nNotas: ${editing.hecho}`, out);
+      if(t){ iaPendiente = {campo:"rHecho", texto:t}; $("#usarBox").hidden=false; }
+      break;
+    }
+    case "iaComp": {
+      syncForm(); if(!editing.hecho.trim()){ toast("Primero describe la observación."); return; }
+      const out = $("#outReg"); out.hidden=false; $("#usarBox").hidden=true;
+      out.classList.add("loading"); out.textContent="Analizando…";
+      try{
+        const lista = Object.entries(AREAS).map(([ar,cs])=>`${ar}: ${cs.join(" | ")}`).join("\n");
+        const t = await iaTexto(`Según esta observación de educación inicial, elige el área y la competencia del CNEB que mejor evidencia, y redacta una interpretación breve (2 oraciones) de lo que muestra sobre su aprendizaje, sin calificar. Responde SOLO con un objeto JSON, sin texto antes ni después: {"area": "...", "competencia": "...", "interpretacion": "..."} usando textos EXACTOS de esta lista:\n${lista}\n\nObservación: ${editing.hecho}`);
+        let r = null; try{ r = JSON.parse(t.match(/\{[\s\S]*\}/)?.[0] || "null"); }catch{}
+        out.classList.remove("loading");
+        if(r && AREAS[r.area]){ out.textContent = `Área: ${r.area}\nCompetencia: ${r.competencia}\n\n${r.interpretacion||""}`; iaPendiente = {comp:r}; $("#usarBox").hidden=false; }
+        else out.textContent = "No encontré una competencia clara. Elígela manualmente.";
+      }catch(e){ out.classList.remove("loading"); out.textContent = MSG_IA[e?.code] || MSG_IA.otro; }
+      break;
+    }
+    case "iaFoto": {
+      syncForm(); const out = $("#outReg"); out.hidden=false; $("#usarBox").hidden=true;
+      try{
+        const blob = await (await fetch(fotoSrc(editing.fotos[0]))).blob();
+        const t = await ia(`Describe de forma objetiva lo que se observa en esta foto de evidencia de un aula de inicial: qué están haciendo los niños, con qué materiales y cómo. 3 a 4 oraciones, sin juicios de valor, sin suponer nombres ni datos que no se ven. Devuelve solo el texto.${editing.hecho?"\nContexto de la docente: "+editing.hecho:""}`, out, {images:[blob]});
+        if(t){ iaPendiente = {campo:"rHecho", texto:(editing.hecho? editing.hecho.trim()+"\n\n":"")+t}; $("#usarBox").hidden=false; }
+      }catch{ out.textContent="No se pudo leer la foto."; }
+      break;
+    }
+    case "usarTexto": {
+      if(iaPendiente.campo){ $("#"+iaPendiente.campo).value = iaPendiente.texto; }
+      else if(iaPendiente.comp){ const c=iaPendiente.comp; syncForm(); editing.area=c.area; editing.comp=AREAS[c.area].includes(c.competencia)?c.competencia:""; if(!editing.interpretacion.trim()) editing.interpretacion=c.interpretacion||""; abrirSheet(); return; }
+      $("#outReg").hidden=true; $("#usarBox").hidden=true; break;
+    }
+    case "descartar": $("#outReg").hidden=true; $("#usarBox").hidden=true; break;
+    case "ficha": ui.nino=b.dataset.id; render(); scrollTo(0,0); break;
+    case "volverNinos": ui.nino=null; render(); break;
+    case "delNinoAsk": $("#delNinoBox").innerHTML = `<span class="small">¿Quitar de la lista? Sus registros se conservan.</span> <button type="button" class="btn sm ghost" data-act="delNinoNo">No</button><button type="button" class="btn sm danger" data-act="delNinoSi">Sí, quitar</button>`; break;
+    case "delNinoNo": render(); break;
+    case "delNinoSi": st.ninos = st.ninos.filter(n=>n.id!==ui.nino); saveNinos(); ui.nino=null; toast("Quitado de la lista"); render(); break;
+    case "conclusion": {
+      const id=b.dataset.id, n=st.ninos.find(x=>x.id===id), area=$("#cdArea").value.replace(/ \(\d+\)$/,""), desde=$("#cdDesde").value||"0000";
+      const R = regs().filter(r=>r.ninos?.includes(id) && r.fecha>=desde && (!r.area || r.area===area)).reverse();
+      const out=$("#outCd"); out.hidden=false;
+      if(!R.length){ out.textContent="No hay registros de esta área en el periodo elegido."; return; }
+      const ev = R.map(r=>`- ${r.fecha} (${r.momento||""}${r.comp?"; "+r.comp:""}${r.nivel?"; nivel "+r.nivel:""}): ${r.hecho}${r.interpretacion?" Interpretación: "+r.interpretacion:""}`).join("\n");
+      ia(`Redacta la conclusión descriptiva del área "${area}" para el informe de progreso de ${n.nombre}${n.nac?" ("+edadDe(n.nac)+")":""}. Basate SOLO en estas evidencias. Estructura en un párrafo de 4 a 6 oraciones: lo que logra (con ejemplos concretos), lo que está en proceso, y una recomendación práctica para la familia. Lenguaje positivo y comprensible para las familias. Al final, en una línea aparte, sugiere el nivel de logro (AD, A, B o C) con una breve justificación, marcada como "Sugerencia para la docente".\n\nEvidencias:\n${ev}`, out);
+      break;
+    }
+    case "copiarOut": { const o=$("#"+b.dataset.out); if(o && !o.hidden && o.textContent) copiar(o.textContent,b); else toast("Primero genera un texto."); break; }
+    case "resumenSem": {
+      const t=hoy(), R=regs().filter(r=>diasEntre(r.fecha,t)<7 && diasEntre(r.fecha,t)>=0).reverse(), out=$("#outSem"); out.hidden=false;
+      ia(`Resume la semana a partir de estos registros del cuaderno de campo. Incluye: 1) logros destacados del grupo, 2) niños o niñas que requieren más acompañamiento y en qué, 3) áreas con pocas evidencias, 4) tres sugerencias para la próxima semana. Usa viñetas cortas.\n\n${R.map(r=>`- ${r.fecha} ${r.momento||""} [${(r.ninos||[]).map(ninoNom).join(", ")||"grupo"}] ${r.area||""}: ${r.hecho}`).join("\n")}`, out);
+      break;
+    }
+    case "redactar": {
+      const tipo=$("#plTipo").value, notas=$("#plNotas").value.trim(), out=$("#outPl"); out.hidden=false;
+      if(!notas){ out.textContent="Escribe o dicta tus notas primero."; return; }
+      const p=st.perfil;
+      ia(`${PLANTILLAS[tipo]}\nDatos de la docente: ${p.nombre||"[Nombre de la docente]"}, ${p.ie||"[Institución educativa]"}, ${p.aula||""}, ${p.ugel?"UGEL "+p.ugel:""}. Fecha de hoy: ${fmtLargo(hoy())}. Donde falte un dato, deja un espacio entre corchetes para completarlo; no lo inventes.\n\nNotas de la docente:\n${notas}`, out);
+      break;
+    }
+    case "marca": {
+      const f=ui.fechaAsis, mes=f.slice(0,7); st.asis[mes] ??= {}; st.asis[mes][f] ??= {};
+      const d = st.asis[mes][f]; if(d[b.dataset.id]===b.dataset.k) delete d[b.dataset.id]; else d[b.dataset.id]=b.dataset.k;
+      saveAsis(mes); render(); break;
+    }
+    case "todosP": { const f=ui.fechaAsis, mes=f.slice(0,7); st.asis[mes] ??= {}; const d = st.asis[mes][f] ??= {}; st.ninos.forEach(n=>{ if(!d[n.id]) d[n.id]="P"; }); saveAsis(mes); render(); break; }
+    case "mes": { const [y,m]=ui.mes.split("-").map(Number), d=new Date(y,m-1+Number(b.dataset.d),1); ui.mes=isoOf(d).slice(0,7); render(); break; }
+    case "mesHoy": ui.mes=hoy().slice(0,7); ui.diaSel=hoy(); render(); break;
+    case "dia": ui.diaSel=b.dataset.d; if(ui.diaSel.slice(0,7)!==ui.mes) ui.mes=ui.diaSel.slice(0,7); render(); break;
+    case "delEv": st.agenda = st.agenda.filter(e=>e.id!==b.dataset.id); saveAgenda(); render(); break;
+    case "ejemplo": cargarEjemplo(); break;
+    case "expAsis": exportarAsis(); break;
+    case "backup": respaldo(); break;
+    case "guardarClave": { const k = $("#iaKey").value.trim(); if(k && !k.startsWith("sk-ant-")){ toast("La clave debe empezar con sk-ant-"); return; } ajustes.apiKey = k; guardarAjustes(); toast(k ? "Clave guardada en este dispositivo" : "Clave borrada"); render(); break; }
+    case "borrarClave": ajustes.apiKey = ""; guardarAjustes(); toast("Clave borrada"); render(); break;
+    case "probarClave": { const out = $("#outKey"); out.hidden = false; await ia("Responde solo: «Listo, el asistente funciona.»", out); break; }
+    case "portafolio": portafolio(b.dataset.id); break;
+  }
+});
+document.addEventListener("input", ev => {
+  const id = ev.target.id;
+  if(id==="fq"){ ui.f.q=ev.target.value; clearTimeout(window._fq); window._fq=setTimeout(()=>{ const pos=ev.target.selectionStart; render(); const el=$("#fq"); el.focus(); el.setSelectionRange(pos,pos); },250); }
+});
+document.addEventListener("change", async ev => {
+  const t = ev.target, id = t.id;
+  if(id==="fnino"){ ui.f.nino=t.value; render(); }
+  else if(id==="farea"){ ui.f.area=t.value; render(); }
+  else if(id==="ftipo"){ ui.f.tipo=t.value; render(); }
+  else if(id==="rArea"){ syncForm(); editing.comp=""; abrirSheet(); }
+  else if(id==="asisFecha" && t.value){ ui.fechaAsis=t.value; render(); }
+  else if(id==="rFile" && t.files.length){
+    syncForm(); $("#fotoEstado").textContent = "Guardando fotos…";
+    const nuevas = await subirFotos([...t.files]); if(!editing) return;
+    editing.fotos.push(...nuevas); abrirSheet();
+  }
+  else if(id==="impFile" && t.files[0]){
+    try{ toast("Restaurando…"); await restaurar(t.files[0]); toast("Respaldo restaurado"); render(); }
+    catch{ toast("Ese archivo no es un respaldo válido del cuaderno."); }
+  }
+});
+document.addEventListener("submit", ev => {
+  ev.preventDefault(); const f = ev.target;
+  if(f.id==="formNino"){ const nom=$("#nNom").value.trim(); if(!nom) return; st.ninos.push({id:uidGen(), nombre:nom, nac:$("#nNac").value, apo:$("#nApo").value.trim(), tel:$("#nTel").value.trim(), notas:$("#nNot").value.trim()}); saveNinos(); toast(`${nom} agregado`); render(); $("#nNom").focus(); }
+  else if(f.id==="formEditNino"){ const n=st.ninos.find(x=>x.id===f.dataset.id); Object.assign(n,{nombre:$("#eNom").value.trim()||n.nombre, nac:$("#eNac").value, apo:$("#eApo").value.trim(), tel:$("#eTel").value.trim(), notas:$("#eNot").value.trim()}); saveNinos(); toast("Datos guardados"); render(); }
+  else if(f.id==="formEv"){ const tit=$("#evTit").value.trim(); if(!tit) return; st.agenda.push({id:uidGen(), fecha:ui.diaSel, hora:$("#evHora").value, titulo:tit, tipo:$("#evTipo").value, nota:$("#evNota").value.trim()}); saveAgenda(); toast("Actividad agregada"); render(); }
+  else if(f.id==="formPerfil"){ st.perfil={nombre:$("#pNom").value.trim(), ie:$("#pIe").value.trim(), aula:$("#pAula").value.trim(), ugel:$("#pUgel").value.trim()}; savePerfil(); toast("Perfil guardado"); render(); }
+});
+document.addEventListener("keydown", e => { if(e.key==="Escape" && editing) cerrarSheet(); });
+
+/* ---------- Exportar ---------- */
+async function descargar(nombre, data){
+  const blob = data instanceof Blob ? data : new Blob([data]);
+  if(nativo()){
+    // En la app: guarda el archivo y abre el menú Compartir (WhatsApp, Drive, Gmail, Archivos…)
+    const { Filesystem, Share } = window.Capacitor.Plugins;
+    try{
+      const b64 = String(await blobToDataURL(blob)).split(",")[1];
+      const r = await Filesystem.writeFile({ path:nombre, data:b64, directory:"CACHE" });
+      await Share.share({ title:nombre, dialogTitle:"Guardar o enviar " + nombre, files:[r.uri] });
+    }catch(e){ if(!/cancel/i.test(String(e?.message||e))) toast("No se pudo compartir el archivo."); }
+    return;
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  toast("Archivo descargado");
+}
+async function respaldo(){
+  toast("Preparando respaldo…");
+  const copia = JSON.parse(JSON.stringify(st));
+  for(const r of Object.values(copia.registros)){
+    r.fotos = await Promise.all((r.fotos||[]).map(async f => { if(!f.fid) return f; const b = await fotoGet(f.fid).catch(()=>null); return b ? {src: await blobToDataURL(b)} : null; }));
+    r.fotos = r.fotos.filter(Boolean);
+  }
+  descargar(`cuaderno-respaldo-${hoy()}.json`, JSON.stringify(copia));
+}
+async function restaurar(file){
+  const j = JSON.parse(await file.text());
+  if(!Array.isArray(j.ninos) || typeof j.registros!=="object") throw 0;
+  for(const r of Object.values(j.registros)){
+    r.fotos = await Promise.all((r.fotos||[]).map(async f => {
+      if(!f.src?.startsWith("data:")) return null;
+      const b = await (await fetch(f.src)).blob(), fid = uidGen();
+      await fotoSet(fid, b); fotoURLs.set(fid, URL.createObjectURL(b)); return {fid};
+    }));
+    r.fotos = r.fotos.filter(Boolean);
+  }
+  st = { perfil:j.perfil||{}, ninos:j.ninos, agenda:j.agenda||[], registros:j.registros, asis:j.asis||{} };
+  guardar();
+}
+function exportarAsis(){
+  const mes = $("#expMes").value || hoy().slice(0,7), dias = st.asis[mes] || {};
+  const fechas = Object.keys(dias).sort();
+  if(!fechas.length){ toast("No hay asistencia registrada en ese mes."); return; }
+  const q = s => `"${String(s).replace(/"/g,'""')}"`;
+  const filas = [["N.°","Nombre",...fechas.map(f=>parseISO(f).getDate()),"P","T","F","J"].map(q).join(";")];
+  ninosOrden().forEach((n,i)=>{ const v=fechas.map(f=>dias[f][n.id]||""); const c=k=>v.filter(x=>x===k).length; filas.push([i+1,n.nombre,...v,c("P"),c("T"),c("F"),c("J")].map(q).join(";")); });
+  descargar(`asistencia-${mes}.csv`, "﻿"+filas.join("\r\n"));
+}
+async function portafolio(id){
+  const n = st.ninos.find(x=>x.id===id), R = regs().filter(r=>r.ninos?.includes(id)).reverse(), p = st.perfil;
+  toast("Preparando portafolio…");
+  const fotoData = async f => { if(f.src) return f.src; try{ return await blobToDataURL(await fotoGet(f.fid)); }catch{ return ""; } };
+  let cuerpo = "";
+  for(const r of R){
+    const imgs = (await Promise.all((r.fotos||[]).map(fotoData))).filter(Boolean).map(s=>`<img src="${s}">`).join("");
+    cuerpo += `<article><h3>${esc(fmtLargo(r.fecha))} · ${esc(r.momento||"")}</h3><p class="m">${esc(TIPOS[r.tipo]||"")}${r.area?" · "+esc(r.area):""}${r.comp?" · "+esc(r.comp):""}${r.nivel?" · Nivel "+r.nivel:""}</p><p>${esc(r.hecho)}</p>${r.interpretacion?`<p><b>Interpretación:</b> ${esc(r.interpretacion)}</p>`:""}${r.acciones?`<p><b>Acciones:</b> ${esc(r.acciones)}</p>`:""}<div class="g">${imgs}</div></article>`;
+  }
+  const a = asisNino(id);
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Portafolio de ${esc(n.nombre)}</title><style>body{font-family:system-ui,sans-serif;max-width:800px;margin:24px auto;padding:0 16px;color:#1E2B3A;line-height:1.5}h1{margin-bottom:0}article{border-top:1px solid #ccc;padding:12px 0;break-inside:avoid}.m{color:#5B6B78;font-size:.9em}.g{display:flex;flex-wrap:wrap;gap:8px}.g img{width:220px;border-radius:8px}</style></head><body><h1>Portafolio de evidencias</h1><h2>${esc(n.nombre)}</h2><p>${esc(p.ie||"")} ${p.aula?"· "+esc(p.aula):""} ${p.nombre?"· Docente: "+esc(p.nombre):""}<br>Asistencia: ${a.pct===null?"sin datos":a.pct+"% ("+a.F+" faltas, "+a.T+" tardanzas)"} · Generado el ${esc(fmtLargo(hoy()))}</p>${cuerpo||"<p>Sin registros.</p>"}</body></html>`;
+  descargar(`portafolio-${n.nombre.split(" ").slice(0,2).join("-").toLowerCase()}.html`, html);
+}
+
+/* ---------- Ejemplo ---------- */
+function cargarEjemplo(){
+  const nombres = [["Valentina Quispe Huamán","2021-04-12","Rosa Huamán"],["Mateo Flores Ccori","2021-02-03","Luis Flores"],["Camila Rojas Mamani","2021-08-21","Elena Mamani"],["Thiago Condori Paredes","2021-06-30","Juana Paredes"],["Luciana Torres Apaza","2021-01-17","Carlos Torres"],["Santiago Huanca Ríos","2021-10-05","Marta Ríos"]];
+  const ids = nombres.map(([nombre,nac,apo]) => { const n={id:uidGen(), nombre, nac, apo, tel:"", notas:"(Ejemplo)"}; st.ninos.push(n); return n.id; });
+  saveNinos();
+  const d = k => { const x=new Date(); x.setDate(x.getDate()-k); return isoOf(x); };
+  [
+    {fecha:d(0), momento:"Juego libre en sectores", tipo:"obs", area:"Matemática", comp:"Resuelve problemas de cantidad", nivel:"A", ninos:[ids[1]], hecho:"(Ejemplo) En el sector de construcción, Mateo agrupó los bloques por color y dijo: “los rojos son más”. Contó hasta 7 señalando cada bloque."},
+    {fecha:d(1), momento:"Experiencia de aprendizaje", tipo:"logro", area:"Comunicación", comp:"Se comunica oralmente en su lengua materna", ninos:[ids[0],ids[2]], hecho:"(Ejemplo) Durante la asamblea, Valentina y Camila contaron a sus compañeros cómo sembraron una planta en casa, siguiendo el orden de los pasos."},
+    {fecha:d(2), momento:"Alimentación y recreo", tipo:"anec", area:"Personal Social", comp:"Convive y participa democráticamente en la búsqueda del bien común", ninos:[ids[3]], hecho:"(Ejemplo) Thiago quiso el columpio que usaba un compañero. Esperó su turno después de que la docente le recordó el acuerdo del aula."},
+    {fecha:d(3), momento:"Taller", tipo:"obs", area:"Psicomotriz", comp:"Se desenvuelve de manera autónoma a través de su motricidad", ninos:[ids[4]], hecho:"(Ejemplo) En el taller de psicomotricidad, Luciana trepó la escalera de madera, alternando pies y manos sin ayuda."}
+  ].forEach(r => saveRegistro({id:uidGen(), hora:"09:30", interpretacion:"", acciones:"", fotos:[], ...r, ninos:r.ninos}));
+  const f = k => { const x=new Date(); x.setDate(x.getDate()+k); return isoOf(x); };
+  st.agenda.push({id:uidGen(), fecha:f(2), hora:"15:00", titulo:"(Ejemplo) Reunión con familias", tipo:"Reunión", nota:"Aula, llevar lista de acuerdos"},{id:uidGen(), fecha:f(9), hora:"", titulo:"(Ejemplo) Avance de informes de progreso", tipo:"Entrega de documentos", nota:""});
+  saveAgenda();
+  toast("Datos de ejemplo cargados. Puedes borrarlos cuando quieras."); render();
+}
+
+iniciar();
+</script>
+</body>
+</html>

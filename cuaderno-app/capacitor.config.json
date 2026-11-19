@@ -1,0 +1,6 @@
+{
+  "appId": "pe.cuadernoinicial.app",
+  "appName": "Cuaderno de Campo",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}

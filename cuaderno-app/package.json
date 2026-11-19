@@ -1,0 +1,25 @@
+{
+  "name": "cuaderno-campo-inicial",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cuaderno de campo para docentes de educación inicial (CNEB, Perú)",
+  "scripts": {
+    "build:ia": "esbuild src/ia.js --bundle --format=iife --minify --target=es2020 --outfile=www/vendor/ia.js",
+    "build": "npm run build:ia && npx cap sync android",
+    "apk": "npm run build && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.10.0",
+    "@capacitor-community/speech-recognition": "^6.0.1",
+    "@capacitor/android": "^6.2.3",
+    "@capacitor/core": "^6.2.3",
+    "@capacitor/filesystem": "^6.0.4",
+    "@capacitor/share": "^6.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.3",
+    "@fontsource/baloo-2": "^5.3.0",
+    "@fontsource/nunito-sans": "^5.3.0",
+    "esbuild": "^0.28.2"
+  }
+}
