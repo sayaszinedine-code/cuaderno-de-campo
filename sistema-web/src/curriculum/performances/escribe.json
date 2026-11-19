@@ -1,0 +1,12 @@
+{
+  "competencyId": "escribe",
+  "byAge": {
+    "4y": [
+      "Escribe por propia iniciativa y a su manera sobre lo que le interesa. Utiliza trazos, grafismos u otras formas para expresar sus ideas y emociones a través de una nota, para relatar una vivencia o un cuento."
+    ],
+    "5y": [
+      "Escribe por propia iniciativa y a su manera sobre lo que le interesa: considera a quién le escribirán y para qué lo escribirá; utiliza trazos, grafismos, letras ordenadas de izquierda a derecha y sobre una línea imaginaria para expresar sus ideas o emociones en torno a un tema a través de una nota o carta, para relatar una vivencia o un cuento.",
+      "Revisa el escrito que ha dictado, en función de lo que quiere comunicar."
+    ]
+  }
+}
