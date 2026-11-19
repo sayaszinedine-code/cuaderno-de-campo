@@ -1,9 +1,11 @@
 import type { Storage } from "@/storage/types";
-import { profilePath, yearDataPath } from "./paths";
+import { notesPath, profilePath, yearDataPath } from "./paths";
 import {
   SCHEMA_VERSION,
+  notesFileSchema,
   profileFileSchema,
   yearDataSchema,
+  type NotesFile,
   type Period,
   type TeacherProfile,
   type YearData,
@@ -46,6 +48,9 @@ export interface WorkspaceRepo {
   /** Returns a default (unsaved) YearData when the file does not exist. */
   loadYear(y: number): Promise<YearData>;
   saveYear(d: YearData, opts?: SaveOptions): Promise<void>;
+  /** Returns an empty (unsaved) NotesFile when the file does not exist. */
+  loadNotes(y: number): Promise<NotesFile>;
+  saveNotes(f: NotesFile, opts?: SaveOptions): Promise<void>;
 }
 
 function parseFile<T>(
@@ -117,6 +122,19 @@ export function createWorkspaceRepo(storage: Storage): WorkspaceRepo {
       const data = yearDataSchema.parse(d);
       await guardExisting(yearDataPath(data.schoolYear), yearDataSchema, opts);
       await storage.writeTextAtomic(yearDataPath(data.schoolYear), JSON.stringify(data, null, 2));
+    },
+
+    async loadNotes(y) {
+      const path = notesPath(y);
+      const text = await storage.readText(path);
+      if (text === null) return { version: SCHEMA_VERSION, schoolYear: y, notes: [] };
+      return parseFile(path, text, notesFileSchema);
+    },
+
+    async saveNotes(f, opts) {
+      const data = notesFileSchema.parse(f);
+      await guardExisting(notesPath(data.schoolYear), notesFileSchema, opts);
+      await storage.writeTextAtomic(notesPath(data.schoolYear), JSON.stringify(data, null, 2));
     },
   };
 }

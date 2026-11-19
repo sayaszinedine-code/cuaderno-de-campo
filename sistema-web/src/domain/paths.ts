@@ -1,4 +1,4 @@
-import type { Classroom, Student } from "./schema";
+import type { Classroom, FieldNote, Student } from "./schema";
 
 /** Strips path-hostile characters, collapses spaces, caps at 80 chars; never empty or dot-only. */
 export function safeName(s: string): string {
@@ -13,6 +13,7 @@ export function safeName(s: string): string {
 
 export const profilePath = () => "datos/perfil.json";
 export const yearDataPath = (y: number) => `${y}/datos/anio.json`;
+export const notesPath = (y: number) => `${y}/datos/cuaderno.json`;
 
 function bandsLabel(bands: Classroom["bands"]): string {
   if (bands.length !== 1) return "multiedad";
@@ -36,4 +37,12 @@ export function studentDir(
   s: Pick<Student, "id" | "firstNames" | "lastNames">,
 ): string {
   return `${classroomDir(y, c)}Niños/${withIdSuffix(`${safeName(s.lastNames)}, ${safeName(s.firstNames)}`, s.id)}/`;
+}
+
+export function noteDir(
+  y: number,
+  c: Pick<Classroom, "id" | "name" | "bands">,
+  note: Pick<FieldNote, "id" | "date">,
+): string {
+  return `${classroomDir(y, c)}Cuaderno de campo/${withIdSuffix(note.date, note.id)}/`;
 }

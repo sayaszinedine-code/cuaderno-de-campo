@@ -66,6 +66,61 @@ const yearDataShape = z.object({
   students: z.array(studentShape),
 });
 
+export const NOTE_KINDS = ["obs", "anec", "logro", "fam", "otro"] as const;
+export const NOTE_KIND_LABELS: Record<(typeof NOTE_KINDS)[number], string> = {
+  obs: "Observación",
+  anec: "Anécdota / incidencia",
+  logro: "Logro",
+  fam: "Reunión con familia",
+  otro: "Otro",
+};
+export const MOMENTS = [
+  "Recepción y rutinas",
+  "Juego libre en sectores",
+  "Experiencia de aprendizaje",
+  "Taller",
+  "Alimentación y recreo",
+  "Aseo y descanso",
+  "Salida",
+  "Fuera del aula / visita",
+] as const;
+export const LEVELS = ["AD", "A", "B", "C"] as const;
+
+const selectedPerformanceShape = z.object({
+  competencyId: z.string(),
+  band: ageBand,
+  text: z.string(),
+});
+
+const fieldNoteShape = z.object({
+  id: z.string().min(1),
+  date: isoDate,
+  classroomId: z.string().min(1),
+  studentIds: z.array(z.string()),
+  wholeGroup: z.boolean(),
+  moment: z.string(),
+  kind: z.enum(NOTE_KINDS),
+  areaId: z.string().optional(),
+  competencyId: z.string().optional(),
+  performances: z.array(selectedPerformanceShape.loose()),
+  evidenceText: z.string(),
+  evidence: z.array(z.string()),
+  interpretation: z.string(),
+  reflection: z.string(),
+  level: z.enum(LEVELS).optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const notesFileShape = z.object({
+  version: z.literal(SCHEMA_VERSION),
+  schoolYear: z.number().int().min(1000).max(9999),
+  notes: z.array(fieldNoteShape),
+});
+
+export const fieldNoteSchema = fieldNoteShape.loose();
+export const notesFileSchema = notesFileShape.extend({ notes: z.array(fieldNoteSchema) }).loose();
+
 export const teacherProfileSchema = teacherProfileShape.loose();
 
 /** On-disk shape of the profile: the profile plus the schema version. */
@@ -99,3 +154,8 @@ export type Period = z.infer<typeof periodShape>;
 export type Classroom = z.infer<typeof classroomShape>;
 export type Student = z.infer<typeof studentShape>;
 export type YearData = z.infer<typeof yearDataShape>;
+export type NoteKind = (typeof NOTE_KINDS)[number];
+export type Level = (typeof LEVELS)[number];
+export type SelectedPerformance = z.infer<typeof selectedPerformanceShape>;
+export type FieldNote = z.infer<typeof fieldNoteShape>;
+export type NotesFile = z.infer<typeof notesFileShape>;
