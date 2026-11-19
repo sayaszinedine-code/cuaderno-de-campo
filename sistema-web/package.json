@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "pree2e": "NEXT_PUBLIC_SUPABASE_URL=https://test.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=test-anon-key next build",
     "e2e": "playwright test",
     "typecheck": "tsc --noEmit"
   },
