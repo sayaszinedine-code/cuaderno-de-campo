@@ -1,0 +1,105 @@
+{
+  "competencyId": "resuelve-cantidad",
+  "byAge": {
+    "9m": [
+      {
+        "text": "Descubre algunas características perceptuales de los objetos de su entorno inmediato durante la exploración con todos sus sentidos y según sus intereses.",
+        "example": "Un bebé manipula una sonaja, descubre que suena y la vuelve a agitar para escucharla."
+      }
+    ],
+    "18m": [
+      {
+        "text": "Establece relaciones entre las características perceptuales y los usos que le asigna a los objetos de su entorno inmediato durante la exploración con todos sus sentidos y según sus intereses.",
+        "example": "Un niño junta aquellos objetos que le gustan o guarda en una bolsa lo que va a usar para jugar con su muñeco."
+      }
+    ],
+    "24m": [
+      {
+        "text": "Establece relaciones entre las características perceptuales que le asigna a los objetos de su entorno, los junta o separa durante la exploración con todos sus sentidos, según sus intereses y con una intención determinada.",
+        "example": "Una niña quiere jugar a la granja. Para ello, junta palitos, animalitos de juguete, bloques y construye un corral."
+      },
+      {
+        "text": "Utiliza gestos, movimientos y/u otras expresiones no verbales en respuesta a preguntas o expresiones que surgen en la vida cotidiana relacionadas con la cantidad y el tiempo."
+      }
+    ],
+    "36m": [
+      {
+        "text": "Establece relaciones entre las características perceptuales de los objetos en su entorno, los agrupa, empareja, separa y ordena durante la exploración con todos sus sentidos, y según sus intereses y propios criterios.",
+        "example": "Un niño, jugando a la casita, junta una taza con un platito para servir el té."
+      },
+      {
+        "text": "Utiliza gestos, movimientos y otras expresiones no verbales y verbales, en respuesta a preguntas o expresiones que surgen en la vida cotidiana, y están relacionadas con la cantidad y el tiempo.",
+        "example": "Un niño dice: “Dame más”, al comer algo que le gusta. O dice: “Un ratito más”, cuando quiere seguir jugando."
+      }
+    ],
+    "3y": [
+      {
+        "text": "Establece relaciones entre los objetos de su entorno según sus características perceptuales al comparar y agrupar aquellos objetos similares que le sirven para algún fin, y dejar algunos elementos sueltos.",
+        "example": "Al llegar a su aula, un niño elige ir al sector del hogar y busca entre los objetos lo que le servirá para cocinar y servir la comida a sus hijitos. Selecciona las verduras, frutas, platos, cubiertos y ollas; sin embargo, deja de lado un peluche y un peine, que no le son de utilidad para su juego."
+      },
+      {
+        "text": "Usa algunas expresiones que muestran su comprensión acerca de la cantidad, peso y el tiempo –“muchos”, “pocos”, “pesa mucho”, “pesa poco”, “un ratito”– en situaciones cotidianas.",
+        "example": "Un niño trata de cargar una caja grande llena de juguetes y dice: “Uhmm… no puedo, pesa mucho”."
+      },
+      {
+        "text": "Utiliza el conteo espontáneo en situaciones cotidianas siguiendo un orden no convencional respecto de la serie numérica.",
+        "example": "Al jugar a las escondidas, una niña cuenta con los ojos cerrados: “Uno, dos, cinco, nueve, veinte...”."
+      }
+    ],
+    "4y": [
+      {
+        "text": "Establece relaciones entre los objetos de su entorno según sus características perceptuales al comparar y agrupar aquellos objetos similares que le sirven para algún fin, y dejar algunos elementos sueltos.",
+        "example": "Una niña quiere construir una casa y para ello selecciona de sus bloques de madera aquellos que le pueden servir, y realiza su construcción colocando los más pequeños y livianos encima, y los más grandes y pesados como base."
+      },
+      {
+        "text": "Realiza seriaciones por tamaño de hasta tres objetos.",
+        "example": "Luisa ayuda a su mamá a ordenar los platos en la cocina. Ella decide colocar primero los platos grandes, luego los medianos y después los pequeños."
+      },
+      {
+        "text": "Establece correspondencia uno a uno en situaciones cotidianas.",
+        "example": "Durante el juego libre en los sectores, Oscar juega al restaurante en el sector del hogar con sus compañeros. Prepara el almuerzo, una vez que está listo pone la mesa, coloca una cuchara y un vaso para cada uno, y luego reparte un plato con comida para cada uno."
+      },
+      {
+        "text": "Usa algunas expresiones que muestran su comprensión acerca de la cantidad, el tiempo y el peso –“muchos”, “pocos”, “pesa mucho”, “pesa poco”, “antes” o “después”– en situaciones cotidianas.",
+        "example": "Un niño comenta: “Nos toca comer los alimentos que hemos traído, pero antes tenemos que lavarnos las manos”."
+      },
+      {
+        "text": "Utiliza el conteo hasta 5, en situaciones cotidianas en las que requiere contar, empleando material concreto o su propio cuerpo.",
+        "example": "Una niña va la granja de su IE y de vuelta al aula le dice a su docente: “Las gallinas han puesto cinco huevos”."
+      },
+      {
+        "text": "Utiliza los números ordinales “primero”, “segundo” y “tercero” para establecer la posición de un objeto o persona en situaciones cotidianas, empleando, en algunos casos, materiales concreto.",
+        "example": "Una niña pide ser la primera en patear la pelota, otro niño pide ser el segundo y, Adriano, ser el tercero."
+      }
+    ],
+    "5y": [
+      {
+        "text": "Establece relaciones entre los objetos de su entorno según sus características perceptuales al comparar y agrupar, y dejar algunos elementos sueltos. El niño dice el criterio que usó para agrupar.",
+        "example": "Después de una salida al parque, la docente les pregunta a los niños cómo creen que pueden agrupar las cosas que han traído. Un niño, después de observar y comparar las cosas que ha recolectado, dice que puede separar las piedritas de las hojas de los árboles."
+      },
+      {
+        "text": "Realiza seriaciones por tamaño, longitud y grosor hasta con cinco objetos.",
+        "example": "Durante su juego, Oscar ordena sus bloques de madera formando cinco torres de diferentes tamaños. Las ordena desde la más pequeña hasta la más grande."
+      },
+      {
+        "text": "Establece correspondencia uno a uno en situaciones cotidianas.",
+        "example": "Antes de desarrollar una actividad de dibujo, la docente le pide a una niña que le ayude a repartir los materiales a sus compañeros. Le comenta que a cada mesa le tocará un pliego de cartulina y le pregunta: “¿Cuántas cartulinas necesitaremos?”. La niña cuenta las mesas y dice: “seis cartulinas”."
+      },
+      {
+        "text": "Usa diversas expresiones que muestran su comprensión sobre la cantidad, el peso y el tiempo –“muchos”, “pocos”, “ninguno”, “más que”, “menos que”, “pesa más”, “pesa menos”, “ayer”, “hoy” y “mañana”–, en situaciones cotidianas.",
+        "example": "Un niño señala el calendario y le dice a su docente: “Faltan pocos días para el paseo”."
+      },
+      {
+        "text": "Utiliza el conteo hasta 10, en situaciones cotidianas en las que requiere contar, empleando material concreto o su propio cuerpo.",
+        "example": "Los niños al jugar tumbalatas. Luego de lanzar la pelota, cuentan y dicen: “¡Tumbamos 10 latas!”."
+      },
+      {
+        "text": "Utiliza los números ordinales “primero”, “segundo”, “tercero”, “cuarto” y “quinto” para establecer el lugar o posición de un objeto o persona, empleando material concreto o su propio cuerpo.",
+        "example": "Una niña cuenta cómo se hace una ensalada de frutas. Dice: “Primero, eliges las frutas que vas a usar; segundo, lavas las frutas; tercero, las pelas y cortas en trozos; y, cuarto, las pones en un plato y las mezclas con una cuchara”."
+      },
+      {
+        "text": "Utiliza el conteo en situaciones cotidianas en las que requiere juntar, agregar o quitar hasta cinco objetos."
+      }
+    ]
+  }
+}

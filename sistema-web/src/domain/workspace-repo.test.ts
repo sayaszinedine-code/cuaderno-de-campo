@@ -1,0 +1,149 @@
+import { describe, expect, it } from "vitest";
+import { MemoryStorage } from "@/storage/memory";
+import { WorkspaceDataError, createWorkspaceRepo, defaultPeriods } from "./workspace-repo";
+import type { TeacherProfile, YearData } from "./schema";
+
+const profile: TeacherProfile = {
+  firstNames: "Rosa", lastNames: "Quispe", phone: "999", region: "Cusco", address: "Av. 1",
+  email: "r@x.pe", level: "Inicial", ugel: "Cusco", institution: "IE 1",
+};
+const year: YearData = {
+  version: 1,
+  schoolYear: 2026,
+  periods: defaultPeriods(2026),
+  classrooms: [{ id: "c1", name: "Girasoles", cycle: "II", bands: ["4y"], disabledCompetencyIds: [], cycleIGrading: "descriptive" }],
+  students: [{ id: "s1", classroomId: "c1", firstNames: "Ana", lastNames: "Pérez", active: true }],
+};
+
+describe("workspace repo", () => {
+  it("round-trips profile and year", async () => {
+    const repo = createWorkspaceRepo(new MemoryStorage());
+    expect(await repo.loadProfile()).toBeNull();
+    await repo.saveProfile(profile);
+    await repo.saveYear(year);
+    expect(await repo.loadProfile()).toEqual(profile);
+    expect(await repo.loadYear(2026)).toEqual(year);
+  });
+
+  it("keeps unknown keys (from newer app versions) through load→save", async () => {
+    const st = new MemoryStorage();
+    const repo = createWorkspaceRepo(st);
+    const future = {
+      ...year,
+      extraYear: { a: 1 },
+      periods: year.periods.map((p) => ({ ...p, extraPeriod: "p" })),
+      classrooms: year.classrooms.map((c) => ({ ...c, extraRoom: true })),
+      students: year.students.map((s) => ({ ...s, extraKid: [1, 2] })),
+    };
+    await st.writeTextAtomic("2026/datos/anio.json", JSON.stringify(future));
+    await st.writeTextAtomic("datos/perfil.json", JSON.stringify({ version: 1, ...profile, extraProfile: "x" }));
+    await repo.saveYear(await repo.loadYear(2026));
+    const loadedProfile = await repo.loadProfile();
+    if (!loadedProfile) throw new Error("profile missing");
+    await repo.saveProfile(loadedProfile);
+    const y = JSON.parse((await st.readText("2026/datos/anio.json")) ?? "{}");
+    expect(y.extraYear).toEqual({ a: 1 });
+    expect(y.periods[0].extraPeriod).toBe("p");
+    expect(y.classrooms[0].extraRoom).toBe(true);
+    expect(y.students[0].extraKid).toEqual([1, 2]);
+    const p = JSON.parse((await st.readText("datos/perfil.json")) ?? "{}");
+    expect(p.extraProfile).toBe("x");
+  });
+
+  it("loadYear without file returns defaults and does not write", async () => {
+    const st = new MemoryStorage();
+    const repo = createWorkspaceRepo(st);
+    const y = await repo.loadYear(2026);
+    expect(y.periods).toEqual(defaultPeriods(2026));
+    expect(y.classrooms).toEqual([]);
+    expect(y.students).toEqual([]);
+    expect(await st.readText("2026/datos/anio.json")).toBeNull();
+  });
+
+  it("defaultPeriods values", () => {
+    expect(defaultPeriods(2026).map((p) => [p.id, p.start, p.end])).toEqual([
+      ["B1", "2026-03-16", "2026-05-15"],
+      ["B2", "2026-05-18", "2026-07-24"],
+      ["B3", "2026-08-10", "2026-10-09"],
+      ["B4", "2026-10-12", "2026-12-18"],
+    ]);
+  });
+
+  it("corrupt JSON throws and is not overwritten", async () => {
+    const st = new MemoryStorage();
+    await st.writeTextAtomic("2026/datos/anio.json", "{oops");
+    const repo = createWorkspaceRepo(st);
+    await expect(repo.loadYear(2026)).rejects.toMatchObject({ kind: "corrupt", path: "2026/datos/anio.json" });
+    await expect(repo.loadYear(2026)).rejects.toBeInstanceOf(WorkspaceDataError);
+    expect(await st.readText("2026/datos/anio.json")).toBe("{oops");
+  });
+
+  it("schema-invalid file is corrupt", async () => {
+    const st = new MemoryStorage();
+    await st.writeTextAtomic("datos/perfil.json", JSON.stringify({ version: 1, firstNames: 5 }));
+    await expect(createWorkspaceRepo(st).loadProfile()).rejects.toMatchObject({ kind: "corrupt" });
+  });
+
+  it("future version is rejected untouched", async () => {
+    const st = new MemoryStorage();
+    const text = JSON.stringify({ version: 2, schoolYear: 2026 });
+    await st.writeTextAtomic("2026/datos/anio.json", text);
+    await expect(createWorkspaceRepo(st).loadYear(2026)).rejects.toMatchObject({ kind: "future-version" });
+    expect(await st.readText("2026/datos/anio.json")).toBe(text);
+  });
+
+  it("saveYear/saveProfile validate and write nothing when invalid", async () => {
+    const st = new MemoryStorage();
+    const repo = createWorkspaceRepo(st);
+    await expect(repo.saveYear({ ...year, schoolYear: "x" } as unknown as YearData)).rejects.toThrow();
+    await expect(repo.saveProfile({ ...profile, level: "Primaria" } as unknown as TeacherProfile)).rejects.toThrow();
+    expect(await st.readText("2026/datos/anio.json")).toBeNull();
+    expect(await st.readText("datos/perfil.json")).toBeNull();
+  });
+
+  it("listYears returns years with anio.json, descending", async () => {
+    const st = new MemoryStorage();
+    const repo = createWorkspaceRepo(st);
+    await repo.saveYear({ ...year, schoolYear: 2025, periods: defaultPeriods(2025) });
+    await repo.saveYear(year);
+    await st.writeTextAtomic("2027/otro.json", "{}");
+    await st.writeTextAtomic("datos/perfil.json", "{}");
+    expect(await repo.listYears()).toEqual([2026, 2025]);
+  });
+
+  it("save refuses to overwrite corrupt or future-version files", async () => {
+    const st = new MemoryStorage();
+    await st.writeTextAtomic("2026/datos/anio.json", "{oops");
+    const future = JSON.stringify({ version: 2 });
+    await st.writeTextAtomic("datos/perfil.json", future);
+    const repo = createWorkspaceRepo(st);
+    await expect(repo.saveYear(year)).rejects.toMatchObject({ kind: "corrupt" });
+    await expect(repo.saveProfile(profile)).rejects.toMatchObject({ kind: "future-version" });
+    expect(await st.readText("2026/datos/anio.json")).toBe("{oops");
+    expect(await st.readText("datos/perfil.json")).toBe(future);
+  });
+
+  it("overwriteInvalid allows deliberate recovery", async () => {
+    const st = new MemoryStorage();
+    await st.writeTextAtomic("2026/datos/anio.json", "{oops");
+    await st.writeTextAtomic("datos/perfil.json", JSON.stringify({ version: 2 }));
+    const repo = createWorkspaceRepo(st);
+    await repo.saveYear(year, { overwriteInvalid: true });
+    await repo.saveProfile(profile, { overwriteInvalid: true });
+    expect(await repo.loadYear(2026)).toEqual(year);
+    expect(await repo.loadProfile()).toEqual(profile);
+  });
+
+  it("schema rejections", async () => {
+    const repo = createWorkspaceRepo(new MemoryStorage());
+    const room = year.classrooms[0];
+    const bad = (patch: Partial<YearData>) => repo.saveYear({ ...year, ...patch } as YearData);
+    await expect(bad({ classrooms: [{ ...room, bands: ["18m"] }] })).rejects.toThrow(); // band not in cycle II
+    await expect(bad({ classrooms: [{ ...room, bands: ["4y", "4y"] }] })).rejects.toThrow(); // duplicate
+    await expect(bad({ classrooms: [{ ...room, bands: ["7y" as never] }] })).rejects.toThrow(); // unknown band
+    await expect(bad({ schoolYear: 999 })).rejects.toThrow();
+    await expect(bad({ schoolYear: 10000 })).rejects.toThrow();
+    await expect(bad({ students: [{ ...year.students[0], birthDate: "15/03/2022" }] })).rejects.toThrow();
+    await repo.saveYear({ ...year, students: [{ ...year.students[0], birthDate: "2022-03-15" }] });
+  });
+});

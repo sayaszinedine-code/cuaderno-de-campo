@@ -1,0 +1,100 @@
+{
+  "competencyId": "comunica-oralmente",
+  "byAge": {
+    "9m": [
+      {
+        "text": "Expresa sus necesidades, emociones e intereses –al interactuar con personas conocidas de su entorno familiar– a través de balbuceos, señas, gestos, sonrisas, miradas, movimientos corporales y, en algunas ocasiones, con el llanto, con la intención de comunicarse o lograr su propósito.",
+        "example": "El niño señala con el dedo algún alimento cuando quiere que la docente se lo dé, porque tiene hambre."
+      },
+      {
+        "text": "Responde –a las personas conocidas de su entorno familiar que le hablan– a través de balbuceos, sonrisas, miradas, señas, gestos y movimientos corporales.",
+        "example": "Cuando la docente pregunta tiernamente al bebé: “¿Cómo estás bebé?”, este responde sonriendo, haciendo sonidos, “guguuu”, y moviendo sus piernas y brazos."
+      }
+    ],
+    "18m": [
+      {
+        "text": "Expresa sus necesidades, emociones e intereses –al interactuar con otras personas conocidas de su entorno familiar– a través de señas, gestos, sonrisas, miradas, movimientos corporales y/o algunas palabras con la intención de comunicarse o lograr su propósito.",
+        "example": "La niña dice “Pato”, y señala su pie para pedir a la docente que le ponga sus zapatos."
+      },
+      {
+        "text": "Responde –a las personas conocidas de su entorno familiar que le hablan– con señas, gestos, sonrisas, miradas, movimientos corporales y algunas palabras.",
+        "example": "La docente le dice a Juan: “Juan, ¿qué es lo que te envió papá en la lonchera?” y él le responde con una sonrisa: “Nina”, señalando la mandarina."
+      }
+    ],
+    "24m": [
+      {
+        "text": "Expresa sus necesidades, emociones e intereses –al interactuar con otras personas de su entorno familiar– usando algunas palabras y sonidos combinados que se asemejan a palabras, así como movimientos corporales, señas, gestos, sonrisas y miradas con la intención de comunicarse o lograr su propósito.",
+        "example": "La niña dice “Miya”, y coge de la mano a la docente para mostrarle que ha podido construir una torre con bloques de madera."
+      },
+      {
+        "text": "Participa en conversaciones con personas de su entorno respondiendo con algunas palabras, así como movimientos corporales, señas, gestos, sonrisas, miradas.",
+        "example": "La niña elige el polo que se quiere poner diciendo: “Ete”, “polo osho”, señalando el oso del polo."
+      }
+    ],
+    "36m": [
+      {
+        "text": "Expresa sus necesidades, emociones, intereses y da cuenta de algunas experiencias al interactuar con personas de su entorno familiar y local. Utiliza palabras de uso frecuente, señas, sonrisas, miradas, gestos, así como movimientos corporales, con la intención de comunicarse.",
+        "example": "El niño le dice a la docente “No, yo solito”, y de manera simultánea, le aparta la mano del timón de su triciclo para que lo deje manejar solo."
+      },
+      {
+        "text": "Participa –en conversaciones o cuando escucha cuentos, fábulas, adivinanzas y otros relatos de la tradición oral– formulando preguntas o respondiendo con palabras de uso cotidiano a preguntas que le hacen."
+      }
+    ],
+    "3y": [
+      {
+        "text": "Expresa sus necesidades, emociones, intereses y da cuenta de algunas experiencias al interactuar con personas de su entorno familiar, escolar o local. Utiliza palabras de uso frecuente, sonrisas, miradas, señas, gestos, movimientos corporales y diversos volúmenes de voz con la intención de lograr su propósito: informar, pedir, convencer o agradecer.",
+        "example": "Un niño dice a la docente: “No me quiele dal dompecabezas”, moviendo la cabeza en señal de negación."
+      },
+      {
+        "text": "Participa en conversaciones o escucha cuentos, leyendas y otros relatos de la tradición oral. Formula preguntas sobre lo que le interesa saber o responde a lo que le preguntan."
+      },
+      {
+        "text": "Recupera información explícita de un texto oral. Menciona el nombre de personas y personajes, sigue indicaciones orales o vuelve a contar con sus propias palabras los sucesos que más le gustaron."
+      },
+      {
+        "text": "Deduce características de personas, personajes, animales y objetos en anécdotas, cuentos y rimas orales."
+      },
+      {
+        "text": "Comenta lo que le gusta o le disgusta de personas, personajes, hechos o situaciones de la vida cotidiana a partir de sus experiencias y del contexto en que se desenvuelve."
+      }
+    ],
+    "4y": [
+      {
+        "text": "Expresa sus necesidades, emociones, intereses y da cuenta de sus experiencias al interactuar con personas de su entorno familiar, escolar o local. Utiliza palabras de uso frecuente, sonrisas, miradas, señas, gestos, movimientos corporales y diversos volúmenes de voz según su interlocutor y propósito: informar, pedir, convencer o agradecer."
+      },
+      {
+        "text": "Participa en conversaciones o escucha cuentos, leyendas, adivinanzas y otros relatos de la tradición oral. Formula preguntas sobre lo que le interesa saber o lo que no ha comprendido o responde a lo que le preguntan.",
+        "example": "Un niño comenta sobre la leyenda “La quena de oro” que escuchó y dice: La flauta no sonaba porque el jefe era malo."
+      },
+      {
+        "text": "Recupera información explícita de un texto oral. Menciona algunos hechos, el nombre de personas y personajes. Sigue indicaciones orales o vuelve a contar con sus propias palabras los sucesos que más le gustaron."
+      },
+      {
+        "text": "Deduce relaciones de causa-efecto, así como características de personas, personajes, animales y objetos en anécdotas, cuentos, leyendas y rimas orales.",
+        "example": "Una niña responde sobre porqué en la leyenda la estrella fue convertida en gusano y dice: “Porque Apí la quería mucho”, “para que Apí y la estrella estén juntos”, “para que la estrella hable con Apí”."
+      },
+      {
+        "text": "Comenta lo que le gusta o le disgusta de personas, personajes, hechos o situaciones de la vida cotidiana a partir de sus experiencias y del contexto en que se desenvuelve."
+      }
+    ],
+    "5y": [
+      {
+        "text": "Expresa sus necesidades, emociones, intereses y da cuenta de sus experiencias al interactuar con personas de su entorno familiar, escolar o local. Utiliza palabras de uso frecuente y, estratégicamente, sonrisas, miradas, señas, gestos, movimientos corporales y diversos volúmenes de voz, según su interlocutor y propósito: informar, pedir, convencer, agradecer. Desarrolla sus ideas en torno a un tema, aunque en ocasiones puede salirse de este.",
+        "example": "Sergio comenta que las vacas que vio en el paseo del salón eran muy grandes, algunas tenían cachos y olían horrible, mientras se tapa la nariz con su mano”."
+      },
+      {
+        "text": "Participa en conversaciones, diálogos o escucha cuentos, leyendas, rimas, adivinanzas y otros relatos de la tradición oral. Espera su turno para hablar, escucha mientras su interlocutor habla, pregunta y responde sobre lo que le interesa saber o lo que no ha comprendido con la intención de obtener información."
+      },
+      {
+        "text": "Recupera información explícita de un texto oral. Menciona algunos hechos y lugares, el nombre de personas y personajes. Sigue indicaciones orales o vuelve a contar con sus propias palabras los sucesos que más le gustaron.",
+        "example": "Un niño comenta después de escuchar la leyenda “La Ciudad Encantada de Huancabamba” dice: “El niño caminó, caminó y se perdió y se puso a llorar, apareció el señor con una corona y un palo, y se lo llevó al niño”. Y una niña dice: “El niño llevó a las personas a la ciudad y no le creían.”"
+      },
+      {
+        "text": "Deduce relaciones de causa-efecto, así como características de personas, personajes, animales y objetos en anécdotas, cuentos, leyendas y rimas orales."
+      },
+      {
+        "text": "Comenta sobre lo que le gusta o disgusta de personas, personajes, hechos o situaciones de la vida cotidiana dando razones sencillas a partir de sus experiencias y del contexto en que se desenvuelve."
+      }
+    ]
+  }
+}

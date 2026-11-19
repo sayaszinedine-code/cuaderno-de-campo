@@ -1,0 +1,47 @@
+{
+  "competencyId": "construye-identidad-religion",
+  "byAge": {
+    "3y": [
+      {
+        "text": "Reconoce de manera espontánea, a través de sus acciones diarias, el amor y cuidado que le brinda su familia, como un indicio del amor de Dios, y da inicio a acciones como colaborar, saludar, despedirse y agradecer por propia iniciativa."
+      },
+      {
+        "text": "Participa en las prácticas de la confesión religiosa de sus padres y lo comenta a sus compañeros de aula."
+      },
+      {
+        "text": "Disfruta por iniciativa propia de la naturaleza creada por Dios con amor."
+      },
+      {
+        "text": "Demuestra su amor al prójimo acogiendo y compartiendo con todos como amigos de Jesús."
+      }
+    ],
+    "4y": [
+      {
+        "text": "Expresa, por propia iniciativa, el amor y cuidado que recibe de su entorno (padres, docentes y compañeros) como un indicio del amor de Dios. Lo hace a través de la interacción con los otros, y da inicio a acciones como compartir, ayudar y colaborar."
+      },
+      {
+        "text": "Participa en las prácticas de la confesión religiosa de sus padres y lo comenta a sus compañeros de aula y comunidad educativa."
+      },
+      {
+        "text": "Participa por iniciativa propia del cuidado de la Creación en el lugar en donde se encuentra."
+      },
+      {
+        "text": "Demuestra su amor al prójimo acogiendo y siendo solidario con los que necesitan ayuda en su entorno más cercano."
+      }
+    ],
+    "5y": [
+      {
+        "text": "Expresa por propia iniciativa el amor y cuidado que recibe de su entorno, como un indicio del amor de Dios. Lo hace a través de la interacción con los otros, al realizar acciones como compartir, ayudar y colaborar."
+      },
+      {
+        "text": "Participa en las prácticas de la confesión religiosa de sus padres o comunidad –como rituales y fiestas–, y lo comparte con sus compañeros."
+      },
+      {
+        "text": "Participa del uso responsable de los recursos creados por Dios en su entorno."
+      },
+      {
+        "text": "Demuestra su amor al prójimo respetando y siendo solidario con los que necesitan de su ayuda material y espiritual."
+      }
+    ]
+  }
+}
