@@ -1,0 +1,170 @@
+import { CYCLE_BANDS, getCompetencies, getPerformanceBands, type AgeBand } from "@/curriculum";
+import { bandFor } from "./age";
+import { todayISO } from "./classrooms";
+import type { Classroom, FieldNote, NoteKind, NotesFile, Period, Student, YearData } from "./schema";
+
+type IdGen = () => string;
+const newId: IdGen = () => crypto.randomUUID();
+
+export const DEFAULT_MOMENT = "Juego libre en sectores";
+
+export function newNote(
+  input: { classroomId: string; date?: string },
+  genId: IdGen = newId,
+  now: Date = new Date(),
+): FieldNote {
+  const stamp = now.toISOString();
+  return {
+    id: genId(),
+    date: input.date ?? todayISO(now),
+    classroomId: input.classroomId,
+    studentIds: [],
+    wholeGroup: false,
+    moment: DEFAULT_MOMENT,
+    kind: "obs",
+    performances: [],
+    evidenceText: "",
+    evidence: [],
+    interpretation: "",
+    reflection: "",
+    createdAt: stamp,
+    updatedAt: stamp,
+  };
+}
+
+export function upsertNote(f: NotesFile, n: FieldNote, now: Date = new Date()): NotesFile {
+  const next: FieldNote = { ...n, updatedAt: now.toISOString() };
+  const exists = f.notes.some((x) => x.id === n.id);
+  return { ...f, notes: exists ? f.notes.map((x) => (x.id === n.id ? next : x)) : [...f.notes, next] };
+}
+
+export function removeNote(f: NotesFile, id: string): NotesFile {
+  return { ...f, notes: f.notes.filter((x) => x.id !== id) };
+}
+
+export function validateNote(n: FieldNote, year: YearData): string | null {
+  const classroom = year.classrooms.find((c) => c.id === n.classroomId);
+  if (!classroom) return "Elige un aula.";
+  if (n.studentIds.length === 0 && !n.wholeGroup) return "Elige al menos un niño o niña, o marca «Todo el grupo».";
+  if (n.evidenceText.trim() === "" && n.evidence.length === 0) return "Describe la evidencia o agrega una foto.";
+  if (n.competencyId !== undefined && !getCompetencies(classroom.cycle).some((c) => c.id === n.competencyId)) {
+    return "La competencia no corresponde al ciclo del aula.";
+  }
+  return null;
+}
+
+/** Active students of the note's classroom that the note refers to. */
+export function validStudents(n: FieldNote, year: YearData): Student[] {
+  const ids = new Set(n.studentIds);
+  return year.students.filter((s) => ids.has(s.id) && s.active && s.classroomId === n.classroomId);
+}
+
+const BAND_ORDER: AgeBand[] = [...CYCLE_BANDS.I, ...CYCLE_BANDS.II];
+const rank = (b: AgeBand) => BAND_ORDER.indexOf(b);
+
+export function performanceOptions(params: {
+  classroom: Classroom;
+  students: Student[];
+  competencyId: string;
+  date: string;
+  schoolYear: number;
+}): { bands: AgeBand[]; defaultBand: AgeBand } {
+  const { classroom, students, competencyId, date, schoolYear } = params;
+  const available = new Set(getPerformanceBands(competencyId));
+  const studentBands = students.map((s) =>
+    bandFor({
+      cycle: classroom.cycle,
+      birthDate: s.birthDate,
+      at: date,
+      schoolYear,
+      classroomBands: classroom.bands,
+    }),
+  );
+  const source = students.length > 0 ? studentBands : classroom.bands;
+  const bands = [...new Set(source)].filter((b) => available.has(b)).sort((a, b) => rank(a) - rank(b));
+
+  const counts = new Map<AgeBand, number>();
+  for (const b of studentBands) if (bands.includes(b)) counts.set(b, (counts.get(b) ?? 0) + 1);
+  let defaultBand: AgeBand = bands[0] ?? classroom.bands[0];
+  let best = 0;
+  for (const b of bands) {
+    const c = counts.get(b) ?? 0;
+    if (c > best) {
+      best = c;
+      defaultBand = b;
+    }
+  }
+  return { bands, defaultBand };
+}
+
+export function periodOf(date: string, periods: Period[]): Period["id"] | null {
+  return periods.find((p) => date >= p.start && date <= p.end)?.id ?? null;
+}
+
+/** Lowercase and strip diacritics, for accent- and case-insensitive search. */
+export function fold(s: string): string {
+  return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+export function filterNotes(
+  notes: FieldNote[],
+  q: {
+    studentId?: string;
+    areaId?: string;
+    competencyId?: string;
+    periodId?: Period["id"];
+    kind?: NoteKind;
+    text?: string;
+    periods: Period[];
+    students: Student[];
+  },
+): FieldNote[] {
+  const byId = new Map(q.students.map((s) => [s.id, s]));
+  const studentClassroom = q.studentId ? byId.get(q.studentId)?.classroomId : undefined;
+  const needle = q.text ? fold(q.text.trim()) : "";
+
+  const matches = (n: FieldNote): boolean => {
+    if (q.studentId) {
+      const direct = n.studentIds.includes(q.studentId);
+      const group = n.wholeGroup && studentClassroom !== undefined && n.classroomId === studentClassroom;
+      if (!direct && !group) return false;
+    }
+    if (q.areaId && n.areaId !== q.areaId) return false;
+    if (q.competencyId && n.competencyId !== q.competencyId) return false;
+    if (q.periodId && periodOf(n.date, q.periods) !== q.periodId) return false;
+    if (q.kind && n.kind !== q.kind) return false;
+    if (needle) {
+      const names = n.studentIds.flatMap((id) => {
+        const s = byId.get(id);
+        return s ? [s.firstNames, s.lastNames] : [];
+      });
+      const hay = fold([n.evidenceText, n.interpretation, n.reflection, ...names].join("\n"));
+      if (!hay.includes(needle)) return false;
+    }
+    return true;
+  };
+
+  return notes
+    .filter(matches)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+}
+
+function shiftDays(iso: string, delta: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
+}
+
+export function studentsWithoutRecentNotes(
+  notes: FieldNote[],
+  students: Student[],
+  today: string,
+  days = 14,
+): Student[] {
+  const from = shiftDays(today, -days);
+  const recent = notes.filter((n) => n.date >= from && n.date <= today);
+  return students.filter(
+    (s) =>
+      s.active &&
+      !recent.some((n) => n.studentIds.includes(s.id) || (n.wholeGroup && n.classroomId === s.classroomId)),
+  );
+}
