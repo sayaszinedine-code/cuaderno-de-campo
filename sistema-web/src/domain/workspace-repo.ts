@@ -34,13 +34,18 @@ export function defaultPeriods(year: number): Period[] {
   ];
 }
 
+export interface SaveOptions {
+  /** Deliberate recovery: replace an existing corrupt / future-version file. Default false. */
+  overwriteInvalid?: boolean;
+}
+
 export interface WorkspaceRepo {
   loadProfile(): Promise<TeacherProfile | null>;
-  saveProfile(p: TeacherProfile): Promise<void>;
+  saveProfile(p: TeacherProfile, opts?: SaveOptions): Promise<void>;
   listYears(): Promise<number[]>;
   /** Returns a default (unsaved) YearData when the file does not exist. */
   loadYear(y: number): Promise<YearData>;
-  saveYear(d: YearData): Promise<void>;
+  saveYear(d: YearData, opts?: SaveOptions): Promise<void>;
 }
 
 function parseFile<T>(
@@ -62,6 +67,16 @@ function parseFile<T>(
 }
 
 export function createWorkspaceRepo(storage: Storage): WorkspaceRepo {
+  async function guardExisting(
+    path: string,
+    schema: Parameters<typeof parseFile>[2],
+    opts?: SaveOptions,
+  ): Promise<void> {
+    if (opts?.overwriteInvalid) return;
+    const existing = await storage.readText(path);
+    if (existing !== null) parseFile(path, existing, schema);
+  }
+
   return {
     async loadProfile() {
       const path = profilePath();
@@ -72,8 +87,9 @@ export function createWorkspaceRepo(storage: Storage): WorkspaceRepo {
       return profile;
     },
 
-    async saveProfile(p) {
+    async saveProfile(p, opts) {
       const file = profileFileSchema.parse({ version: SCHEMA_VERSION, ...p });
+      await guardExisting(profilePath(), profileFileSchema, opts);
       await storage.writeTextAtomic(profilePath(), JSON.stringify(file, null, 2));
     },
 
@@ -97,8 +113,9 @@ export function createWorkspaceRepo(storage: Storage): WorkspaceRepo {
       return parseFile(path, text, yearDataSchema);
     },
 
-    async saveYear(d) {
+    async saveYear(d, opts) {
       const data = yearDataSchema.parse(d);
+      await guardExisting(yearDataPath(data.schoolYear), yearDataSchema, opts);
       await storage.writeTextAtomic(yearDataPath(data.schoolYear), JSON.stringify(data, null, 2));
     },
   };

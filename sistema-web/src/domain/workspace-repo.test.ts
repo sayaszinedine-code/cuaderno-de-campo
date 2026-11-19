@@ -85,4 +85,40 @@ describe("workspace repo", () => {
     await st.writeTextAtomic("datos/perfil.json", "{}");
     expect(await repo.listYears()).toEqual([2026, 2025]);
   });
+
+  it("save refuses to overwrite corrupt or future-version files", async () => {
+    const st = new MemoryStorage();
+    await st.writeTextAtomic("2026/datos/anio.json", "{oops");
+    const future = JSON.stringify({ version: 2 });
+    await st.writeTextAtomic("datos/perfil.json", future);
+    const repo = createWorkspaceRepo(st);
+    await expect(repo.saveYear(year)).rejects.toMatchObject({ kind: "corrupt" });
+    await expect(repo.saveProfile(profile)).rejects.toMatchObject({ kind: "future-version" });
+    expect(await st.readText("2026/datos/anio.json")).toBe("{oops");
+    expect(await st.readText("datos/perfil.json")).toBe(future);
+  });
+
+  it("overwriteInvalid allows deliberate recovery", async () => {
+    const st = new MemoryStorage();
+    await st.writeTextAtomic("2026/datos/anio.json", "{oops");
+    await st.writeTextAtomic("datos/perfil.json", JSON.stringify({ version: 2 }));
+    const repo = createWorkspaceRepo(st);
+    await repo.saveYear(year, { overwriteInvalid: true });
+    await repo.saveProfile(profile, { overwriteInvalid: true });
+    expect(await repo.loadYear(2026)).toEqual(year);
+    expect(await repo.loadProfile()).toEqual(profile);
+  });
+
+  it("schema rejections", async () => {
+    const repo = createWorkspaceRepo(new MemoryStorage());
+    const room = year.classrooms[0];
+    const bad = (patch: Partial<YearData>) => repo.saveYear({ ...year, ...patch } as YearData);
+    await expect(bad({ classrooms: [{ ...room, bands: ["18m"] }] })).rejects.toThrow(); // band not in cycle II
+    await expect(bad({ classrooms: [{ ...room, bands: ["4y", "4y"] }] })).rejects.toThrow(); // duplicate
+    await expect(bad({ classrooms: [{ ...room, bands: ["7y" as never] }] })).rejects.toThrow(); // unknown band
+    await expect(bad({ schoolYear: 999 })).rejects.toThrow();
+    await expect(bad({ schoolYear: 10000 })).rejects.toThrow();
+    await expect(bad({ students: [{ ...year.students[0], birthDate: "15/03/2022" }] })).rejects.toThrow();
+    await repo.saveYear({ ...year, students: [{ ...year.students[0], birthDate: "2022-03-15" }] });
+  });
 });

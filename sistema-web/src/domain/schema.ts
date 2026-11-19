@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { CYCLE_BANDS, type AgeBand } from "@/curriculum";
 
 export const SCHEMA_VERSION = 1;
 
 const cycle = z.enum(["I", "II"]);
-const ageBand = z.enum(["9m", "18m", "24m", "36m", "3y", "4y", "5y"]);
+const ALL_BANDS: readonly string[] = [...CYCLE_BANDS.I, ...CYCLE_BANDS.II];
+const ageBand = z.custom<AgeBand>((v) => typeof v === "string" && ALL_BANDS.includes(v));
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const teacherProfileSchema = z.object({
@@ -35,6 +37,12 @@ export const classroomSchema = z.object({
   bands: z.array(ageBand).min(1),
   disabledCompetencyIds: z.array(z.string()),
   cycleIGrading: z.enum(["descriptive", "scale"]),
+}).refine((c) => c.bands.every((b) => CYCLE_BANDS[c.cycle].includes(b)), {
+  message: "bands must belong to the classroom cycle",
+  path: ["bands"],
+}).refine((c) => new Set(c.bands).size === c.bands.length, {
+  message: "duplicate bands",
+  path: ["bands"],
 });
 
 export const studentSchema = z.object({
@@ -42,7 +50,7 @@ export const studentSchema = z.object({
   classroomId: z.string().min(1),
   firstNames: z.string(),
   lastNames: z.string(),
-  birthDate: z.string().optional(),
+  birthDate: isoDate.optional(),
   dni: z.string().optional(),
   guardian: z.string().optional(),
   guardianPhone: z.string().optional(),
@@ -54,7 +62,7 @@ export const studentSchema = z.object({
 
 export const yearDataSchema = z.object({
   version: z.literal(SCHEMA_VERSION),
-  schoolYear: z.number().int(),
+  schoolYear: z.number().int().min(1000).max(9999),
   periods: z.array(periodSchema),
   classrooms: z.array(classroomSchema),
   students: z.array(studentSchema),
