@@ -2,19 +2,46 @@
   "competencyId": "crea-proyectos",
   "byAge": {
     "3y": [
-      "Explora por iniciativa propia diversos materiales de acuerdo con sus necesidades e intereses. Descubre las posibilidades expresivas de sus movimientos y de los materiales con los que trabaja. Ejemplo: En el taller de danza, uno de los niños toma una cinta y empieza a moverla y a moverse con ella, crea movimientos, como ondear la cinta en diferentes direcciones, girarla en su cabeza, serpentearla en el piso.",
-      "Representa sus ideas acerca de sus vivencias personales usando diferentes lenguajes artísticos (el dibujo, la pintura, la danza o el movimiento, el teatro, la música, los títeres, etc.). Ejemplo: Mario toma crayolas y papel para dibujar un chancho y de esta manera representar lo que más le gustó del paseo al campo.",
-      "Muestra y comenta de forma espontánea, a compañeros y adultos de su entorno, lo que ha realizado al jugar y crear proyectos a través de los lenguajes artísticos. Ejemplo: Raúl realiza un dibujo por propia iniciativa, sobre el proyecto de la tienda que imagina construir y lo muestra a su profesora y amigos con entusiasmo mientras le cuenta lo que ha dibujado"
+      {
+        "text": "Explora por iniciativa propia diversos materiales de acuerdo con sus necesidades e intereses. Descubre las posibilidades expresivas de sus movimientos y de los materiales con los que trabaja.",
+        "example": "En el taller de danza, uno de los niños toma una cinta y empieza a moverla y a moverse con ella, crea movimientos, como ondear la cinta en diferentes direcciones, girarla en su cabeza, serpentearla en el piso."
+      },
+      {
+        "text": "Representa sus ideas acerca de sus vivencias personales usando diferentes lenguajes artísticos (el dibujo, la pintura, la danza o el movimiento, el teatro, la música, los títeres, etc.).",
+        "example": "Mario toma crayolas y papel para dibujar un chancho y de esta manera representar lo que más le gustó del paseo al campo."
+      },
+      {
+        "text": "Muestra y comenta de forma espontánea, a compañeros y adultos de su entorno, lo que ha realizado al jugar y crear proyectos a través de los lenguajes artísticos.",
+        "example": "Raúl realiza un dibujo por propia iniciativa, sobre el proyecto de la tienda que imagina construir y lo muestra a su profesora y amigos con entusiasmo mientras le cuenta lo que ha dibujado"
+      }
     ],
     "4y": [
-      "Explora por iniciativa propia diversos materiales de acuerdo con sus necesidades e intereses. Descubre los efectos que se producen al combinar un material con otro. Ejemplo: En el taller de música, una de las niñas elige un par de latas y las golpea entre sí. Luego, las golpea con diferentes superficies: sobre la mesa, con plumones, con ramitas, con una cuchara y descubre diversos sonidos.",
-      "Representa ideas acerca de sus vivencias personales usando diferentes lenguajes artísticos (el dibujo, la pintura, la danza o el movimiento, el teatro, la música, los títeres, etc.). Ejemplo: Al iniciar la semana, la docente invita a los niños a compartir lo que hicieron el fin de semana. Uno de ellos, dice: “Llegaron mis tíos, y cantaron y tocaban un tambor… así. Espera [va corriendo al sector de música y regresa con el tambor]”. “Así, mira”, dice mientras toca el tambor.",
-      "Muestra y comenta de forma espontánea a compañeros y adultos de su entorno, lo que ha realizado, al jugar y crear proyectos a través de los lenguajes artísticos. Ejemplo: Marcela construyó una casita con material reusable y comunica a sus compañeritos lo que hizo y cómo lo hizo: “Miren, con las cajitas de medicina, he construido mi casita y, con la cajita de fósforos, hice la puerta, porque era más chiquita”"
+      {
+        "text": "Explora por iniciativa propia diversos materiales de acuerdo con sus necesidades e intereses. Descubre los efectos que se producen al combinar un material con otro.",
+        "example": "En el taller de música, una de las niñas elige un par de latas y las golpea entre sí. Luego, las golpea con diferentes superficies: sobre la mesa, con plumones, con ramitas, con una cuchara y descubre diversos sonidos."
+      },
+      {
+        "text": "Representa ideas acerca de sus vivencias personales usando diferentes lenguajes artísticos (el dibujo, la pintura, la danza o el movimiento, el teatro, la música, los títeres, etc.).",
+        "example": "Al iniciar la semana, la docente invita a los niños a compartir lo que hicieron el fin de semana. Uno de ellos, dice: “Llegaron mis tíos, y cantaron y tocaban un tambor… así. Espera [va corriendo al sector de música y regresa con el tambor]”. “Así, mira”, dice mientras toca el tambor."
+      },
+      {
+        "text": "Muestra y comenta de forma espontánea a compañeros y adultos de su entorno, lo que ha realizado, al jugar y crear proyectos a través de los lenguajes artísticos.",
+        "example": "Marcela construyó una casita con material reusable y comunica a sus compañeritos lo que hizo y cómo lo hizo: “Miren, con las cajitas de medicina, he construido mi casita y, con la cajita de fósforos, hice la puerta, porque era más chiquita”"
+      }
     ],
     "5y": [
-      "Explora de manera individual y/o grupal diversos materiales de acuerdo con sus necesidades e intereses. Descubre los efectos que se producen al combinar un material con otro. Ejemplo: El docente les ha narrado el cuento Buenas noches, gorila de Peggy Rathmann, y los niños desean representar el cuento, Sandra experimenta con movimientos ágiles y grandes para hacer de gorila, y Natalia práctica gestos para hacer de guardián. Ambas se juntan para hacer un diálogo.",
-      "Representa ideas acerca de sus vivencias personales y del contexto en el que se desenvuelve usando diferentes lenguajes artísticos (el dibujo, la pintura, la danza o el movimiento, el teatro, la música, los títeres, etc.). Ejemplo: Juan representa usando diferentes materiales ramitas que encuentren en la zona, témpera, crayolas, plumones, papeles de colores), un puente, y comenta que cerca de su casa han construido un puente y que todos están de fiesta en su comunidad.",
-      "Muestra sus creaciones y observa las creaciones de otros. Describe lo que ha creado. A solicitud de la docente, manifiesta lo que le gusta de la experiencia, o de su proyecto y del proyecto de otros. Ejemplo: Después de observar objetos de cerámica creados por artistas de su comunidad, Julio ha hecho un corazón para su mamá con arcilla y témpera. Le comenta a la docente y a sus compañeros cómo lo hizo. Les dice que lo que más le gustó de todo fue pintar con témpera. Además dice que le gusta el camión que creó Renato, porque es muy grande y tiene muchos colores."
+      {
+        "text": "Explora de manera individual y/o grupal diversos materiales de acuerdo con sus necesidades e intereses. Descubre los efectos que se producen al combinar un material con otro.",
+        "example": "El docente les ha narrado el cuento Buenas noches, gorila de Peggy Rathmann, y los niños desean representar el cuento, Sandra experimenta con movimientos ágiles y grandes para hacer de gorila, y Natalia práctica gestos para hacer de guardián. Ambas se juntan para hacer un diálogo."
+      },
+      {
+        "text": "Representa ideas acerca de sus vivencias personales y del contexto en el que se desenvuelve usando diferentes lenguajes artísticos (el dibujo, la pintura, la danza o el movimiento, el teatro, la música, los títeres, etc.).",
+        "example": "Juan representa usando diferentes materiales ramitas que encuentren en la zona, témpera, crayolas, plumones, papeles de colores), un puente, y comenta que cerca de su casa han construido un puente y que todos están de fiesta en su comunidad."
+      },
+      {
+        "text": "Muestra sus creaciones y observa las creaciones de otros. Describe lo que ha creado. A solicitud de la docente, manifiesta lo que le gusta de la experiencia, o de su proyecto y del proyecto de otros.",
+        "example": "Después de observar objetos de cerámica creados por artistas de su comunidad, Julio ha hecho un corazón para su mamá con arcilla y témpera. Le comenta a la docente y a sus compañeros cómo lo hizo. Les dice que lo que más le gustó de todo fue pintar con témpera. Además dice que le gusta el camión que creó Renato, porque es muy grande y tiene muchos colores."
+      }
     ]
   }
 }

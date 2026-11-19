@@ -2,37 +2,86 @@
   "competencyId": "se-desenvuelve-motricidad",
   "byAge": {
     "9m": [
-      "Realiza acciones y movimientos de manera autónoma –en los que expresa sus emociones–, que le permiten adquirir posturas, desplazarse en el espacio, explorar su cuerpo e interactuar con el entorno: pasa de la posición boca arriba a boca abajo o viceversa, se coloca de lado o semisentado, y manipula objetos que son de su interés.",
-      "Manifiesta las sensaciones que percibe de su cuerpo, y da muestra de que reconoce algunas partes del mismo, a través de gestos, movimientos y al responder a las solicitudes que surgen en la interacción cotidiana con el adulto que lo cuida. Ejemplo: Un bebé, durante el cambio de ropa, extiende sus piernas cuando el adulto que lo atiende se lo solicita."
+      {
+        "text": "Realiza acciones y movimientos de manera autónoma –en los que expresa sus emociones–, que le permiten adquirir posturas, desplazarse en el espacio, explorar su cuerpo e interactuar con el entorno: pasa de la posición boca arriba a boca abajo o viceversa, se coloca de lado o semisentado, y manipula objetos que son de su interés."
+      },
+      {
+        "text": "Manifiesta las sensaciones que percibe de su cuerpo, y da muestra de que reconoce algunas partes del mismo, a través de gestos, movimientos y al responder a las solicitudes que surgen en la interacción cotidiana con el adulto que lo cuida.",
+        "example": "Un bebé, durante el cambio de ropa, extiende sus piernas cuando el adulto que lo atiende se lo solicita."
+      }
     ],
     "18m": [
-      "Realiza acciones y movimientos de manera autónoma –en los que expresa sus emociones–, que le permiten adquirir posturas, desplazarse en el espacio, explorar su cuerpo e interactuar con el entorno: se sienta, gatea, se para y da algunos pasos apoyándose en un elemento fijo, manipula objetos que son de su interés y al hacerlo demuestra mayor precisión en los movimientos de su mano.",
-      "Manifiesta las sensaciones que percibe de su cuerpo y da muestras de que reconoce las partes de su cuerpo a través de gestos o acciones, y se reconoce a sí mismo cuando observa su imagen en el espejo. Ejemplo: Un niño al darse cuenta de que la imagen reflejada en el espejo, es él, se sonríe, hace algunos movimientos, gestos y juega a aparecer y desaparecer."
+      {
+        "text": "Realiza acciones y movimientos de manera autónoma –en los que expresa sus emociones–, que le permiten adquirir posturas, desplazarse en el espacio, explorar su cuerpo e interactuar con el entorno: se sienta, gatea, se para y da algunos pasos apoyándose en un elemento fijo, manipula objetos que son de su interés y al hacerlo demuestra mayor precisión en los movimientos de su mano."
+      },
+      {
+        "text": "Manifiesta las sensaciones que percibe de su cuerpo y da muestras de que reconoce las partes de su cuerpo a través de gestos o acciones, y se reconoce a sí mismo cuando observa su imagen en el espejo.",
+        "example": "Un niño al darse cuenta de que la imagen reflejada en el espejo, es él, se sonríe, hace algunos movimientos, gestos y juega a aparecer y desaparecer."
+      }
     ],
     "24m": [
-      "Realiza acciones y movimientos de manera autónoma –en los que expresa sus emociones–, que le permiten desplazarse por el espacio, explorar con su cuerpo e interactuar con el entorno: camina con soltura y sin apoyo, se desplaza arrastrando o empujando objetos, corre e intenta subir o bajar pequeñas pendientes, sube escalones con el mismo pie y crea sus propias maneras para bajarlos.",
-      "Realiza acciones de exploración y juego, en las que utiliza ambas manos de manera coordinada. Ejemplo: Un niño coge piedritas y juega a meterlas dentro una botella.",
-      "Manifiesta sus sensaciones y necesidades corporales, y reconoce las partes de su cuerpo a través de gestos, acciones y algunas palabras. Da muestras de que reconoce su imagen al mirarse en el espejo o al mirar fotos en las que aparece."
+      {
+        "text": "Realiza acciones y movimientos de manera autónoma –en los que expresa sus emociones–, que le permiten desplazarse por el espacio, explorar con su cuerpo e interactuar con el entorno: camina con soltura y sin apoyo, se desplaza arrastrando o empujando objetos, corre e intenta subir o bajar pequeñas pendientes, sube escalones con el mismo pie y crea sus propias maneras para bajarlos."
+      },
+      {
+        "text": "Realiza acciones de exploración y juego, en las que utiliza ambas manos de manera coordinada.",
+        "example": "Un niño coge piedritas y juega a meterlas dentro una botella."
+      },
+      {
+        "text": "Manifiesta sus sensaciones y necesidades corporales, y reconoce las partes de su cuerpo a través de gestos, acciones y algunas palabras. Da muestras de que reconoce su imagen al mirarse en el espejo o al mirar fotos en las que aparece."
+      }
     ],
     "36m": [
-      "Realiza acciones y movimientos de manera autónoma –en los que expresa sus emociones– para explorar con su cuerpo e interactuar con el entorno: corre, sube y baja escalones alternando los pies, salta desde pequeñas alturas, experimenta con su cuerpo el equilibrio y desequilibrio, hace giros, trepa y se desliza por pequeñas pendientes con seguridad.",
-      "Realiza acciones de exploración y juego, en las que coordina movimientos de sus manos y pies. Ejemplo: Un niño juega con una pelota e intenta patearla hacia un lugar determinado.",
-      "Manifiesta sus sensaciones y necesidades corporales al mencionarlas en diferentes situaciones de interacción, juego y cuidado cotidiano. Ejemplo: Un niño solicita agua cuando tiene sed, avisa a un adulto cuando quiere ir al baño, se lava las manos cuando las siente pegajosas."
+      {
+        "text": "Realiza acciones y movimientos de manera autónoma –en los que expresa sus emociones– para explorar con su cuerpo e interactuar con el entorno: corre, sube y baja escalones alternando los pies, salta desde pequeñas alturas, experimenta con su cuerpo el equilibrio y desequilibrio, hace giros, trepa y se desliza por pequeñas pendientes con seguridad."
+      },
+      {
+        "text": "Realiza acciones de exploración y juego, en las que coordina movimientos de sus manos y pies.",
+        "example": "Un niño juega con una pelota e intenta patearla hacia un lugar determinado."
+      },
+      {
+        "text": "Manifiesta sus sensaciones y necesidades corporales al mencionarlas en diferentes situaciones de interacción, juego y cuidado cotidiano.",
+        "example": "Un niño solicita agua cuando tiene sed, avisa a un adulto cuando quiere ir al baño, se lava las manos cuando las siente pegajosas."
+      }
     ],
     "3y": [
-      "Realiza acciones y movimientos como correr, saltar desde pequeñas alturas, trepar, rodar, deslizarse –en los que expresa sus emociones– explorando las posibilidades de su cuerpo con relación al espacio, la superficie y los objetos. Ejemplo: Un niño juega a trepar un pequeño muro, camina intentando mantener el equilibrio y salta desde cierta altura.",
-      "Realiza acciones y movimientos de coordinación óculo-manual y óculo-podal en diferentes situaciones cotidianas y de juego según sus intereses. Ejemplo: Un niño desenrosca la tapa de su botella, pela una fruta, y puede abrir y cerrar sus envases colocándoles las tapas.",
-      "Reconoce sus sensaciones corporales, e identifica algunas de las necesidades y cambios en el estado de su cuerpo, como la respiración después de una actividad física. Reconoce las partes de su cuerpo al relacionarlas con sus acciones y nombrarlas espontáneamente en diferentes situaciones cotidianas. Representa su cuerpo (o los de otros) a su manera y utilizando diferentes materiales."
+      {
+        "text": "Realiza acciones y movimientos como correr, saltar desde pequeñas alturas, trepar, rodar, deslizarse –en los que expresa sus emociones– explorando las posibilidades de su cuerpo con relación al espacio, la superficie y los objetos.",
+        "example": "Un niño juega a trepar un pequeño muro, camina intentando mantener el equilibrio y salta desde cierta altura."
+      },
+      {
+        "text": "Realiza acciones y movimientos de coordinación óculo-manual y óculo-podal en diferentes situaciones cotidianas y de juego según sus intereses.",
+        "example": "Un niño desenrosca la tapa de su botella, pela una fruta, y puede abrir y cerrar sus envases colocándoles las tapas."
+      },
+      {
+        "text": "Reconoce sus sensaciones corporales, e identifica algunas de las necesidades y cambios en el estado de su cuerpo, como la respiración después de una actividad física. Reconoce las partes de su cuerpo al relacionarlas con sus acciones y nombrarlas espontáneamente en diferentes situaciones cotidianas. Representa su cuerpo (o los de otros) a su manera y utilizando diferentes materiales."
+      }
     ],
     "4y": [
-      "Realiza acciones y juegos de manera autónoma, como correr, saltar, trepar, rodar, deslizarse, hacer giros, patear y lanzar pelotas, etc. –en los que expresa sus emociones–explorando las posibilidades de sus cuerpo con relación al espacio, la superficie y los objetos, regulando su fuerza, velocidad y con cierto control de su equilibrio. Ejemplo: Un niño, al jugar a perseguir y atrapar a su compañero, corre y aumenta su velocidad, cambia de dirección al correr y salta pequeños obstáculos.",
-      "Realiza acciones y movimientos de coordinación óculo-manual y óculo-podal, acorde con sus necesidades e intereses, y según las características de los objetos o materiales que emplea en diferentes situaciones cotidianas de exploración y juego. Ejemplo: Un niño juega a poner un pie delante del otro sin perder el equilibrio.",
-      "Reconoce sus sensaciones corporales, e identifica las necesidades y cambios en el estado de su cuerpo, como la respiración y sudoración después de una actividad física. Reconoce las partes de su cuerpo al relacionarlas con sus acciones y nombrarlas espontáneamente en diferentes situaciones cotidianas. Representa su cuerpo (o los de otros) a su manera, utilizando diferentes materiales y haciendo evidentes algunas partes, como la cabeza, los brazos, las piernas y algunos elementos del rostro."
+      {
+        "text": "Realiza acciones y juegos de manera autónoma, como correr, saltar, trepar, rodar, deslizarse, hacer giros, patear y lanzar pelotas, etc. –en los que expresa sus emociones–explorando las posibilidades de sus cuerpo con relación al espacio, la superficie y los objetos, regulando su fuerza, velocidad y con cierto control de su equilibrio.",
+        "example": "Un niño, al jugar a perseguir y atrapar a su compañero, corre y aumenta su velocidad, cambia de dirección al correr y salta pequeños obstáculos."
+      },
+      {
+        "text": "Realiza acciones y movimientos de coordinación óculo-manual y óculo-podal, acorde con sus necesidades e intereses, y según las características de los objetos o materiales que emplea en diferentes situaciones cotidianas de exploración y juego.",
+        "example": "Un niño juega a poner un pie delante del otro sin perder el equilibrio."
+      },
+      {
+        "text": "Reconoce sus sensaciones corporales, e identifica las necesidades y cambios en el estado de su cuerpo, como la respiración y sudoración después de una actividad física. Reconoce las partes de su cuerpo al relacionarlas con sus acciones y nombrarlas espontáneamente en diferentes situaciones cotidianas. Representa su cuerpo (o los de otros) a su manera, utilizando diferentes materiales y haciendo evidentes algunas partes, como la cabeza, los brazos, las piernas y algunos elementos del rostro."
+      }
     ],
     "5y": [
-      "Realiza acciones y juegos de manera autónoma combinando habilidades motrices básicas como correr, saltar, trepar, rodar, deslizarse, hacer giros y volteretas –en los que expresa sus emociones– explorando las posibilidades de su cuerpo con relación al espacio, el tiempo, la superficie y los objetos; en estas acciones, muestra predominio y mayor control de un lado de su cuerpo. Ejemplo: Un niño juega a caminar detrás de otro niño. Aceleran la marcha, inventan diferentes formas de caminar, corren saltando, caminan hacia atrás, se impulsan y hacen saltos largos, entre otros movimientos.",
-      "Realiza acciones y movimientos de coordinación óculo-manual y óculo-podal que requieren mayor precisión. Lo hace en diferentes situaciones cotidianas, de juego o de representación gráfico-plástica, ajustándose a los límites espaciales y a las características de los objetos, materiales y/o herramientas que utilizan, según sus necesidades, intereses y posibilidades. Ejemplo: En el patio, un niño dibuja círculos en el suelo para jugar con canicas tratando de hacerlas caer dentro de los círculos que dibujó.",
-      "Reconoce sus sensaciones corporales, e identifica las necesidades y cambios en el estado de su cuerpo, como la respiración y sudoración. Reconoce las partes de su cuerpo al relacionarlas con sus acciones y nombrarlas espontáneamente en diferentes situaciones cotidianas. Representa su cuerpo (o el de otro) a su manera, incorporando más detalles de la figura humana, e incluyendo algunas características propias (cabello corto, largo, lacio, rizado, etc.)."
+      {
+        "text": "Realiza acciones y juegos de manera autónoma combinando habilidades motrices básicas como correr, saltar, trepar, rodar, deslizarse, hacer giros y volteretas –en los que expresa sus emociones– explorando las posibilidades de su cuerpo con relación al espacio, el tiempo, la superficie y los objetos; en estas acciones, muestra predominio y mayor control de un lado de su cuerpo.",
+        "example": "Un niño juega a caminar detrás de otro niño. Aceleran la marcha, inventan diferentes formas de caminar, corren saltando, caminan hacia atrás, se impulsan y hacen saltos largos, entre otros movimientos."
+      },
+      {
+        "text": "Realiza acciones y movimientos de coordinación óculo-manual y óculo-podal que requieren mayor precisión. Lo hace en diferentes situaciones cotidianas, de juego o de representación gráfico-plástica, ajustándose a los límites espaciales y a las características de los objetos, materiales y/o herramientas que utilizan, según sus necesidades, intereses y posibilidades.",
+        "example": "En el patio, un niño dibuja círculos en el suelo para jugar con canicas tratando de hacerlas caer dentro de los círculos que dibujó."
+      },
+      {
+        "text": "Reconoce sus sensaciones corporales, e identifica las necesidades y cambios en el estado de su cuerpo, como la respiración y sudoración. Reconoce las partes de su cuerpo al relacionarlas con sus acciones y nombrarlas espontáneamente en diferentes situaciones cotidianas. Representa su cuerpo (o el de otro) a su manera, incorporando más detalles de la figura humana, e incluyendo algunas características propias (cabello corto, largo, lacio, rizado, etc.)."
+      }
     ]
   }
 }

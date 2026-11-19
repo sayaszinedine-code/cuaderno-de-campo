@@ -25,7 +25,14 @@ export interface Competency {
   optional: boolean;
 }
 
+export interface Performance {
+  /** Statement of the desempeño, without the example. */
+  text: string;
+  /** Illustrative example from the PDF, without the "Ejemplo:" label. */
+  example?: string;
+}
+
 export interface PerformanceFile {
   competencyId: string;
-  byAge: Partial<Record<AgeBand, string[]>>;
+  byAge: Partial<Record<AgeBand, Performance[]>>;
 }

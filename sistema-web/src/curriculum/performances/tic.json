@@ -2,8 +2,14 @@
   "competencyId": "tic",
   "byAge": {
     "5y": [
-      "Explora, con el acompañamiento del docente, entornos virtuales y dispositivos tecnológicos, como grabador de sonido o de video, cámara fotográfica, radio, computadora o tablet, y reconoce algunas funciones básicas para su uso y cuidado. Ejemplo: Los niños graban un mensaje de voz para el compañero que se encuentra ausente (capacidades 1 y 2).",
-      "Produce imágenes, audio o videos para comunicar ideas, hallazgos, afectos o registrar un acontecimiento utilizando dispositivos y herramientas tecnológicas. Ejemplo: Los niños, al sembrar una semilla, registran con una cámara fotográfica el crecimiento de la planta, o realizan trazos y dibujos mediante un graficador visual para hacer una tarjeta de cumpleaños (capacidad 3)."
+      {
+        "text": "Explora, con el acompañamiento del docente, entornos virtuales y dispositivos tecnológicos, como grabador de sonido o de video, cámara fotográfica, radio, computadora o tablet, y reconoce algunas funciones básicas para su uso y cuidado.",
+        "example": "Los niños graban un mensaje de voz para el compañero que se encuentra ausente (capacidades 1 y 2)."
+      },
+      {
+        "text": "Produce imágenes, audio o videos para comunicar ideas, hallazgos, afectos o registrar un acontecimiento utilizando dispositivos y herramientas tecnológicas.",
+        "example": "Los niños, al sembrar una semilla, registran con una cámara fotográfica el crecimiento de la planta, o realizan trazos y dibujos mediante un graficador visual para hacer una tarjeta de cumpleaños (capacidad 3)."
+      }
     ]
   }
 }

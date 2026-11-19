@@ -2,35 +2,74 @@
   "competencyId": "convive-participa",
   "byAge": {
     "9m": [
-      "Reconoce al adulto significativo, se siente seguro y protegido, le muestra afecto a través de gestos, movimientos, balbuceos y una postura relajada. Llora o se muestra inseguro ante la presencia de una persona desconocida. Ejemplo: Cuando un bebé está en los brazos de su madre y se le acerca una persona que no conoce, el bebé acerca más su cuerpo y coloca su rostro pegado al cuerpo de su madre."
+      {
+        "text": "Reconoce al adulto significativo, se siente seguro y protegido, le muestra afecto a través de gestos, movimientos, balbuceos y una postura relajada. Llora o se muestra inseguro ante la presencia de una persona desconocida.",
+        "example": "Cuando un bebé está en los brazos de su madre y se le acerca una persona que no conoce, el bebé acerca más su cuerpo y coloca su rostro pegado al cuerpo de su madre."
+      }
     ],
     "18m": [
-      "Reconoce al adulto significativo, se siente seguro y protegido en su presencia, se relaciona con otros adultos que conoce. Muestra interés en otras personas que se le acercan sin alejarse del adulto que lo cuida. Ejemplo: Cuando llega a la cuna una persona desconocida, los niños la miran y se acercan más al docente, miran de lejos al extraño, se acercan un poco, pero regresan donde la docente."
+      {
+        "text": "Reconoce al adulto significativo, se siente seguro y protegido en su presencia, se relaciona con otros adultos que conoce. Muestra interés en otras personas que se le acercan sin alejarse del adulto que lo cuida.",
+        "example": "Cuando llega a la cuna una persona desconocida, los niños la miran y se acercan más al docente, miran de lejos al extraño, se acercan un poco, pero regresan donde la docente."
+      }
     ],
     "24m": [
-      "Interactúa por momentos cortos con otros niños que están en el mismo espacio. Juega junto a ellos, pero no necesariamente con ellos. Reconoce al adulto significativo; en algunos momentos, se aleja sintiéndose seguro y luego regresa para recibir contención."
+      {
+        "text": "Interactúa por momentos cortos con otros niños que están en el mismo espacio. Juega junto a ellos, pero no necesariamente con ellos. Reconoce al adulto significativo; en algunos momentos, se aleja sintiéndose seguro y luego regresa para recibir contención."
+      }
     ],
     "36m": [
-      "Interactúa con el adulto significativo, se aleja sintiéndose seguro y luego regresa para recibir contención. En algunos momentos, se relaciona con otros adultos que conoce. Juega con otros niños a partir de sus propios intereses y posibilidades.",
-      "Colabora en el cuidado y orden de los materiales y espacios que utiliza. Ejemplo: Después de comer una fruta, un niño bota la cáscara en el tacho de basura."
+      {
+        "text": "Interactúa con el adulto significativo, se aleja sintiéndose seguro y luego regresa para recibir contención. En algunos momentos, se relaciona con otros adultos que conoce. Juega con otros niños a partir de sus propios intereses y posibilidades."
+      },
+      {
+        "text": "Colabora en el cuidado y orden de los materiales y espacios que utiliza.",
+        "example": "Después de comer una fruta, un niño bota la cáscara en el tacho de basura."
+      }
     ],
     "3y": [
-      "Se relaciona con adultos y niños de su entorno en diferentes actividades del aula y juega en pequeños grupos. Ejemplo: Un niño, le propone jugar con bloques a otros niños. Construyen de manera conjunta una torre.",
-      "Participa en actividades grupales poniendo en práctica las normas de convivencia y los límites que conoce.",
-      "Colabora en el cuidado del uso de recursos, materiales y espacios compartidos."
+      {
+        "text": "Se relaciona con adultos y niños de su entorno en diferentes actividades del aula y juega en pequeños grupos.",
+        "example": "Un niño, le propone jugar con bloques a otros niños. Construyen de manera conjunta una torre."
+      },
+      {
+        "text": "Participa en actividades grupales poniendo en práctica las normas de convivencia y los límites que conoce."
+      },
+      {
+        "text": "Colabora en el cuidado del uso de recursos, materiales y espacios compartidos."
+      }
     ],
     "4y": [
-      "Se relaciona con adultos de su entorno, juega con otros niños y se integra en actividades grupales del aula. Propone ideas de juego y las normas del mismo, sigue las reglas de los demás de acuerdo con sus intereses. Ejemplo: Un niño propone a sus amigos jugar “matagente” con lo que el grupo está de acuerdo y les dice que no vale agarrar la pelota con la mano.",
-      "Realiza actividades cotidianas con sus compañeros y se interesa por conocer sus costumbres, así como los lugares de los que proceden. Realiza preguntas acerca de lo que le llamó la atención.",
-      "Participa en la construcción colectiva de acuerdos y normas, basados en el respeto y el bienestar de todos, en situaciones que lo afectan o incomodan a él o a alguno de sus compañeros. Muestra, en las actividades que realiza, comportamientos de acuerdo con las normas de convivencia asumidos.",
-      "Colabora en actividades colectivas orientadas al cuidado de los recursos, materiales y espacios compartidos."
+      {
+        "text": "Se relaciona con adultos de su entorno, juega con otros niños y se integra en actividades grupales del aula. Propone ideas de juego y las normas del mismo, sigue las reglas de los demás de acuerdo con sus intereses.",
+        "example": "Un niño propone a sus amigos jugar “matagente” con lo que el grupo está de acuerdo y les dice que no vale agarrar la pelota con la mano."
+      },
+      {
+        "text": "Realiza actividades cotidianas con sus compañeros y se interesa por conocer sus costumbres, así como los lugares de los que proceden. Realiza preguntas acerca de lo que le llamó la atención."
+      },
+      {
+        "text": "Participa en la construcción colectiva de acuerdos y normas, basados en el respeto y el bienestar de todos, en situaciones que lo afectan o incomodan a él o a alguno de sus compañeros. Muestra, en las actividades que realiza, comportamientos de acuerdo con las normas de convivencia asumidos."
+      },
+      {
+        "text": "Colabora en actividades colectivas orientadas al cuidado de los recursos, materiales y espacios compartidos."
+      }
     ],
     "5y": [
-      "Se relaciona con adultos de su entorno, juega con otros niños y se integra en actividades grupales del aula. Propone ideas de juego y sus normas. Se pone de acuerdo con el grupo para elegir un juego y las reglas del mismo.",
-      "Realiza actividades cotidianas con sus compañeros, y se interesa por compartir las costumbres de su familia y conocer los lugares de donde proceden. Muestra interés por conocer las costumbres de las familias de sus compañeros. Realiza preguntas para obtener más información.",
-      "Participa en la construcción colectiva de acuerdos y normas basadas en el respeto y el bienestar de todos considerando las situaciones que afectan o incomodan a todo el grupo. Muestra en las actividades que realiza comportamientos de acuerdo con las normas de convivencia asumidos.",
-      "Asume responsabilidades en su aula para colaborar con el orden, limpieza y bienestar de todos.",
-      "Propone y colabora en actividades colectivas –en el nivel de aula e IE– orientadas al cuidado de recursos, materiales y espacios compartidos."
+      {
+        "text": "Se relaciona con adultos de su entorno, juega con otros niños y se integra en actividades grupales del aula. Propone ideas de juego y sus normas. Se pone de acuerdo con el grupo para elegir un juego y las reglas del mismo."
+      },
+      {
+        "text": "Realiza actividades cotidianas con sus compañeros, y se interesa por compartir las costumbres de su familia y conocer los lugares de donde proceden. Muestra interés por conocer las costumbres de las familias de sus compañeros. Realiza preguntas para obtener más información."
+      },
+      {
+        "text": "Participa en la construcción colectiva de acuerdos y normas basadas en el respeto y el bienestar de todos considerando las situaciones que afectan o incomodan a todo el grupo. Muestra en las actividades que realiza comportamientos de acuerdo con las normas de convivencia asumidos."
+      },
+      {
+        "text": "Asume responsabilidades en su aula para colaborar con el orden, limpieza y bienestar de todos."
+      },
+      {
+        "text": "Propone y colabora en actividades colectivas –en el nivel de aula e IE– orientadas al cuidado de recursos, materiales y espacios compartidos."
+      }
     ]
   }
 }

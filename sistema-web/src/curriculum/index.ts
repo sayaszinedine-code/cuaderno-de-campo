@@ -1,5 +1,5 @@
 import { AREAS, COMPETENCIES, areaIdFor } from "./catalog";
-import type { AgeBand, Area, Competency, Cycle, PerformanceFile } from "./types";
+import type { AgeBand, Area, Competency, Cycle, Performance, PerformanceFile } from "./types";
 
 import construyeIdentidad from "./performances/construye-identidad.json";
 import conviveParticipa from "./performances/convive-participa.json";
@@ -16,7 +16,7 @@ import indaga from "./performances/indaga.json";
 import tic from "./performances/tic.json";
 import gestionaAprendizaje from "./performances/gestiona-aprendizaje.json";
 
-export type { AgeBand, Area, Competency, Cycle } from "./types";
+export type { AgeBand, Area, Competency, Cycle, Performance } from "./types";
 export { COMPETENCIES, AREAS, areaIdFor } from "./catalog";
 
 export const CYCLE_BANDS: Record<Cycle, AgeBand[]> = {
@@ -60,7 +60,7 @@ export function getCompetenciesByArea(cycle: Cycle, areaId: string): Competency[
   return getCompetencies(cycle).filter((c) => areaIdFor(c, cycle) === areaId);
 }
 
-export function getPerformances(competencyId: string, band: AgeBand): string[] {
+export function getPerformances(competencyId: string, band: AgeBand): Performance[] {
   return PERFORMANCES.get(competencyId)?.[band] ?? [];
 }
 

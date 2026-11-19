@@ -129,14 +129,28 @@ describe("performances", () => {
   it("has clean text: no empties, no broken words, no hyphenation leftovers", () => {
     for (const id of Object.keys(EXPECTED_BANDS)) {
       for (const band of [...CYCLE_I_BANDS, ...CYCLE_II_BANDS]) {
-        for (const text of getPerformances(id, band)) {
-          expect(text.trim().length, `${id} ${band}`).toBeGreaterThan(0);
-          expect(text, `${id} ${band}`).not.toMatch(/\n/);
-          expect(text, `${id} ${band}`).not.toMatch(/\w-\s\w/);
-          expect(text, `${id} ${band}`).not.toMatch(/\s{2,}/);
-          expect(text, `${id} ${band}`).not.toMatch(/^•/);
+        for (const p of getPerformances(id, band)) {
+          const fields = [p.text, ...(p.example !== undefined ? [p.example] : [])];
+          for (const text of fields) {
+            expect(text.trim().length, `${id} ${band}`).toBeGreaterThan(0);
+            expect(text, `${id} ${band}`).toBe(text.trim());
+            expect(text, `${id} ${band}`).not.toMatch(/\n/);
+            expect(text, `${id} ${band}`).not.toMatch(/\w-\s\w/);
+            expect(text, `${id} ${band}`).not.toMatch(/\s{2,}/);
+            expect(text, `${id} ${band}`).not.toMatch(/^•/);
+          }
+          expect(p.text, `${id} ${band}`).not.toMatch(/Ejemplo/);
+          expect(p.example ?? "", `${id} ${band}`).not.toMatch(/^Ejemplo/);
         }
       }
     }
+  });
+
+  it("separates the example from the statement", () => {
+    const withExample = getPerformances("resuelve-cantidad", "5y").filter((p) => p.example);
+    expect(withExample.length).toBeGreaterThan(0);
+    expect(withExample[0].example!.length).toBeGreaterThan(0);
+    const last = getPerformances("resuelve-cantidad", "5y").at(-1)!;
+    expect(last.example).toBeUndefined();
   });
 });

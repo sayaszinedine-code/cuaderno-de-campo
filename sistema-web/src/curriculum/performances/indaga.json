@@ -2,35 +2,86 @@
   "competencyId": "indaga",
   "byAge": {
     "9m": [
-      "Explora, con todos sus sentidos (mira, toca, huele, chupa, escucha) y desde su iniciativa, los hechos que ocurren en su entorno inmediato y algunas características de los objetos que están a su alcance. Ejemplo: Un bebé observa los objetos que están a su alrededor. Desde su iniciativa, realiza diferentes movimientos para alcanzar el objeto que le interesa; luego, lo explora con la boca, lo manipula y, al sacudirlo, escucha un sonido. Vuelve a repetir la misma acción y se da cuenta de que, al sacudir el objeto, puede hacer que suene. Intenta sacudir otros objetos y descubre que algunos suenan al ser sacudidos y otros no."
+      {
+        "text": "Explora, con todos sus sentidos (mira, toca, huele, chupa, escucha) y desde su iniciativa, los hechos que ocurren en su entorno inmediato y algunas características de los objetos que están a su alcance.",
+        "example": "Un bebé observa los objetos que están a su alrededor. Desde su iniciativa, realiza diferentes movimientos para alcanzar el objeto que le interesa; luego, lo explora con la boca, lo manipula y, al sacudirlo, escucha un sonido. Vuelve a repetir la misma acción y se da cuenta de que, al sacudir el objeto, puede hacer que suene. Intenta sacudir otros objetos y descubre que algunos suenan al ser sacudidos y otros no."
+      }
     ],
     "18m": [
-      "Explora, con todos sus sentidos (mira, toca, huele, chupa, escucha) y desde su iniciativa, los hechos que ocurren en su entorno y hace uso de los objetos que están a su alcance según sus características Ejemplo: Un niño frente a una cesta de ropa encuentra diferentes prendas; las observa, toca y frota para sentir su textura. Coge el gorro y se lo pone encima de la cabeza."
+      {
+        "text": "Explora, con todos sus sentidos (mira, toca, huele, chupa, escucha) y desde su iniciativa, los hechos que ocurren en su entorno y hace uso de los objetos que están a su alcance según sus características",
+        "example": "Un niño frente a una cesta de ropa encuentra diferentes prendas; las observa, toca y frota para sentir su textura. Coge el gorro y se lo pone encima de la cabeza."
+      }
     ],
     "24m": [
-      "Explora desde su iniciativa los hechos que ocurren en su entorno y hace uso de los objetos que están a su alcance, según sus características, para resolver problemas cotidianos. Ejemplo: Un niño explora vasitos de plástico, cestos de paja y envases de plástico; prueba diferentes acciones con ellos: los apila y usa para meter y trasladar objetos. Otro niño utiliza un objeto largo para alcanzar la pelota que está debajo de un mueble."
+      {
+        "text": "Explora desde su iniciativa los hechos que ocurren en su entorno y hace uso de los objetos que están a su alcance, según sus características, para resolver problemas cotidianos.",
+        "example": "Un niño explora vasitos de plástico, cestos de paja y envases de plástico; prueba diferentes acciones con ellos: los apila y usa para meter y trasladar objetos. Otro niño utiliza un objeto largo para alcanzar la pelota que está debajo de un mueble."
+      }
     ],
     "36m": [
-      "Explora desde su iniciativa los hechos que ocurren en su entorno. Explora y hace uso de los objetos que están a su alcance, según sus características, para resolver problemas cotidianos, y experimenta con sus propiedades; descubre los efectos que sus acciones producen sobre ellos. Ejemplo: Un niño explora con arena y agua. Se da cuenta de que al echar agua produce un cambio en la arena (tanto en su apariencia como en su textura y consistencia), lo que llama su atención. Empieza a experimentar echando más agua y tocando la arena para sentir los cambios que produce en ella."
+      {
+        "text": "Explora desde su iniciativa los hechos que ocurren en su entorno. Explora y hace uso de los objetos que están a su alcance, según sus características, para resolver problemas cotidianos, y experimenta con sus propiedades; descubre los efectos que sus acciones producen sobre ellos.",
+        "example": "Un niño explora con arena y agua. Se da cuenta de que al echar agua produce un cambio en la arena (tanto en su apariencia como en su textura y consistencia), lo que llama su atención. Empieza a experimentar echando más agua y tocando la arena para sentir los cambios que produce en ella."
+      }
     ],
     "3y": [
-      "Hace preguntas que expresan su curiosidad sobre los objetos, seres vivos, hechos o fenómenos que acontecen en su ambiente. Ejemplo: Un niño pregunta a la docente: “¿Qué es eso?”. “Una hormiga”, responde el adulto. “¿Por qué la hormiga entró a la casa?”, vuelve a preguntar el niño. “Porque hay comida en el piso”, responde el adulto. “¿Y por qué hay comida en el piso?”, repregunta el niño.",
-      "Obtiene información sobre las características de los objetos y materiales que explora a través de sus sentidos. Usa algunos objetos y herramientas en su exploración. Ejemplo: Utiliza una lupa para observar algo pequeño, como una hormiga, y descubre que tiene seis pata y dos antenas.",
-      "Comunica los descubrimientos que hace cuando explora. Utiliza gestos o señas, movimientos corporales o lo hace oralmente. Ejemplo: Un niño señala con el dedo un gusano en el piso y salta emocionado; mientras, otro le dice a su profesora: “Mira, hay un gusano en el piso. Hay que ponerlo en el jardín”."
+      {
+        "text": "Hace preguntas que expresan su curiosidad sobre los objetos, seres vivos, hechos o fenómenos que acontecen en su ambiente.",
+        "example": "Un niño pregunta a la docente: “¿Qué es eso?”. “Una hormiga”, responde el adulto. “¿Por qué la hormiga entró a la casa?”, vuelve a preguntar el niño. “Porque hay comida en el piso”, responde el adulto. “¿Y por qué hay comida en el piso?”, repregunta el niño."
+      },
+      {
+        "text": "Obtiene información sobre las características de los objetos y materiales que explora a través de sus sentidos. Usa algunos objetos y herramientas en su exploración.",
+        "example": "Utiliza una lupa para observar algo pequeño, como una hormiga, y descubre que tiene seis pata y dos antenas."
+      },
+      {
+        "text": "Comunica los descubrimientos que hace cuando explora. Utiliza gestos o señas, movimientos corporales o lo hace oralmente.",
+        "example": "Un niño señala con el dedo un gusano en el piso y salta emocionado; mientras, otro le dice a su profesora: “Mira, hay un gusano en el piso. Hay que ponerlo en el jardín”."
+      }
     ],
     "4y": [
-      "Hace preguntas que expresan su curiosidad sobre los objetos, seres vivos, hechos o fenómenos que acontecen en su ambiente; y, al responder, da a conocer lo que sabe acerca de ellos. Ejemplo: Un grupo de niños al descubrir una fila de hormigas le pregunta a la docente: “¿Dónde viven las hormigas?”. Para promover la expresión de las ideas de los niños, la docente les responde: “¿Dónde creen que viven?”. Los niños dan diversas respuestas con base en lo que saben de ellas: “Las hormigas viven en el jardín”; “Viven en los huequitos de las paredes de mi casa”.",
-      "Propone acciones, y el uso de materiales e instrumentos para buscar información del objeto, ser vivo o hecho de interés que le genera interrogantes. Ejemplo: Para averiguar dónde viven las hormigas, los niños proponen utilizar lupas, salir al patio para encontrarlas y seguirlas.",
-      "Obtiene información sobre las características de los objetos, seres vivos o fenómenos naturales que observa y/o explora, y establece relaciones entre ellos. Registra la información de diferentes formas (dibujos, fotos, modelados). Ejemplo: Al observar y hacer seguimiento a las hormigas los niños descubren que salen y entran, llevando pedacitos de pan, a un pequeño orificio en el piso del patio.",
-      "Compara su respuesta inicial con respecto al objeto, ser vivo o hecho de interés, con la información obtenida posteriormente. Ejemplo: Fabiola dice: “Las hormigas no solo viven en el jardín, sino también en los huequitos del piso”. también “Las hormigas construyen sus casa en diferentes lugares”.",
-      "Comunica las acciones que realizó para obtener información y comparte sus resultados. Utiliza sus registros (dibujos, fotos u otras formas de representación, como el modelado) o lo hace verbalmente. Ejemplo: Juan explica sus dibujos sobre donde viven las hormigas a los demás compañeros."
+      {
+        "text": "Hace preguntas que expresan su curiosidad sobre los objetos, seres vivos, hechos o fenómenos que acontecen en su ambiente; y, al responder, da a conocer lo que sabe acerca de ellos.",
+        "example": "Un grupo de niños al descubrir una fila de hormigas le pregunta a la docente: “¿Dónde viven las hormigas?”. Para promover la expresión de las ideas de los niños, la docente les responde: “¿Dónde creen que viven?”. Los niños dan diversas respuestas con base en lo que saben de ellas: “Las hormigas viven en el jardín”; “Viven en los huequitos de las paredes de mi casa”."
+      },
+      {
+        "text": "Propone acciones, y el uso de materiales e instrumentos para buscar información del objeto, ser vivo o hecho de interés que le genera interrogantes.",
+        "example": "Para averiguar dónde viven las hormigas, los niños proponen utilizar lupas, salir al patio para encontrarlas y seguirlas."
+      },
+      {
+        "text": "Obtiene información sobre las características de los objetos, seres vivos o fenómenos naturales que observa y/o explora, y establece relaciones entre ellos. Registra la información de diferentes formas (dibujos, fotos, modelados).",
+        "example": "Al observar y hacer seguimiento a las hormigas los niños descubren que salen y entran, llevando pedacitos de pan, a un pequeño orificio en el piso del patio."
+      },
+      {
+        "text": "Compara su respuesta inicial con respecto al objeto, ser vivo o hecho de interés, con la información obtenida posteriormente.",
+        "example": "Fabiola dice: “Las hormigas no solo viven en el jardín, sino también en los huequitos del piso”. también “Las hormigas construyen sus casa en diferentes lugares”."
+      },
+      {
+        "text": "Comunica las acciones que realizó para obtener información y comparte sus resultados. Utiliza sus registros (dibujos, fotos u otras formas de representación, como el modelado) o lo hace verbalmente.",
+        "example": "Juan explica sus dibujos sobre donde viven las hormigas a los demás compañeros."
+      }
     ],
     "5y": [
-      "Hace preguntas que expresan su curiosidad sobre los objetos, seres vivos, hechos o fenómenos que acontecen en su ambiente; da a conocer lo que sabe y las ideas que tiene acerca de ellos. Plantea posibles explicaciones y/o alternativas de solución frente a una pregunta o situación problemática. Ejemplo: Un niño comenta que el queso que ha traído, lo hizo su abuelita con la leche que saca de su vaca. Esta situación genera curiosidad y otro niño pregunta: “¿Cómo hace tu abuelita para que la leche sea queso?”. La docente recoge la inquietud y pregunta al grupo: “¿Cómo creen que la leche ‘se convierte’ en queso?”. Frente a esta interrogante, tres niños expresan sus ideas y explican cómo creen que se hace el queso: “La leche la sacan de la vaca y luego la meten en la refrigeradora, y se vuelve queso”; “Sacan la leche de la vaca, después la llevan la leche a una fábrica donde hay moldes y un señor la convierte en queso”; “Ponen la leche en una olla hasta que esté caliente y luego la enfrían con hielo”.",
-      "Propone acciones, y el uso de materiales e instrumentos para buscar información del objeto, ser vivo o hecho de interés que genera interrogantes, o para resolver un problema planteado. Ejemplo: Para obtener información acerca de cómo la leche “se convierte” en queso, los niños proponen diferentes acciones y materiales: comprar leche, ponerla en un vaso y ponerla en la refrigeradora/hielo; otros proponen visitar y hablar con la abuelita de Juan, y ver cómo hace el queso; también se propone visitar la tienda donde fabrican quesos.",
-      "Obtiene información sobre las características de los objetos, seres vivos, hechos y fenómenos de la naturaleza, y establece relaciones entre ellos a través de la observación, experimentación y otras fuentes proporcionadas (libros, noticias, videos, imágenes, entrevistas). Describe sus características, necesidades, funciones, relaciones o cambios en su apariencia física. Registra la información de diferentes formas (con fotos, dibujos, modelado o de acuerdo con su nivel de escritura). Ejemplo: Para comprobar la idea “para hacer queso hay que meter la leche a la refrigeradora/hielo”. Observan y registran los resultados.",
-      "Compara sus explicaciones y predicciones con los datos e información que ha obtenido, y participa en la construcción de las conclusiones. Ejemplo: Pepe dice: “No, porque la leche no se convirtió en queso cuando la metimos en la refrigeradora”, “La abuelita nos enseñó que hay que mezclar la leche con el cuajo y ponerla en el molde”.",
-      "Comunica –de manera verbal, a través de dibujos, fotos, modelado o según su nivel de escritura– las acciones que realizó para obtener información. Comparte sus resultados y lo que aprendió. Ejemplo: Luisa explica a través de las fotos que tomaron sobre la elaboración del queso, acerca de los ingredientes, objetos y acciones que hizo la abuelita para preparar el queso; y terminar la actividad comiendo queso."
+      {
+        "text": "Hace preguntas que expresan su curiosidad sobre los objetos, seres vivos, hechos o fenómenos que acontecen en su ambiente; da a conocer lo que sabe y las ideas que tiene acerca de ellos. Plantea posibles explicaciones y/o alternativas de solución frente a una pregunta o situación problemática.",
+        "example": "Un niño comenta que el queso que ha traído, lo hizo su abuelita con la leche que saca de su vaca. Esta situación genera curiosidad y otro niño pregunta: “¿Cómo hace tu abuelita para que la leche sea queso?”. La docente recoge la inquietud y pregunta al grupo: “¿Cómo creen que la leche ‘se convierte’ en queso?”. Frente a esta interrogante, tres niños expresan sus ideas y explican cómo creen que se hace el queso: “La leche la sacan de la vaca y luego la meten en la refrigeradora, y se vuelve queso”; “Sacan la leche de la vaca, después la llevan la leche a una fábrica donde hay moldes y un señor la convierte en queso”; “Ponen la leche en una olla hasta que esté caliente y luego la enfrían con hielo”."
+      },
+      {
+        "text": "Propone acciones, y el uso de materiales e instrumentos para buscar información del objeto, ser vivo o hecho de interés que genera interrogantes, o para resolver un problema planteado.",
+        "example": "Para obtener información acerca de cómo la leche “se convierte” en queso, los niños proponen diferentes acciones y materiales: comprar leche, ponerla en un vaso y ponerla en la refrigeradora/hielo; otros proponen visitar y hablar con la abuelita de Juan, y ver cómo hace el queso; también se propone visitar la tienda donde fabrican quesos."
+      },
+      {
+        "text": "Obtiene información sobre las características de los objetos, seres vivos, hechos y fenómenos de la naturaleza, y establece relaciones entre ellos a través de la observación, experimentación y otras fuentes proporcionadas (libros, noticias, videos, imágenes, entrevistas). Describe sus características, necesidades, funciones, relaciones o cambios en su apariencia física. Registra la información de diferentes formas (con fotos, dibujos, modelado o de acuerdo con su nivel de escritura).",
+        "example": "Para comprobar la idea “para hacer queso hay que meter la leche a la refrigeradora/hielo”. Observan y registran los resultados."
+      },
+      {
+        "text": "Compara sus explicaciones y predicciones con los datos e información que ha obtenido, y participa en la construcción de las conclusiones.",
+        "example": "Pepe dice: “No, porque la leche no se convirtió en queso cuando la metimos en la refrigeradora”, “La abuelita nos enseñó que hay que mezclar la leche con el cuajo y ponerla en el molde”."
+      },
+      {
+        "text": "Comunica –de manera verbal, a través de dibujos, fotos, modelado o según su nivel de escritura– las acciones que realizó para obtener información. Comparte sus resultados y lo que aprendió.",
+        "example": "Luisa explica a través de las fotos que tomaron sobre la elaboración del queso, acerca de los ingredientes, objetos y acciones que hizo la abuelita para preparar el queso; y terminar la actividad comiendo queso."
+      }
     ]
   }
 }
