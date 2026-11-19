@@ -4,8 +4,13 @@ import {
   NetworkError,
   resolveAccountState,
   type CachedCheck,
+  type LocalSession,
   type Profile,
 } from "./session";
+
+const present = (userId: string): LocalSession => ({ kind: "present", userId });
+const ABSENT: LocalSession = { kind: "absent" };
+const UNKNOWN: LocalSession = { kind: "unknown" };
 
 const NOW = new Date("2026-11-19T12:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -61,7 +66,7 @@ describe("resolveAccountState online", () => {
     const state = await resolveAccountState({
       fetchProfile: async () => profile("active"),
       online: true,
-      localUserId: "u1",
+      localSession: present("u1"),
       cache,
       now: NOW,
     });
@@ -75,7 +80,7 @@ describe("resolveAccountState online", () => {
     const state = await resolveAccountState({
       fetchProfile: async () => profile("pending"),
       online: true,
-      localUserId: "u1",
+      localSession: present("u1"),
       cache: memoryCache(),
       now: NOW,
     });
@@ -87,7 +92,7 @@ describe("resolveAccountState online", () => {
     const state = await resolveAccountState({
       fetchProfile: async () => null,
       online: true,
-      localUserId: null,
+      localSession: ABSENT,
       cache,
       now: NOW,
     });
@@ -100,7 +105,7 @@ describe("resolveAccountState online", () => {
     const state = await resolveAccountState({
       fetchProfile: networkDown,
       online: true,
-      localUserId: "u1",
+      localSession: present("u1"),
       cache: memoryCache(check("active", 3)),
       now: NOW,
     });
@@ -111,7 +116,7 @@ describe("resolveAccountState online", () => {
     const state = await resolveAccountState({
       fetchProfile: networkDown,
       online: true,
-      localUserId: "u1",
+      localSession: present("u1"),
       cache: memoryCache(),
       now: NOW,
     });
@@ -122,7 +127,7 @@ describe("resolveAccountState online", () => {
     const state = await resolveAccountState({
       fetchProfile: networkDown,
       online: true,
-      localUserId: "u1",
+      localSession: present("u1"),
       cache: memoryCache(check("active", 31)),
       now: NOW,
     });
@@ -134,7 +139,7 @@ describe("resolveAccountState online", () => {
       resolveAccountState({
         fetchProfile: () => Promise.reject(new Error("bug")),
         online: true,
-        localUserId: "u1",
+        localSession: present("u1"),
         cache: memoryCache(check("active", 1)),
         now: NOW,
       }),
@@ -143,8 +148,8 @@ describe("resolveAccountState online", () => {
 });
 
 describe("resolveAccountState offline", () => {
-  const offline = (cache: ReturnType<typeof memoryCache>, localUserId: string | null = "u1") =>
-    resolveAccountState({ fetchProfile: neverFetch, online: false, localUserId, cache, now: NOW });
+  const offline = (cache: ReturnType<typeof memoryCache>, localSession: LocalSession = present("u1")) =>
+    resolveAccountState({ fetchProfile: neverFetch, online: false, localSession, cache, now: NOW });
 
   it("active check from 29 days ago → active", async () => {
     expect((await offline(memoryCache(check("active", 29)))).kind).toBe("active");
@@ -169,14 +174,21 @@ describe("resolveAccountState offline", () => {
 
   it("cache but no local session (signed out on a shared PC) → signed-out", async () => {
     const cache = memoryCache(check("active", 1));
-    expect(await offline(cache, null)).toEqual({ kind: "signed-out" });
+    expect(await offline(cache, ABSENT)).toEqual({ kind: "signed-out" });
     expect(cache.get()).toBeNull();
   });
 
   it("cache for another user → signed-out", async () => {
     const cache = memoryCache(check("active", 1));
-    expect(await offline(cache, "someone-else")).toEqual({ kind: "signed-out" });
+    expect(await offline(cache, present("someone-else"))).toEqual({ kind: "signed-out" });
     expect(cache.get()).toBeNull();
+  });
+
+  it("unreadable local session → signed-out but keeps the cache", async () => {
+    const cache = memoryCache(check("active", 1));
+    expect(await offline(cache, UNKNOWN)).toEqual({ kind: "signed-out" });
+    expect(cache.clears).toBe(0);
+    expect(cache.get()).not.toBeNull();
   });
 
   it("local session but no cached check → offline-expired", async () => {
@@ -184,7 +196,7 @@ describe("resolveAccountState offline", () => {
   });
 
   it("no session and no cache → signed-out", async () => {
-    expect(await offline(memoryCache(), null)).toEqual({ kind: "signed-out" });
+    expect(await offline(memoryCache(), ABSENT)).toEqual({ kind: "signed-out" });
   });
 
   it("unparseable checkedAt → offline-expired", async () => {

@@ -39,12 +39,22 @@ export type AccountState =
   | { kind: ProfileStatus; profile: Profile }
   | { kind: "offline-expired" };
 
+/**
+ * present: a stored session exists for userId (its token may be expired).
+ * absent: confirmed no stored session (signed out).
+ * unknown: storage unreadable/corrupt; never treated as a confirmed sign-out.
+ */
+export type LocalSession =
+  | { kind: "present"; userId: string }
+  | { kind: "absent" }
+  | { kind: "unknown" };
+
 export type ResolveDeps = {
   /** Resolves null when there is no session; throws NetworkError on transport failures. */
   fetchProfile(): Promise<Profile | null>;
   online: boolean;
-  /** User id of the locally persisted session (read without network), or null when signed out. */
-  localUserId: string | null;
+  /** Locally persisted session, read from storage without any network call. */
+  localSession: LocalSession;
   cache: AccountCache;
   now: Date;
 };
@@ -103,14 +113,15 @@ export async function resolveAccountState(deps: ResolveDeps): Promise<AccountSta
   return resolveOffline(deps);
 }
 
-function resolveOffline({ localUserId, cache, now }: ResolveDeps): AccountState {
+function resolveOffline({ localSession, cache, now }: ResolveDeps): AccountState {
+  if (localSession.kind === "unknown") return { kind: "signed-out" };
   const check = cache.get();
-  if (!localUserId) {
+  if (localSession.kind === "absent") {
     if (check) cache.clear();
     return { kind: "signed-out" };
   }
   if (!check) return { kind: "offline-expired" };
-  if (check.userId !== localUserId) {
+  if (check.userId !== localSession.userId) {
     cache.clear();
     return { kind: "signed-out" };
   }

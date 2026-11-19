@@ -9,6 +9,7 @@ import {
   isProfileStatus,
   NetworkError,
   type AccountCache,
+  type LocalSession,
   type Profile,
 } from "./session";
 
@@ -41,6 +42,9 @@ type ProfileRow = {
 
 const PROFILE_COLUMNS = "id, first_names, last_names, email, institution, ugel, region, status, role";
 
+/** Explicit so the persisted session can be read from storage deterministically. */
+export const AUTH_STORAGE_KEY = "cuaderno-auth";
+
 let client: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient {
@@ -52,7 +56,7 @@ export function getSupabase(): SupabaseClient {
       "Falta configurar Supabase: define NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.",
     );
   }
-  client = createClient(url, key);
+  client = createClient(url, key, { auth: { storageKey: AUTH_STORAGE_KEY } });
   return client;
 }
 
@@ -140,11 +144,64 @@ async function currentUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
-/** User id of the locally persisted session; reads storage only, no network. */
-export async function getLocalUserId(): Promise<string | null> {
-  const { data, error } = await getSupabase().auth.getSession();
-  if (error) return null;
-  return data.session?.user.id ?? null;
+/** supabase-js default key (`sb-<project-ref>-auth-token`), in case a session predates AUTH_STORAGE_KEY. */
+function defaultStorageKey(): string | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    const ref = new URL(url).hostname.split(".")[0];
+    return ref ? `sb-${ref}-auth-token` : null;
+  } catch {
+    return null;
+  }
+}
+
+function userIdFrom(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  const user = record.user ?? (record.currentSession as Record<string, unknown> | undefined)?.user;
+  if (typeof user !== "object" || user === null) return null;
+  const id = (user as Record<string, unknown>).id;
+  return typeof id === "string" && id !== "" ? id : null;
+}
+
+function readStoredSession(key: string): LocalSession {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return { kind: "absent" };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { kind: "unknown" };
+  }
+  if (parsed === null) return { kind: "absent" };
+  let userId = userIdFrom(parsed);
+  if (!userId) {
+    // auth-js may keep the user apart when configured with `userStorage`.
+    try {
+      const rawUser = localStorage.getItem(`${key}-user`);
+      userId = rawUser === null ? null : userIdFrom(JSON.parse(rawUser));
+    } catch {
+      userId = null;
+    }
+  }
+  return userId ? { kind: "present", userId } : { kind: "unknown" };
+}
+
+/**
+ * Persisted session, read straight from localStorage. Never calls supabase-js
+ * (getSession() refreshes expired tokens over the network) so offline access
+ * keeps working after the ~1h access token expires.
+ */
+export function readLocalSession(): LocalSession {
+  try {
+    const primary = readStoredSession(AUTH_STORAGE_KEY);
+    if (primary.kind !== "absent") return primary;
+    const fallbackKey = defaultStorageKey();
+    return fallbackKey ? readStoredSession(fallbackKey) : primary;
+  } catch {
+    return { kind: "unknown" };
+  }
 }
 
 export async function fetchOwnProfile(): Promise<Profile | null> {

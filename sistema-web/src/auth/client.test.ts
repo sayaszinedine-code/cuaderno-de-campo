@@ -63,7 +63,7 @@ describe("getSupabase", () => {
     getSupabase();
     getSupabase();
     expect(createClient).toHaveBeenCalledTimes(1);
-    expect(createClient).toHaveBeenCalledWith("https://example.supabase.co", "anon-key");
+    expect(createClient).toHaveBeenCalledWith("https://example.supabase.co", "anon-key", expect.anything());
   });
 });
 
@@ -230,11 +230,86 @@ describe("sign-out and network handling", () => {
     await expect(fetchOwnProfile()).rejects.toBeInstanceOf(NetworkError);
   });
 
-  it("getLocalUserId reads the persisted session without network", async () => {
-    auth.getSession.mockResolvedValue({ data: { session: { user: { id: "u1" } } }, error: null });
-    const { getLocalUserId } = await load();
-    expect(await getLocalUserId()).toBe("u1");
-    auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
-    expect(await getLocalUserId()).toBeNull();
+  it("configures a deterministic auth storage key", async () => {
+    const { getSupabase, AUTH_STORAGE_KEY } = await load();
+    getSupabase();
+    expect(createClient).toHaveBeenCalledWith("https://example.supabase.co", "anon-key", {
+      auth: { storageKey: AUTH_STORAGE_KEY },
+    });
+  });
+});
+
+describe("readLocalSession (no network)", () => {
+  const expired = {
+    access_token: "expired",
+    refresh_token: "r",
+    expires_at: 1, // 1970: long expired
+    user: { id: "u1" },
+  };
+
+  it("reads the user id from a stored session with an expired token, without touching supabase", async () => {
+    const { readLocalSession, AUTH_STORAGE_KEY } = await load();
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(expired));
+    expect(readLocalSession()).toEqual({ kind: "present", userId: "u1" });
+    expect(createClient).not.toHaveBeenCalled();
+    expect(auth.getSession).not.toHaveBeenCalled();
+    expect(auth.getUser).not.toHaveBeenCalled();
+  });
+
+  it("offline with an expired stored token and a valid cache → cached state, no refresh", async () => {
+    const { readLocalSession, AUTH_STORAGE_KEY } = await load();
+    const { resolveAccountState, createLocalStorageCache } = await import("./session");
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(expired));
+    const cache = createLocalStorageCache();
+    cache.set({ userId: "u1", status: "active", role: "teacher", checkedAt: "2026-11-10T00:00:00Z" });
+    const state = await resolveAccountState({
+      fetchProfile: () => Promise.reject(new Error("no network expected")),
+      online: false,
+      localSession: readLocalSession(),
+      cache,
+      now: new Date("2026-11-19T00:00:00Z"),
+    });
+    expect(state.kind).toBe("active");
+    expect(auth.getSession).not.toHaveBeenCalled();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("supports the default sb-<ref>-auth-token key and the legacy currentSession shape", async () => {
+    const { readLocalSession } = await load();
+    localStorage.setItem(
+      "sb-example-auth-token",
+      JSON.stringify({ currentSession: { user: { id: "u2" } }, expiresAt: 1 }),
+    );
+    expect(readLocalSession()).toEqual({ kind: "present", userId: "u2" });
+  });
+
+  it("no stored session → absent", async () => {
+    const { readLocalSession } = await load();
+    expect(readLocalSession()).toEqual({ kind: "absent" });
+  });
+
+  it("corrupt stored session → unknown, without throwing", async () => {
+    const { readLocalSession, AUTH_STORAGE_KEY } = await load();
+    localStorage.setItem(AUTH_STORAGE_KEY, "{corrupt");
+    expect(readLocalSession()).toEqual({ kind: "unknown" });
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user: { id: 42 } }));
+    expect(readLocalSession()).toEqual({ kind: "unknown" });
+  });
+
+  it("corrupt stored session + offline → signed-out and keeps the cache", async () => {
+    const { readLocalSession, AUTH_STORAGE_KEY } = await load();
+    const { resolveAccountState, createLocalStorageCache } = await import("./session");
+    localStorage.setItem(AUTH_STORAGE_KEY, "{corrupt");
+    const cache = createLocalStorageCache();
+    cache.set({ userId: "u1", status: "active", role: "teacher", checkedAt: "2026-11-18T00:00:00Z" });
+    const state = await resolveAccountState({
+      fetchProfile: () => Promise.reject(new Error("no network expected")),
+      online: false,
+      localSession: readLocalSession(),
+      cache,
+      now: new Date("2026-11-19T00:00:00Z"),
+    });
+    expect(state).toEqual({ kind: "signed-out" });
+    expect(cache.get()).not.toBeNull();
   });
 });
