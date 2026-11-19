@@ -61,7 +61,7 @@ export function bandFor(params: {
 export function formatAge(birthDate: string, at: string): string {
   const months = ageInMonths(birthDate, at);
   if (months === null) return "";
-  if (months < 36) return `${months} meses`;
+  if (months < 36) return `${months} ${months === 1 ? "mes" : "meses"}`;
   const years = Math.floor(months / 12);
   const rest = months % 12;
   const yearsText = `${years} ${years === 1 ? "año" : "años"}`;

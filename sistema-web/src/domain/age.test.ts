@@ -67,6 +67,9 @@ describe("formatAge", () => {
   it("formats years and months", () => {
     expect(formatAge("2022-01-10", "2026-03-20")).toBe("4 años 2 meses");
   });
+  it("uses singular for one month", () => {
+    expect(formatAge("2026-02-10", "2026-03-10")).toBe("1 mes");
+  });
   it("uses months under 36 months", () => {
     expect(formatAge("2025-01-15", "2026-03-15")).toBe("14 meses");
   });
