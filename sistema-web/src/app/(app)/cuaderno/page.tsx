@@ -52,6 +52,11 @@ export default function CuadernoPage() {
     [notes, studentId, areaId, competencyId, periodId, kind, text, yearData],
   );
 
+  const PAGE = 30;
+  const sig = [studentId, areaId, competencyId, periodId, kind, text].join("\u0000");
+  const [shown, setShown] = useState({ sig, n: PAGE });
+  const visible = shown.sig === sig ? shown.n : PAGE;
+
   const sel = "field";
   return (
     <div className="max-w-3xl space-y-4">
@@ -135,9 +140,17 @@ export default function CuadernoPage() {
         <p className="card p-5">Ningún registro coincide con los filtros.</p>
       ) : (
         <div className="space-y-3">
-          {list.map((n) => (
+          {list.slice(0, visible).map((n) => (
             <NoteCard key={n.id} note={n} students={yearData.students} storage={storage} />
           ))}
+          <p className="text-sm text-muted">
+            Mostrando {Math.min(visible, list.length)} de {list.length} registros
+          </p>
+          {visible < list.length && (
+            <button type="button" className="btn-secondary" onClick={() => setShown({ sig, n: visible + PAGE })}>
+              Ver más
+            </button>
+          )}
         </div>
       )}
     </div>

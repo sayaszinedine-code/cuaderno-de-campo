@@ -25,7 +25,7 @@ function useThumbs(storage: Storage, paths: string[], max: number): (string | nu
       list.map(async (p) => {
         try {
           const blob = await storage.readFile(p);
-          if (!blob) return null;
+          if (!live || !blob) return null;
           const url = URL.createObjectURL(blob);
           made.push(url);
           return url;

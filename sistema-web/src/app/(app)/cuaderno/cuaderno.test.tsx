@@ -147,6 +147,41 @@ describe("Cuaderno list", () => {
   });
 });
 
+describe("Cuaderno robustness", () => {
+  it("does not create a URL for a read that resolves after unmount", async () => {
+    await seed([note({ id: "a", evidenceText: "x", evidence: ["a/late.jpg"] })]);
+    let release: (b: Blob) => void = () => {};
+    const orig = storage.readFile.bind(storage);
+    storage.readFile = (path: string) =>
+      path === "a/late.jpg" ? new Promise<Blob | null>((r) => (release = r)) : orig(path);
+    const create = vi.fn(() => "blob:late");
+    Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() });
+    const { unmount } = renderIn(<CuadernoPage />);
+    await screen.findByText("x");
+    await waitFor(() => expect(release).not.toBe(undefined));
+    unmount();
+    release(new Blob(["z"]));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("paginates 30 at a time and resets when a filter changes", async () => {
+    await seed(
+      Array.from({ length: 45 }, (_, i) =>
+        note({ id: `n${i}`, evidenceText: `t${i}`, kind: i < 40 ? "obs" : "logro" }),
+      ),
+    );
+    renderIn(<CuadernoPage />);
+    await screen.findByText("Mostrando 30 de 45 registros");
+    expect(screen.getAllByRole("link", { name: "Abrir" })).toHaveLength(30);
+    fireEvent.click(screen.getByRole("button", { name: "Ver más" }));
+    expect(screen.getAllByRole("link", { name: "Abrir" })).toHaveLength(45);
+    expect(screen.queryByRole("button", { name: "Ver más" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "obs" } });
+    expect(screen.getByText("Mostrando 30 de 40 registros")).toBeInTheDocument();
+  });
+});
+
 describe("Inicio shortcuts", () => {
   it("shows the new-note button, last 3 notes and the warning with names", async () => {
     const today = todayISO();
