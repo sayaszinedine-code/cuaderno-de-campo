@@ -57,7 +57,7 @@ npm run build
 Se genera la carpeta `out/` (sitio estático). Opciones:
 
 - **Vercel / Netlify conectados al repositorio**: Build command `npm run build`, Output directory `out`, y define las dos variables de entorno en el panel del servicio.
-- **Subida manual**: arrastra la carpeta `out/` a Netlify Drop (<https://app.netlify.com/drop>) o usa `vercel deploy --prebuilt`/`netlify deploy --dir=out`.
+- **Subida manual**: arrastra la carpeta `out/` a Netlify Drop (<https://app.netlify.com/drop>), o desde la terminal usa `vercel deploy out` (sube la carpeta estática tal cual) o `netlify deploy --dir=out`.
 
 Después del primer despliegue, actualiza la *Site URL* y las *Redirect URLs* de Supabase con la URL real.
 
@@ -71,9 +71,9 @@ Un proyecto del plan Free se **pausa tras 7 días sin actividad**. Mientras est�
 | --- | --- |
 | `npm run dev` | Servidor de desarrollo en <http://localhost:3000> |
 | `npm test` | Pruebas unitarias y de componentes (Vitest) |
-| `npm run e2e` | Prueba de punta a punta (Playwright, Chromium). Antes compila la app con Supabase simulado (`pree2e`); la primera vez ejecuta `npx playwright install chromium` |
+| `npm run e2e` | Prueba de punta a punta (Playwright, Chromium). Antes compila la app con Supabase simulado (`pree2e`) en `out-e2e/`; la primera vez ejecuta `npx playwright install chromium` |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Revisión de tipos (`tsc --noEmit`) |
 | `npm run build` | Compila el sitio estático en `out/` |
 
-Nota: `npm run e2e` reemplaza `out/` por una compilación con claves de prueba; vuelve a ejecutar `npm run build` antes de desplegar.
+Nota: la compilación de `npm run e2e` (con claves de prueba) va a `out-e2e/` y nunca toca `out/`, la carpeta que se despliega. No despliegues `out-e2e/`.
