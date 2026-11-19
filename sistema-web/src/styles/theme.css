@@ -1,0 +1,141 @@
+/* Design tokens. Light by default; dark via prefers-color-scheme or [data-theme="dark"]. */
+:root {
+  --background: #fbfaf5;
+  --foreground: #1f2b2e;
+  --surface: #ffffff;
+  --border: #d9e4e2;
+  --muted: #5b6b6f;
+  --primary: #1f8a86;
+  --primary-hover: #176f6c;
+  --primary-foreground: #ffffff;
+  --accent: #f6c445;
+  --accent-soft: #fdf0c4;
+  --danger-soft: #fde4e1;
+  --pattern-opacity: 0.5;
+  --pattern-filter: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #14201f;
+    --foreground: #e8f0ee;
+    --surface: #1c2c2b;
+    --border: #2f4543;
+    --muted: #9fb3b0;
+    --primary: #4fc3bd;
+    --primary-hover: #6fd3cd;
+    --primary-foreground: #0d1b1a;
+    --accent: #f2c13d;
+    --accent-soft: #4a3d12;
+    --danger-soft: #4d2320;
+    --pattern-opacity: 0.07;
+    --pattern-filter: invert(1);
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #14201f;
+  --foreground: #e8f0ee;
+  --surface: #1c2c2b;
+  --border: #2f4543;
+  --muted: #9fb3b0;
+  --primary: #4fc3bd;
+  --primary-hover: #6fd3cd;
+  --primary-foreground: #0d1b1a;
+  --accent: #f2c13d;
+  --accent-soft: #4a3d12;
+  --danger-soft: #4d2320;
+  --pattern-opacity: 0.07;
+  --pattern-filter: invert(1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+/* Line-art pattern from the client's deck, kept faint behind the content. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url("/fondo-infantil.png") center / 480px auto repeat;
+  opacity: var(--pattern-opacity);
+  filter: var(--pattern-filter);
+  pointer-events: none;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+}
+
+.btn-primary,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.field {
+  display: block;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+.field:read-only {
+  color: var(--muted);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
