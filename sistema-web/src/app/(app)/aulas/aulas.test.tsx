@@ -49,7 +49,7 @@ beforeEach(() => {
   window.history.pushState({}, "", "/");
 });
 
-const renderIn = (ui: React.ReactElement) => render(<WorkspaceProvider>{ui}</WorkspaceProvider>);
+const renderIn = (ui: React.ReactElement) => render(<WorkspaceProvider userId="u1">{ui}</WorkspaceProvider>);
 
 describe("Aulas page", () => {
   it("creates Girasoles, ciclo II, 4 años", async () => {
@@ -121,6 +121,57 @@ describe("Aulas page", () => {
   });
 });
 
+/** Every year save fails from now on (the repo's saveYear rejects). */
+const failSaves = () => vi.spyOn(storage, "writeTextAtomic").mockRejectedValue(new Error("disk gone"));
+const SAVE_BANNER = "No se pudo guardar. Revisa que la carpeta siga disponible.";
+
+describe("Aulas page when the save fails", () => {
+  it("keeps the create form values", async () => {
+    renderIn(<AulasPage />);
+    const name = await screen.findByLabelText("Nombre del aula");
+    failSaves();
+    fireEvent.change(name, { target: { value: "Girasoles" } });
+    fireEvent.click(screen.getByLabelText("4 años"));
+    fireEvent.click(screen.getByRole("button", { name: "Crear aula" }));
+    expect(await screen.findByText(SAVE_BANNER)).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre del aula")).toHaveValue("Girasoles");
+    expect(screen.getByLabelText("4 años")).toBeChecked();
+  });
+
+  it("does not confirm a classroom change", async () => {
+    await seed((d) => createClassroom(d, { name: "Sol", cycle: "II", bands: ["3y"] }, () => "c1"));
+    renderIn(<AulasPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    failSaves();
+    const [, editName] = screen.getAllByLabelText("Nombre del aula");
+    fireEvent.change(editName, { target: { value: "Luna" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar nombre" }));
+    expect(await screen.findByText(SAVE_BANNER)).toBeInTheDocument();
+    expect(screen.queryByText("Cambios guardados.")).toBeNull();
+  });
+
+  it("does not confirm the periods", async () => {
+    renderIn(<AulasPage />);
+    const start = await screen.findByLabelText("Inicio del bimestre 1");
+    failSaves();
+    fireEvent.change(start, { target: { value: `${year}-03-02` } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar bimestres" }));
+    expect(await screen.findByText(SAVE_BANNER)).toBeInTheDocument();
+    expect(screen.queryByText("Bimestres guardados.")).toBeNull();
+    expect(screen.getByLabelText("Inicio del bimestre 1")).toHaveValue(`${year}-03-02`);
+  });
+
+  it("still confirms successful saves", async () => {
+    await seed((d) => createClassroom(d, { name: "Sol", cycle: "II", bands: ["3y"] }, () => "c1"));
+    renderIn(<AulasPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar nombre" }));
+    expect(await screen.findByText("Cambios guardados.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar bimestres" }));
+    expect(await screen.findByText("Bimestres guardados.")).toBeInTheDocument();
+  });
+});
+
 describe("Niños pages", () => {
   const withKids = () =>
     seed((d) => {
@@ -138,6 +189,44 @@ describe("Niños pages", () => {
     fireEvent.change(screen.getByLabelText("Apellidos"), { target: { value: "Quispe" } });
     fireEvent.click(screen.getByRole("button", { name: "Agregar niño" }));
     expect(await screen.findByText("Quispe, Luis")).toBeInTheDocument();
+  });
+
+  it("keeps the add form values when the save fails", async () => {
+    await withKids();
+    renderIn(<NinosPage />);
+    await screen.findByText("Paz, Ana");
+    failSaves();
+    fireEvent.change(screen.getByLabelText("Nombres"), { target: { value: "Luis" } });
+    fireEvent.change(screen.getByLabelText("Apellidos"), { target: { value: "Quispe" } });
+    fireEvent.change(screen.getByLabelText("Fecha de nacimiento"), { target: { value: "2021-02-03" } });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar niño" }));
+    expect(await screen.findByText(SAVE_BANNER)).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombres")).toHaveValue("Luis");
+    expect(screen.getByLabelText("Apellidos")).toHaveValue("Quispe");
+    expect(screen.getByLabelText("Fecha de nacimiento")).toHaveValue("2021-02-03");
+    expect(screen.queryByText("Quispe, Luis")).toBeNull();
+  });
+
+  it("ficha does not confirm when the save fails", async () => {
+    await withKids();
+    window.history.pushState({}, "", "/ninos/ficha/?id=s1");
+    renderIn(<FichaPage />);
+    await screen.findByRole("heading", { name: "Paz, Ana" });
+    failSaves();
+    fireEvent.change(screen.getByLabelText("DNI"), { target: { value: "12345678" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText(SAVE_BANNER)).toBeInTheDocument();
+    expect(screen.queryByText("Ficha guardada.")).toBeNull();
+    expect(screen.getByLabelText("DNI")).toHaveValue("12345678");
+  });
+
+  it("ficha confirms a successful save", async () => {
+    await withKids();
+    window.history.pushState({}, "", "/ninos/ficha/?id=s1");
+    renderIn(<FichaPage />);
+    await screen.findByRole("heading", { name: "Paz, Ana" });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText("Ficha guardada.")).toBeInTheDocument();
   });
 
   it("hides archived children until the toggle", async () => {
@@ -175,7 +264,7 @@ describe("Niños pages", () => {
     renderIn(<FichaPage />);
     const input = await screen.findByLabelText("Subir foto (opcional)");
     fireEvent.change(input, { target: { files: [new File(["x"], "a.png", { type: "image/png" })] } });
-    const path = "Aula Sol (3 años)/Niños/Paz, Ana/foto.jpg";
+    const path = "Aula Sol (3 años) - c1/Niños/Paz, Ana - s1/foto.jpg";
     await waitFor(async () => expect((await saved()).students[0].photo).toBe(`${year}/${path}`));
     expect(await storage.readFile(`${year}/${path}`)).not.toBeNull();
   });

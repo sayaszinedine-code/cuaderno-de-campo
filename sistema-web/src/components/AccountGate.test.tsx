@@ -1,9 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountState, Profile } from "@/auth/session";
 
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
+const signOut = vi.hoisted(() => vi.fn());
+vi.mock("@/auth/client", () => ({ signOut, fetchOwnProfile: vi.fn(), readLocalSession: vi.fn() }));
 
 import { AccountGate, useAccount } from "./AccountGate";
 
@@ -25,7 +27,10 @@ function renderGate(state: AccountState) {
   );
 }
 
-beforeEach(() => replace.mockClear());
+beforeEach(() => {
+  replace.mockClear();
+  signOut.mockReset();
+});
 
 describe("AccountGate", () => {
   it("shows a loading message first", () => {
@@ -49,7 +54,7 @@ describe("AccountGate", () => {
   it("explains suspended accounts with a link to /cuenta/", async () => {
     renderGate({ kind: "suspended", profile: { ...profile, status: "suspended" } });
     expect(
-      await screen.findByText("Tu cuenta está suspendida. Puedes abrir tu carpeta y exportar tus datos."),
+      await screen.findByText("Tu cuenta está suspendida. La exportación de tus datos estará disponible pronto."),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /cuenta/i })).toHaveAttribute("href", "/cuenta/");
   });
@@ -76,5 +81,24 @@ describe("AccountGate", () => {
   it("shows an error when resolving fails", async () => {
     render(<AccountGate resolve={() => Promise.reject(new Error("x"))}>x</AccountGate>);
     expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["pending", { kind: "pending", profile: { ...profile, status: "pending" } }],
+    ["offline-expired", { kind: "offline-expired" }],
+  ] as const)("lets a %s account sign out and go to /login/", async (_label, state) => {
+    signOut.mockResolvedValue(undefined);
+    renderGate(state);
+    fireEvent.click(await screen.findByRole("button", { name: "Cerrar sesión" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login/"));
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an error and stays when sign-out fails", async () => {
+    signOut.mockRejectedValue(new TypeError("Failed to fetch"));
+    renderGate({ kind: "offline-expired" });
+    fireEvent.click(await screen.findByRole("button", { name: "Cerrar sesión" }));
+    expect(await screen.findByText("No hay conexión. Revisa tu internet e inténtalo de nuevo.")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

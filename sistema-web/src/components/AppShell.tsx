@@ -17,7 +17,13 @@ const NAV: NavItem[] = [
   { label: "Unidades" },
   { label: "Asistencia" },
   { label: "Agenda" },
-  { label: "Más" },
+];
+
+/** Personal pages: on desktop after the main list, on mobile inside «Más». */
+const PERSONAL: NavItem[] = [
+  { label: "Perfil", href: "/perfil/" },
+  { label: "Carpeta", href: "/carpeta/" },
+  { label: "Mi cuenta", href: "/cuenta/" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -26,12 +32,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const admin: NavItem[] = profile.role === "admin" ? [{ label: "Administración", href: "/admin/" }] : [];
-  const desktopItems: NavItem[] = [...NAV, ...admin];
+  const desktopItems: NavItem[] = [...NAV, ...PERSONAL, ...admin];
   const mobileItems = NAV.filter((i) => ["Inicio", "Cuaderno", "Niños", "Notas"].includes(i.label));
   const moreItems: NavItem[] = [
     ...NAV.filter((i) => ["Aulas", "Unidades", "Asistencia", "Agenda"].includes(i.label)),
-    { label: "Perfil", href: "/perfil/" },
-    { label: "Carpeta", href: "/carpeta/" },
+    ...PERSONAL,
     ...admin,
   ];
 

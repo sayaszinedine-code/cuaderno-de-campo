@@ -2,7 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { fetchOwnProfile, readLocalSession } from "@/auth/client";
+import { fetchOwnProfile, readLocalSession, signOut } from "@/auth/client";
+import { authErrorMessage } from "@/auth/messages";
 import { createLocalStorageCache, resolveAccountState, type AccountState, type Profile } from "@/auth/session";
 
 type AccountContextValue = { profile: Profile; refresh: () => void };
@@ -77,21 +78,62 @@ export function AccountGate({
         <AccountContext.Provider value={{ profile: state.profile, refresh }}>{children}</AccountContext.Provider>
       );
     case "pending":
-      return <Notice>Tu cuenta está en revisión. Te avisaremos cuando sea aprobada.</Notice>;
+      return (
+        <Notice>
+          Tu cuenta está en revisión. Te avisaremos cuando sea aprobada.
+          <SignOutButton />
+        </Notice>
+      );
     case "suspended":
       return (
         <Notice>
-          Tu cuenta está suspendida. Puedes abrir tu carpeta y exportar tus datos.
+          Tu cuenta está suspendida. La exportación de tus datos estará disponible pronto.
           <a href="/cuenta/" className="mt-3 block text-blue-700 underline">
             Ir a mi cuenta
           </a>
         </Notice>
       );
     case "offline-expired":
-      return <Notice>Conéctate a internet para verificar tu cuenta.</Notice>;
+      return (
+        <Notice>
+          Conéctate a internet para verificar tu cuenta.
+          <SignOutButton />
+        </Notice>
+      );
     case "signed-out":
       return <Notice>Redirigiendo…</Notice>;
   }
+}
+
+function SignOutButton() {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function onClick() {
+    setError("");
+    setBusy(true);
+    try {
+      await signOut();
+      router.replace("/login/");
+    } catch (err) {
+      setError(authErrorMessage(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <span className="mt-3 block space-y-2">
+      <button type="button" className="btn-secondary" onClick={() => void onClick()} disabled={busy}>
+        Cerrar sesión
+      </button>
+      {error && (
+        <span role="alert" className="block text-red-700">
+          {error}
+        </span>
+      )}
+    </span>
+  );
 }
 
 function Notice({ children, role }: { children: ReactNode; role?: "alert" }) {

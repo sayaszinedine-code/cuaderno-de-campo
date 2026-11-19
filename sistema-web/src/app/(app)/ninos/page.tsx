@@ -28,16 +28,17 @@ export default function NinosPage() {
     e.preventDefault();
     const target = classroomId || rooms[0]?.id || "";
     let msg = "";
-    await update((d) => {
+    const saved = await update((d) => {
       try {
         return addStudent(d, { classroomId: target, firstNames, lastNames, birthDate: birthDate || undefined });
       } catch (err) {
         msg = err instanceof Error ? err.message : "No se pudo agregar al niño.";
-        return d;
+        throw err;
       }
     });
     setError(msg);
-    if (!msg) {
+    // Keep what was typed unless it really reached the disk (a failed save shows the provider's banner).
+    if (saved) {
       setFirstNames("");
       setLastNames("");
       setBirthDate("");

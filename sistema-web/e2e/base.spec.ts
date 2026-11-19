@@ -14,22 +14,39 @@ type MockProfile = {
 
 const USER_ID = "00000000-0000-4000-8000-000000000001";
 const EMAIL = "maria@example.com";
+/** A second, already approved teacher using the same browser profile. */
+const OTHER_ID = "00000000-0000-4000-8000-000000000002";
+const OTHER_EMAIL = "rosa@example.com";
 
 const json = (route: Route, body: unknown, status = 200) =>
   route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 
-/** Mocks the only Supabase surface the app uses: auth (sign-up, password login, user) and `profiles`. */
+const authUser = (id: string, email: string) => ({
+  id,
+  aud: "authenticated",
+  role: "authenticated",
+  email,
+  app_metadata: {},
+  user_metadata: {},
+  created_at: "2026-01-01T00:00:00Z",
+});
+
+/** Mocks the only Supabase surface the app uses: auth (sign-up, password login, user, logout) and `profiles`. */
 async function mockSupabase(page: Page) {
-  const user = {
-    id: USER_ID,
-    aud: "authenticated",
-    role: "authenticated",
-    email: EMAIL,
-    app_metadata: {},
-    user_metadata: {},
-    created_at: "2026-01-01T00:00:00Z",
+  const users = { [EMAIL]: authUser(USER_ID, EMAIL), [OTHER_EMAIL]: authUser(OTHER_ID, OTHER_EMAIL) };
+  const other: MockProfile = {
+    id: OTHER_ID,
+    first_names: "Rosa",
+    last_names: "Quispe",
+    email: OTHER_EMAIL,
+    institution: null,
+    ugel: null,
+    region: null,
+    status: "active",
+    role: "teacher",
   };
-  const state: { profile: MockProfile | null } = { profile: null };
+  const state: { profile: MockProfile | null; current: keyof typeof users } = { profile: null, current: EMAIL };
+  const currentProfile = () => (state.current === EMAIL ? state.profile : other);
 
   await page.route("**/auth/v1/**", async (route) => {
     const url = new URL(route.request().url());
@@ -48,9 +65,13 @@ async function mockSupabase(page: Page) {
         role: "teacher",
       };
       // Email confirmation is on: no session is returned.
-      return json(route, user);
+      return json(route, users[EMAIL]);
     }
     if (url.pathname.endsWith("/token")) {
+      const { email } = route.request().postDataJSON() as { email: string };
+      if (!(email in users)) return json(route, { code: "invalid_credentials" }, 400);
+      state.current = email as keyof typeof users;
+      const user = users[state.current];
       return json(route, {
         access_token: "test-access-token",
         refresh_token: "test-refresh-token",
@@ -60,16 +81,17 @@ async function mockSupabase(page: Page) {
         user,
       });
     }
-    if (url.pathname.endsWith("/user")) return json(route, user);
+    if (url.pathname.endsWith("/user")) return json(route, users[state.current]);
+    if (url.pathname.endsWith("/logout")) return route.fulfill({ status: 204 });
     return json(route, {});
   });
 
   await page.route("**/rest/v1/profiles**", async (route) => {
     const request = route.request();
-    if (request.method() === "PATCH" && state.profile) {
+    if (request.method() === "PATCH" && state.current === EMAIL && state.profile) {
       state.profile = { ...state.profile, ...(request.postDataJSON() as Partial<MockProfile>) };
     }
-    return json(route, state.profile);
+    return json(route, currentProfile());
   });
 
   return state;
@@ -88,7 +110,9 @@ async function mockFolderPicker(page: Page) {
   });
 }
 
-test("registro, aprobación, carpeta, perfil, aula y niña persisten tras recargar", async ({ page }) => {
+test("registro, aprobación, carpeta, perfil, aula y niña persisten tras recargar; otra docente no ve esos datos", async ({
+  page,
+}) => {
   const profile = await mockSupabase(page);
   await mockFolderPicker(page);
 
@@ -154,4 +178,16 @@ test("registro, aprobación, carpeta, perfil, aula y niña persisten tras recarg
   // Una docente no accede al panel de administración
   await page.goto("/admin/");
   await expect(page.getByText("No tienes acceso a esta sección.")).toBeVisible();
+
+  // Cerrar sesión desde «Mi cuenta»
+  await page.goto("/inicio/");
+  await page.getByRole("navigation", { name: "Principal", exact: true }).getByRole("link", { name: "Mi cuenta" }).click();
+  await page.getByRole("button", { name: "Cerrar sesión" }).click();
+  await expect(page).toHaveURL(/\/login\/$/);
+
+  // Otra docente en el mismo navegador: debe elegir su propia carpeta
+  await page.getByLabel("Correo electrónico").fill(OTHER_EMAIL);
+  await page.getByLabel("Contraseña").fill("otra-clave-1");
+  await page.getByRole("button", { name: "Ingresar" }).click();
+  await expect(page.getByRole("heading", { name: "Elige dónde guardar tu cuaderno" })).toBeVisible();
 });

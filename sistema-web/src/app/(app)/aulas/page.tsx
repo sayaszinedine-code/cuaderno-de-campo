@@ -59,20 +59,26 @@ export default function AulasPage() {
   );
 }
 
-type Update = (fn: (d: YearData) => YearData) => Promise<void>;
+type Update = (fn: (d: YearData) => YearData) => Promise<boolean>;
 
-/** Runs a pure change against the latest data; reports the Spanish error instead of saving on failure. */
-async function applyChange(update: Update, change: (d: YearData) => YearData): Promise<string> {
+/**
+ * Runs a pure change against the latest data. `error` is the Spanish validation message (nothing is saved);
+ * `saved` is true only when the change was written to disk (a save failure shows the provider's banner).
+ */
+async function applyChange(
+  update: Update,
+  change: (d: YearData) => YearData,
+): Promise<{ error: string; saved: boolean }> {
   let error = "";
-  await update((d) => {
+  const saved = await update((d) => {
     try {
       return change(d);
     } catch (e) {
       error = errorText(e);
-      return d;
+      throw e;
     }
   });
-  return error;
+  return { error, saved };
 }
 
 function CreateClassroom({ update }: { update: Update }) {
@@ -85,9 +91,9 @@ function CreateClassroom({ update }: { update: Update }) {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const msg = await applyChange(update, (d) => createClassroom(d, { name, cycle, bands }));
+    const { error: msg, saved } = await applyChange(update, (d) => createClassroom(d, { name, cycle, bands }));
     setError(msg);
-    if (!msg) {
+    if (saved) {
       setName("");
       setBands([]);
     }
@@ -154,10 +160,10 @@ function EditClassroom({
   const optional = getCompetencies(classroom.cycle).filter((c) => c.optional);
 
   async function run(change: (d: YearData) => YearData): Promise<boolean> {
-    const msg = await applyChange(update, change);
+    const { error: msg, saved: ok } = await applyChange(update, change);
     setError(msg);
-    setSaved(!msg);
-    return !msg;
+    setSaved(ok);
+    return ok;
   }
 
   const toggleCompetency = (id: string, enabled: boolean) =>
@@ -258,9 +264,9 @@ function PeriodsSection({ periods, update }: { periods: Period[]; update: Update
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const msg = await applyChange(update, (d) => updatePeriods(d, draft));
+    const { error: msg, saved: ok } = await applyChange(update, (d) => updatePeriods(d, draft));
     setError(msg);
-    setSaved(!msg);
+    setSaved(ok);
   }
 
   return (

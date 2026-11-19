@@ -47,9 +47,9 @@ function CuentaContent() {
         <dd>{profile.email}</dd>
       </dl>
       {profile.status === "suspended" && (
+        // No link to /carpeta/: it is gated for suspended accounts. Export arrives in a later release.
         <p className="mb-6 rounded border border-gray-300 p-4">
-          Tu cuenta está suspendida. Puedes abrir tu carpeta y exportar tus datos.{" "}
-          <a href="/carpeta/" className="text-blue-700 underline">Ir a mi carpeta</a>
+          Tu cuenta está suspendida. La exportación de tus datos estará disponible pronto.
         </p>
       )}
       <p role="alert" aria-live="polite" className="min-h-6 text-red-700">{error}</p>

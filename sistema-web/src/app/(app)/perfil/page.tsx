@@ -29,6 +29,8 @@ export default function PerfilPage() {
         institution: account.institution,
       },
   );
+  // The offline cached account has no email: keep the one already saved in the folder.
+  const email = account.email || saved?.email || "";
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message>(null);
 
@@ -39,7 +41,7 @@ export default function PerfilPage() {
     e.preventDefault();
     setBusy(true);
     setMessage(null);
-    const data: TeacherProfile = { ...form, email: account.email, level: "Inicial" };
+    const data: TeacherProfile = { ...form, email, level: "Inicial" };
     try {
       await saveProfile(data);
     } catch {
@@ -81,7 +83,7 @@ export default function PerfilPage() {
         </select>
       </label>
       <Field label="Domicilio" value={form.address} onChange={set("address")} />
-      <Field label="Correo" value={account.email} readOnly />
+      <Field label="Correo" value={email} readOnly />
       <Field label="Nivel" value="Inicial" readOnly />
       <Field label="UGEL" value={form.ugel} onChange={set("ugel")} />
       <Field label="Institución educativa" value={form.institution} onChange={set("institution")} />

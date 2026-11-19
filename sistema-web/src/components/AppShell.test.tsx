@@ -21,6 +21,7 @@ describe("AppShell mobile nav", () => {
     const menu = screen.getByRole("menu", { name: "Más opciones" });
     expect(within(menu).getByRole("link", { name: "Administración" })).toHaveAttribute("href", expect.stringMatching(/^\/admin\/?$/));
     expect(within(menu).getByRole("link", { name: "Perfil" })).toBeInTheDocument();
+    expect(within(menu).getByRole("link", { name: "Mi cuenta" })).toHaveAttribute("href", expect.stringMatching(/^\/cuenta\/?$/));
     expect(within(menu).getByText("Unidades")).toHaveAttribute("aria-disabled", "true");
   });
 
@@ -30,5 +31,9 @@ describe("AppShell mobile nav", () => {
     const side = screen.getByRole("navigation", { name: "Principal" });
     expect(within(side).getByText("Unidades")).toBeInTheDocument();
     expect(within(side).queryByText("Administración")).toBeNull();
+    expect(within(side).getByRole("link", { name: "Perfil" })).toHaveAttribute("href", expect.stringMatching(/^\/perfil\/?$/));
+    expect(within(side).getByRole("link", { name: "Carpeta" })).toHaveAttribute("href", expect.stringMatching(/^\/carpeta\/?$/));
+    expect(within(side).getByRole("link", { name: "Mi cuenta" })).toHaveAttribute("href", expect.stringMatching(/^\/cuenta\/?$/));
+    expect(within(side).queryByText("Más")).toBeNull();
   });
 });

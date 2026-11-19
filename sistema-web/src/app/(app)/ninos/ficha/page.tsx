@@ -77,7 +77,8 @@ function Ficha({ student }: { student: Student }) {
   async function onSave(e: FormEvent) {
     e.preventDefault();
     const clean = (v: string | undefined) => (v?.trim() ? v.trim() : undefined);
-    await update((d) =>
+    setMessage("");
+    const saved = await update((d) =>
       updateStudent(d, student.id, {
         dni: clean(form.dni),
         guardian: clean(form.guardian),
@@ -86,7 +87,7 @@ function Ficha({ student }: { student: Student }) {
         healthNotes: clean(form.healthNotes),
       }),
     );
-    setMessage("Ficha guardada.");
+    if (saved) setMessage("Ficha guardada.");
   }
 
   async function onPhoto(file: File | undefined) {

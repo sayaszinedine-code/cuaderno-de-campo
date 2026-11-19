@@ -6,13 +6,15 @@ import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 export default function InicioPage() {
   const { profile } = useAccount();
-  const { storage, year, yearData } = useWorkspace();
-  const firstName = profile.firstNames.trim().split(/\s+/)[0] ?? "";
+  const { storage, year, yearData, profile: local } = useWorkspace();
+  // The offline cached account has no names: fall back to the profile saved in the folder.
+  const names = profile.firstNames.trim() || local?.firstNames.trim() || "";
+  const firstName = names.split(/\s+/)[0] ?? "";
   const kids = yearData.students.filter((s) => s.active).length;
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">¡Hola, {firstName}!</h1>
+      <h1 className="text-2xl font-semibold">{firstName ? `¡Hola, ${firstName}!` : "¡Hola!"}</h1>
       <p>Año escolar {year}</p>
       <section className="card space-y-1 p-5">
         <p>
