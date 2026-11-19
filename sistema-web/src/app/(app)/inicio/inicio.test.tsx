@@ -13,6 +13,7 @@ vi.mock("@/workspace/WorkspaceProvider", () => ({
     storage: { label: "Cuaderno de Campo" },
     year: 2026,
     yearData: { classrooms: [], students: [] },
+    notes: [],
     profile: ws.profile,
   }),
 }));
