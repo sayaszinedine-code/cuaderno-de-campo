@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAccount } from "@/components/AccountGate";
-import { areaIdFor, getAreas } from "@/curriculum";
+import { areaIdFor } from "@/curriculum";
+import { areasForCycles } from "@/domain/areas";
 import { activeCompetencies, classroomLabel } from "@/domain/classrooms";
 import { newNote, removeNote, upsertNote, validateNote, validStudents } from "@/domain/notes";
 import { noteDir } from "@/domain/paths";
@@ -92,6 +93,9 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pending, setPending] = useState(0);
+  const pendingRef = useRef<Promise<void>[]>([]);
+  const busy = saving || pending > 0;
 
   const noteRef = useRef(note);
   noteRef.current = note;
@@ -119,8 +123,11 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
     .filter((s) => s.active && s.classroomId === classroom.id)
     .sort((a, b) => a.lastNames.localeCompare(b.lastNames, "es") || a.firstNames.localeCompare(b.firstNames, "es"));
   const competencies = activeCompetencies(classroom);
-  const areas = getAreas(classroom.cycle).filter((a) => competencies.some((c) => areaIdFor(c, classroom.cycle) === a.id));
+  const areas = areasForCycles([classroom.cycle]).filter((a) => competencies.some((c) => areaIdFor(c, classroom.cycle) === a.id));
   const areaCompetencies = competencies.filter((c) => areaIdFor(c, classroom.cycle) === note.areaId);
+  const archivedChips = yearData.students.filter(
+    (s) => !s.active && s.classroomId === classroom.id && note.studentIds.includes(s.id),
+  );
   const hideLevel = classroom.cycle === "I" && classroom.cycleIGrading === "descriptive";
 
   const nameFor = (): string => {
@@ -131,7 +138,17 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
     return name;
   };
 
-  async function addPhotos(files: File[]) {
+  function addPhotos(files: File[]) {
+    if (files.length === 0) return;
+    setPending((c) => c + 1);
+    const job = uploadPhotos(files).finally(() => {
+      pendingRef.current = pendingRef.current.filter((p) => p !== job);
+      setPending((c) => c - 1);
+    });
+    pendingRef.current.push(job);
+  }
+
+  async function uploadPhotos(files: File[]) {
     if (!classroom) return;
     for (const file of files) {
       const name = nameFor();
@@ -154,8 +171,10 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
     setNote((n) => ({ ...n, evidence: n.evidence.filter((p) => p !== path) }));
     if (addedRef.current.includes(path)) {
       addedRef.current = addedRef.current.filter((p) => p !== path);
-      usedRef.current.delete(basename(path));
-      void storage.remove(path).catch(() => undefined);
+      void storage
+        .remove(path)
+        .catch(() => undefined)
+        .finally(() => usedRef.current.delete(basename(path)));
     } else {
       removedRef.current.push(path);
     }
@@ -174,6 +193,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   async function onSave(e: FormEvent) {
     e.preventDefault();
     if (saving) return;
+    await Promise.all(pendingRef.current);
     const clean: FieldNote = {
       ...note,
       evidenceText: note.evidenceText.trim(),
@@ -181,7 +201,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
       reflection: note.reflection.trim(),
       level: hideLevel ? undefined : note.level,
     };
-    const invalid = validateNote(clean, yearData);
+    const invalid = validateNote(clean, yearData, { keepStudentIds: existing?.studentIds });
     setMessage("");
     setError(invalid ?? "");
     if (invalid) return;
@@ -217,7 +237,15 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
 
   return (
     <form onSubmit={onSave} className="max-w-2xl space-y-5">
-      <Link href={LIST} className="underline">
+      <Link
+        href={LIST}
+        className="underline"
+        aria-disabled={busy}
+        onClick={(e) => {
+          e.preventDefault();
+          if (!busy) void onCancel();
+        }}
+      >
         Volver al cuaderno
       </Link>
       <h1 className="text-2xl font-semibold">{existing ? "Editar registro" : "Nuevo registro"}</h1>
@@ -262,11 +290,12 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
           >
             Todo el grupo
           </button>
-          {students.map((s) => {
+          {[...students, ...archivedChips].map((s) => {
             const on = note.studentIds.includes(s.id);
             return (
               <button key={s.id} type="button" aria-pressed={on} className={chip(on)} onClick={() => toggleStudent(s.id)}>
                 {`${s.firstNames} ${s.lastNames}`.trim()}
+                {s.active ? "" : " (archivado)"}
               </button>
             );
           })}
@@ -364,7 +393,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
           <PerformancePicker
             key={note.competencyId}
             classroom={classroom}
-            students={validStudents(note, yearData)}
+            students={validStudents(note, yearData, existing?.studentIds)}
             competencyId={note.competencyId}
             date={note.date}
             schoolYear={year}
@@ -404,18 +433,19 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
             {error}
           </p>
         )}
+        {pending > 0 && <p role="status">Guardando fotos…</p>}
         {message && <p role="status">{message}</p>}
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <button type="submit" className="btn-primary" disabled={saving}>
+        <button type="submit" className="btn-primary" disabled={busy}>
           Guardar
         </button>
-        <button type="button" className="btn-secondary" onClick={() => void onCancel()}>
+        <button type="button" className="btn-secondary" disabled={busy} onClick={() => void onCancel()}>
           Cancelar
         </button>
         {existing && !confirmDelete && (
-          <button type="button" className="btn-secondary" onClick={() => setConfirmDelete(true)}>
+          <button type="button" className="btn-secondary" disabled={busy} onClick={() => setConfirmDelete(true)}>
             Eliminar registro
           </button>
         )}

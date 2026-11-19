@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getAreas, getCompetencies } from "@/curriculum";
+import { getCompetencies } from "@/curriculum";
+import { areaName } from "@/domain/areas";
 import { NOTE_KIND_LABELS, type FieldNote, type Student } from "@/domain/schema";
 import type { Storage } from "@/storage/types";
 
@@ -58,7 +59,7 @@ export function NoteCard({
 }) {
   const thumbs = useThumbs(storage, compact ? [] : note.evidence, 4);
   const cycles = ["I", "II"] as const;
-  const area = cycles.flatMap((c) => getAreas(c)).find((a) => a.id === note.areaId)?.name;
+  const area = areaName(note.areaId);
   const comp = cycles.flatMap((c) => getCompetencies(c)).find((c) => c.id === note.competencyId)?.name;
   const names = note.studentIds.flatMap((id) => {
     const s = students.find((x) => x.id === id);

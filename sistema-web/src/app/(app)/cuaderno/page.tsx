@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { NoteCard } from "@/components/NoteCard";
-import { getAreas, getCompetenciesByArea, type Cycle } from "@/curriculum";
+import { getCompetenciesByArea, type Cycle } from "@/curriculum";
+import { areasForCycles } from "@/domain/areas";
 import { filterNotes } from "@/domain/notes";
 import { NOTE_KINDS, NOTE_KIND_LABELS, type NoteKind } from "@/domain/schema";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
@@ -22,9 +23,7 @@ export default function CuadernoPage() {
     [yearData.classrooms],
   );
   const areas = useMemo(() => {
-    const m = new Map<string, string>();
-    cycles.flatMap((c) => getAreas(c)).forEach((a) => m.set(a.id, a.name));
-    return [...m];
+    return areasForCycles(cycles).map((a): [string, string] => [a.id, a.name]);
   }, [cycles]);
   const competencies = useMemo(() => {
     const m = new Map<string, string>();

@@ -70,6 +70,10 @@ describe("validateNote", () => {
     expect(validateNote(base({ studentIds: ["s4"] }), year)).toBe(msg);
     expect(validateNote(base({ studentIds: ["s5"] }), year)).toBe(msg);
   });
+  it("keepStudentIds lets an archived student of the classroom count", () => {
+    expect(validateNote(base({ studentIds: ["s4"] }), year, { keepStudentIds: ["s4"] })).toBeNull();
+    expect(validateNote(base({ studentIds: ["s5"] }), year, { keepStudentIds: ["s5"] })).not.toBeNull();
+  });
   it("wholeGroup alone is fine", () => expect(validateNote(base({ studentIds: [], wholeGroup: true }), year)).toBeNull());
   it("empty evidence and no photos", () => {
     const msg = "Describe la evidencia o agrega una foto.";

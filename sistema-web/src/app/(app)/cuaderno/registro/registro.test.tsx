@@ -270,4 +270,90 @@ describe("Registro page", () => {
     expect(await screen.findByText("No encontramos ese registro.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Volver al cuaderno/ })).toHaveAttribute("href", "/cuaderno");
   });
+
+  it("selects a transversal competency and saves areaId transversal", async () => {
+    const d = build((x) => ({ ...x, classrooms: x.classrooms.map((c) => ({ ...c, bands: ["5y"] })) }));
+    await seed({ data: d });
+    renderPage();
+    await fillBasics();
+    fireEvent.change(screen.getByLabelText("Área"), { target: { value: "transversal" } });
+    fireEvent.change(screen.getByLabelText("Competencia"), { target: { value: "tic" } });
+    const perf = getPerformances("tic", "5y")[0];
+    fireEvent.click(await screen.findByRole("checkbox", { name: new RegExp(perf.text.slice(0, 20)) }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    expect((await savedNotes())[0]).toMatchObject({ areaId: "transversal", competencyId: "tic" });
+  });
+
+  it("keeps an archived student as a removable chip and saves", async () => {
+    const d = build((x) => ({ ...x, students: x.students.map((s) => (s.id === "s1" ? { ...s, active: false } : s)) }));
+    await seed({ data: d, notes: [existing()] });
+    window.history.pushState({}, "", "/cuaderno/registro/?id=n1");
+    renderPage();
+    const chip = await screen.findByRole("button", { name: "Luz Paz (archivado)" });
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/cuaderno/"));
+    expect((await savedNotes())[0].studentIds).toEqual(["s1"]);
+  });
+
+  it("blocks Guardar, Cancelar and Eliminar while a photo is being written", async () => {
+    await seed({ notes: [] });
+    renderPage();
+    await fillBasics();
+    let release: () => void = () => undefined;
+    const real = storage.writeFile.bind(storage);
+    vi.spyOn(storage, "writeFile").mockImplementationOnce(
+      (p, b) => new Promise<void>((res) => { release = () => void real(p, b).then(res); }),
+    );
+    fireEvent.change(screen.getByLabelText("Agregar fotos"), {
+      target: { files: [new File(["a"], "a.jpg", { type: "image/jpeg" })] },
+    });
+    expect(await screen.findByText("Guardando fotos…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    await act(async () => release());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    expect((await savedNotes())[0].evidence).toHaveLength(1);
+  });
+
+  it("does not reuse a photo name until its removal has settled", async () => {
+    await seed();
+    renderPage();
+    await fillBasics();
+    const input = screen.getByLabelText("Agregar fotos");
+    const pick1 = () => fireEvent.change(input, { target: { files: [new File(["a"], "a.jpg", { type: "image/jpeg" })] } });
+    pick1();
+    fireEvent.click(await screen.findByRole("button", { name: /Quitar foto/ }));
+    let finish: () => void = () => undefined;
+    const real = storage.remove.bind(storage);
+    vi.spyOn(storage, "remove").mockImplementationOnce((p) => new Promise<void>((r) => { finish = () => void real(p).then(r); }));
+    // removal above already fired before the spy; redo with a fresh photo
+    pick1();
+    const q = await screen.findByRole("button", { name: /Quitar foto/ });
+    fireEvent.click(q);
+    pick1();
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Quitar foto/ })).toHaveLength(1));
+    finish();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    const [n] = await savedNotes();
+    expect(n.evidence).toHaveLength(1);
+    expect(await storage.readFile(n.evidence[0])).not.toBeNull();
+  });
+
+  it("the back link cleans up session photos like Cancelar", async () => {
+    await seed();
+    renderPage();
+    fireEvent.change(await screen.findByLabelText("Agregar fotos"), {
+      target: { files: [new File(["a"], "a.jpg", { type: "image/jpeg" })] },
+    });
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Quitar foto/ })).toHaveLength(1));
+    const remove = vi.spyOn(storage, "remove");
+    fireEvent.click(screen.getByRole("link", { name: "Volver al cuaderno" }));
+    await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
+    expect(push).toHaveBeenCalledWith("/cuaderno/");
+  });
 });

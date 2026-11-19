@@ -42,10 +42,14 @@ export function removeNote(f: NotesFile, id: string): NotesFile {
   return { ...f, notes: f.notes.filter((x) => x.id !== id) };
 }
 
-export function validateNote(n: FieldNote, year: YearData): string | null {
+export function validateNote(
+  n: FieldNote,
+  year: YearData,
+  opts: { keepStudentIds?: string[] } = {},
+): string | null {
   const classroom = year.classrooms.find((c) => c.id === n.classroomId);
   if (!classroom) return "Elige un aula.";
-  if (!n.wholeGroup && validStudents(n, year).length === 0) return "Elige al menos un niño o niña, o marca «Todo el grupo».";
+  if (!n.wholeGroup && validStudents(n, year, opts.keepStudentIds).length === 0) return "Elige al menos un niño o niña, o marca «Todo el grupo».";
   if (n.evidenceText.trim() === "" && n.evidence.length === 0) return "Describe la evidencia o agrega una foto.";
   if (n.competencyId !== undefined && !getCompetencies(classroom.cycle).some((c) => c.id === n.competencyId)) {
     return "La competencia no corresponde al ciclo del aula.";
@@ -53,10 +57,13 @@ export function validateNote(n: FieldNote, year: YearData): string | null {
   return null;
 }
 
-/** Active students of the note's classroom that the note refers to. */
-export function validStudents(n: FieldNote, year: YearData): Student[] {
+/** Active students of the note's classroom that the note refers to (`keep` ids also count when archived). */
+export function validStudents(n: FieldNote, year: YearData, keep: string[] = []): Student[] {
   const ids = new Set(n.studentIds);
-  return year.students.filter((s) => ids.has(s.id) && s.active && s.classroomId === n.classroomId);
+  const kept = new Set(keep);
+  return year.students.filter(
+    (s) => ids.has(s.id) && (s.active || kept.has(s.id)) && s.classroomId === n.classroomId,
+  );
 }
 
 const BAND_ORDER: AgeBand[] = [...CYCLE_BANDS.I, ...CYCLE_BANDS.II];
