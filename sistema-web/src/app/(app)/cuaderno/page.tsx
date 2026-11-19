@@ -53,9 +53,14 @@ export default function CuadernoPage() {
   );
 
   const PAGE = 30;
-  const sig = [studentId, areaId, competencyId, periodId, kind, text].join("\u0000");
-  const [shown, setShown] = useState({ sig, n: PAGE });
-  const visible = shown.sig === sig ? shown.n : PAGE;
+  const [visible, setVisible] = useState(PAGE);
+  /** Wraps a filter setter so every filter/search change restarts pagination. */
+  const reset =
+    (set: (v: string) => void) =>
+    (v: string): void => {
+      set(v);
+      setVisible(PAGE);
+    };
 
   const sel = "field";
   return (
@@ -69,11 +74,11 @@ export default function CuadernoPage() {
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="sm:col-span-2">
           Buscar
-          <input className={sel} type="search" value={text} onChange={(e) => setText(e.target.value)} />
+          <input className={sel} type="search" value={text} onChange={(e) => reset(setText)(e.target.value)} />
         </label>
         <label>
           Niño o niña
-          <select className={sel} value={studentId} onChange={(e) => setStudentId(e.target.value)}>
+          <select className={sel} value={studentId} onChange={(e) => reset(setStudentId)(e.target.value)}>
             <option value="">Todos</option>
             {yearData.students.map((s) => (
               <option key={s.id} value={s.id}>
@@ -88,7 +93,7 @@ export default function CuadernoPage() {
             className={sel}
             value={areaId}
             onChange={(e) => {
-              setAreaId(e.target.value);
+              reset(setAreaId)(e.target.value);
               setCompetencyId("");
             }}
           >
@@ -102,7 +107,7 @@ export default function CuadernoPage() {
         </label>
         <label>
           Competencia
-          <select className={sel} value={competencyId} onChange={(e) => setCompetencyId(e.target.value)}>
+          <select className={sel} value={competencyId} onChange={(e) => reset(setCompetencyId)(e.target.value)}>
             <option value="">Todas</option>
             {competencies.map(([id, name]) => (
               <option key={id} value={id}>
@@ -113,7 +118,7 @@ export default function CuadernoPage() {
         </label>
         <label>
           Bimestre
-          <select className={sel} value={periodId} onChange={(e) => setPeriodId(e.target.value)}>
+          <select className={sel} value={periodId} onChange={(e) => reset(setPeriodId)(e.target.value)}>
             <option value="">Todos</option>
             {yearData.periods.map((p) => (
               <option key={p.id} value={p.id}>
@@ -124,7 +129,7 @@ export default function CuadernoPage() {
         </label>
         <label>
           Tipo
-          <select className={sel} value={kind} onChange={(e) => setKind(e.target.value)}>
+          <select className={sel} value={kind} onChange={(e) => reset(setKind)(e.target.value)}>
             <option value="">Todos</option>
             {NOTE_KINDS.map((k) => (
               <option key={k} value={k}>
@@ -147,7 +152,7 @@ export default function CuadernoPage() {
             Mostrando {Math.min(visible, list.length)} de {list.length} registros
           </p>
           {visible < list.length && (
-            <button type="button" className="btn-secondary" onClick={() => setShown({ sig, n: visible + PAGE })}>
+            <button type="button" className="btn-secondary" onClick={() => setVisible(visible + PAGE)}>
               Ver más
             </button>
           )}

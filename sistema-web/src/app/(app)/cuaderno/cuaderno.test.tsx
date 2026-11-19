@@ -151,14 +151,18 @@ describe("Cuaderno robustness", () => {
   it("does not create a URL for a read that resolves after unmount", async () => {
     await seed([note({ id: "a", evidenceText: "x", evidence: ["a/late.jpg"] })]);
     let release: (b: Blob) => void = () => {};
+    const reads = vi.fn();
     const orig = storage.readFile.bind(storage);
-    storage.readFile = (path: string) =>
-      path === "a/late.jpg" ? new Promise<Blob | null>((r) => (release = r)) : orig(path);
+    storage.readFile = (path: string) => {
+      if (path !== "a/late.jpg") return orig(path);
+      reads();
+      return new Promise<Blob | null>((r) => (release = r));
+    };
     const create = vi.fn(() => "blob:late");
     Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() });
     const { unmount } = renderIn(<CuadernoPage />);
     await screen.findByText("x");
-    await waitFor(() => expect(release).not.toBe(undefined));
+    await waitFor(() => expect(reads).toHaveBeenCalled());
     unmount();
     release(new Blob(["z"]));
     await new Promise((r) => setTimeout(r, 20));
@@ -179,6 +183,8 @@ describe("Cuaderno robustness", () => {
     expect(screen.queryByRole("button", { name: "Ver más" })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "obs" } });
     expect(screen.getByText("Mostrando 30 de 40 registros")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "" } });
+    expect(screen.getByText("Mostrando 30 de 45 registros")).toBeInTheDocument();
   });
 });
 
