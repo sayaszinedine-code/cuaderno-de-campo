@@ -5,7 +5,7 @@ export default defineConfig({
   use: { baseURL: "http://localhost:3100" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "npx serve out -l 3100",
+    command: "npx serve out-e2e -l 3100",
     url: "http://localhost:3100",
     reuseExistingServer: !process.env.CI,
   },
