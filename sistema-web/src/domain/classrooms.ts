@@ -26,8 +26,18 @@ function cleanName(name: string): string {
   return n;
 }
 
+const DUPLICATE_NAME = "Ya existe un aula con ese nombre.";
+
+function assertUniqueName(d: YearData, name: string, exceptId?: string): void {
+  const key = name.toLocaleLowerCase("es");
+  if (d.classrooms.some((c) => c.id !== exceptId && c.name.trim().toLocaleLowerCase("es") === key)) {
+    throw new Error(DUPLICATE_NAME);
+  }
+}
+
 export function createClassroom(d: YearData, input: ClassroomInput, genId: IdGen = newId): YearData {
   const name = cleanName(input.name);
+  assertUniqueName(d, name);
   if (input.bands.length === 0) throw new Error("Elige al menos una edad.");
   if (new Set(input.bands).size !== input.bands.length) throw new Error("Las edades no pueden repetirse.");
   if (!input.bands.every((b) => CYCLE_BANDS[input.cycle].includes(b))) {
@@ -51,7 +61,10 @@ export function activeCompetencies(c: Classroom): Competency[] {
 export function updateClassroom(d: YearData, id: string, patch: ClassroomPatch): YearData {
   const current = findClassroom(d, id);
   const next: Classroom = { ...current };
-  if (patch.name !== undefined) next.name = cleanName(patch.name);
+  if (patch.name !== undefined) {
+    next.name = cleanName(patch.name);
+    assertUniqueName(d, next.name, id);
+  }
   if (patch.cycleIGrading !== undefined) next.cycleIGrading = patch.cycleIGrading;
   if (patch.disabledCompetencyIds !== undefined) {
     const optional = new Set(

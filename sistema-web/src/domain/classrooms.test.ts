@@ -55,6 +55,27 @@ describe("createClassroom", () => {
   });
 });
 
+describe("classroom names are unique within a year", () => {
+  it("rejects a duplicate name on create (trimmed, case-insensitive)", () => {
+    const d = createClassroom(empty(), { name: "Girasoles", cycle: "II", bands: ["4y"] }, () => "c1");
+    expect(() => createClassroom(d, { name: " girasoles ", cycle: "II", bands: ["3y"] }, () => "c2")).toThrow(
+      "Ya existe un aula con ese nombre.",
+    );
+  });
+  it("rejects renaming onto another classroom's name but allows keeping its own", () => {
+    let d = createClassroom(empty(), { name: "Sol", cycle: "II", bands: ["4y"] }, () => "c1");
+    d = createClassroom(d, { name: "Luna", cycle: "II", bands: ["4y"] }, () => "c2");
+    expect(() => updateClassroom(d, "c2", { name: "Sol" })).toThrow("Ya existe un aula con ese nombre.");
+    expect(updateClassroom(d, "c1", { name: "Sol" }).classrooms[0].name).toBe("Sol");
+  });
+  it("allows homonymous students", () => {
+    let d = createClassroom(empty(), { name: "Sol", cycle: "II", bands: ["4y"] }, () => "c1");
+    d = addStudent(d, { classroomId: "c1", firstNames: "Luis", lastNames: "Quispe" }, () => "s1");
+    d = addStudent(d, { classroomId: "c1", firstNames: "Luis", lastNames: "Quispe" }, () => "s2");
+    expect(d.students).toHaveLength(2);
+  });
+});
+
 describe("activeCompetencies / updateClassroom", () => {
   const base = () => createClassroom(empty(), { name: "A", cycle: "II", bands: ["3y"] }, () => "c1");
   it("excludes disabled competencies", () => {

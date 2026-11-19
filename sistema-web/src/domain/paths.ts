@@ -20,14 +20,20 @@ function bandsLabel(bands: Classroom["bands"]): string {
   return b.endsWith("y") ? `${b.slice(0, -1)} años` : `${b.slice(0, -1)} meses`;
 }
 
-export function classroomDir(y: number, c: Pick<Classroom, "name" | "bands">): string {
-  return `${y}/${safeName(`Aula ${safeName(c.name)} (${bandsLabel(c.bands)})`)}/`;
+/** `<base> - <first 4 chars of id>`: the id fragment keeps homonyms apart and survives truncation. */
+function withIdSuffix(base: string, id: string): string {
+  const suffix = ` - ${safeName(id.slice(0, 4))}`;
+  return safeName(`${safeName(base).slice(0, 80 - suffix.length).trim()}${suffix}`);
+}
+
+export function classroomDir(y: number, c: Pick<Classroom, "id" | "name" | "bands">): string {
+  return `${y}/${withIdSuffix(`Aula ${safeName(c.name)} (${bandsLabel(c.bands)})`, c.id)}/`;
 }
 
 export function studentDir(
   y: number,
-  c: Pick<Classroom, "name" | "bands">,
-  s: Pick<Student, "firstNames" | "lastNames">,
+  c: Pick<Classroom, "id" | "name" | "bands">,
+  s: Pick<Student, "id" | "firstNames" | "lastNames">,
 ): string {
-  return `${classroomDir(y, c)}Niños/${safeName(`${safeName(s.lastNames)}, ${safeName(s.firstNames)}`)}/`;
+  return `${classroomDir(y, c)}Niños/${withIdSuffix(`${safeName(s.lastNames)}, ${safeName(s.firstNames)}`, s.id)}/`;
 }

@@ -25,6 +25,31 @@ describe("workspace repo", () => {
     expect(await repo.loadYear(2026)).toEqual(year);
   });
 
+  it("keeps unknown keys (from newer app versions) through load→save", async () => {
+    const st = new MemoryStorage();
+    const repo = createWorkspaceRepo(st);
+    const future = {
+      ...year,
+      extraYear: { a: 1 },
+      periods: year.periods.map((p) => ({ ...p, extraPeriod: "p" })),
+      classrooms: year.classrooms.map((c) => ({ ...c, extraRoom: true })),
+      students: year.students.map((s) => ({ ...s, extraKid: [1, 2] })),
+    };
+    await st.writeTextAtomic("2026/datos/anio.json", JSON.stringify(future));
+    await st.writeTextAtomic("datos/perfil.json", JSON.stringify({ version: 1, ...profile, extraProfile: "x" }));
+    await repo.saveYear(await repo.loadYear(2026));
+    const loadedProfile = await repo.loadProfile();
+    if (!loadedProfile) throw new Error("profile missing");
+    await repo.saveProfile(loadedProfile);
+    const y = JSON.parse((await st.readText("2026/datos/anio.json")) ?? "{}");
+    expect(y.extraYear).toEqual({ a: 1 });
+    expect(y.periods[0].extraPeriod).toBe("p");
+    expect(y.classrooms[0].extraRoom).toBe(true);
+    expect(y.students[0].extraKid).toEqual([1, 2]);
+    const p = JSON.parse((await st.readText("datos/perfil.json")) ?? "{}");
+    expect(p.extraProfile).toBe("x");
+  });
+
   it("loadYear without file returns defaults and does not write", async () => {
     const st = new MemoryStorage();
     const repo = createWorkspaceRepo(st);
