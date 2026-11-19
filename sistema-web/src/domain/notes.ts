@@ -45,7 +45,7 @@ export function removeNote(f: NotesFile, id: string): NotesFile {
 export function validateNote(n: FieldNote, year: YearData): string | null {
   const classroom = year.classrooms.find((c) => c.id === n.classroomId);
   if (!classroom) return "Elige un aula.";
-  if (n.studentIds.length === 0 && !n.wholeGroup) return "Elige al menos un niño o niña, o marca «Todo el grupo».";
+  if (!n.wholeGroup && validStudents(n, year).length === 0) return "Elige al menos un niño o niña, o marca «Todo el grupo».";
   if (n.evidenceText.trim() === "" && n.evidence.length === 0) return "Describe la evidencia o agrega una foto.";
   if (n.competencyId !== undefined && !getCompetencies(classroom.cycle).some((c) => c.id === n.competencyId)) {
     return "La competencia no corresponde al ciclo del aula.";
@@ -68,7 +68,7 @@ export function performanceOptions(params: {
   competencyId: string;
   date: string;
   schoolYear: number;
-}): { bands: AgeBand[]; defaultBand: AgeBand } {
+}): { bands: AgeBand[]; defaultBand: AgeBand | null } {
   const { classroom, students, competencyId, date, schoolYear } = params;
   const available = new Set(getPerformanceBands(competencyId));
   const studentBands = students.map((s) =>
@@ -85,7 +85,7 @@ export function performanceOptions(params: {
 
   const counts = new Map<AgeBand, number>();
   for (const b of studentBands) if (bands.includes(b)) counts.set(b, (counts.get(b) ?? 0) + 1);
-  let defaultBand: AgeBand = bands[0] ?? classroom.bands[0];
+  let defaultBand: AgeBand | null = bands[0] ?? null;
   let best = 0;
   for (const b of bands) {
     const c = counts.get(b) ?? 0;

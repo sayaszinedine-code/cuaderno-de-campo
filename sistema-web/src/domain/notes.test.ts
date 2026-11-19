@@ -65,6 +65,11 @@ describe("validateNote", () => {
   it("unknown classroom", () => expect(validateNote(base({ classroomId: "zz" }), year)).toBe("Elige un aula."));
   it("no students and no wholeGroup", () =>
     expect(validateNote(base({ studentIds: [] }), year)).toBe("Elige al menos un niño o niña, o marca «Todo el grupo»."));
+  it("archived or other-classroom students do not count", () => {
+    const msg = "Elige al menos un niño o niña, o marca «Todo el grupo».";
+    expect(validateNote(base({ studentIds: ["s4"] }), year)).toBe(msg);
+    expect(validateNote(base({ studentIds: ["s5"] }), year)).toBe(msg);
+  });
   it("wholeGroup alone is fine", () => expect(validateNote(base({ studentIds: [], wholeGroup: true }), year)).toBeNull());
   it("empty evidence and no photos", () => {
     const msg = "Describe la evidencia o agrega una foto.";
@@ -99,6 +104,13 @@ describe("performanceOptions", () => {
   });
   it("excludes bands without performances", () => {
     expect(p("escribe", [s1, s2, s3])).toEqual({ bands: ["4y"], defaultBand: "4y" });
+  });
+  it("returns null default when no band has performances", () => {
+    const only3 = { ...classroom, bands: ["3y" as const] };
+    expect(performanceOptions({ classroom: only3, students: [s1], competencyId: "escribe", date: "2026-06-01", schoolYear: 2026 })).toEqual({
+      bands: [],
+      defaultBand: null,
+    });
   });
   it("uses classroom bands when no students", () => {
     expect(p("lee", [])).toEqual({ bands: ["3y", "4y"], defaultBand: "3y" });
