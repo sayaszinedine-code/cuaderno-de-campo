@@ -86,6 +86,19 @@ describe("Aulas page", () => {
     expect(await screen.findByText("El bimestre 2 empieza antes de que termine el bimestre 1")).toBeInTheDocument();
   });
 
+  it("applies back-to-back competency toggles to the latest data", async () => {
+    await seed((d) => createClassroom(d, { name: "Sol", cycle: "II", bands: ["3y"] }, () => "c1"));
+    renderIn(<AulasPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    fireEvent.click(screen.getByLabelText(/Construye su identidad, como persona humana/));
+    fireEvent.click(screen.getByLabelText(/Se comunica oralmente en castellano como segunda lengua/));
+    await waitFor(async () =>
+      expect((await saved()).classrooms[0].disabledCompetencyIds.sort()).toEqual(
+        ["comunica-oralmente-castellano-l2", "construye-identidad-religion"],
+      ),
+    );
+  });
+
   it("toggles an optional competency and cycle I grading", async () => {
     await seed((d) => createClassroom(d, { name: "Nido", cycle: "I", bands: ["18m"] }, () => "c1"));
     renderIn(<AulasPage />);
@@ -165,6 +178,25 @@ describe("Niños pages", () => {
     const path = "Aula Sol (3 años)/Niños/Paz, Ana/foto.jpg";
     await waitFor(async () => expect((await saved()).students[0].photo).toBe(`${year}/${path}`));
     expect(await storage.readFile(`${year}/${path}`)).not.toBeNull();
+  });
+
+  it("refreshes the preview when the photo is replaced", async () => {
+    await withKids();
+    window.history.pushState({}, "", "/ninos/ficha/?id=s1");
+    let n = 0;
+    const create = vi.fn(() => `blob:${++n}`);
+    const revoke = vi.fn();
+    Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke });
+    compress.compressPhoto.mockImplementation(async () => new Blob(["jpg"], { type: "image/jpeg" }));
+    renderIn(<FichaPage />);
+    const input = await screen.findByLabelText("Subir foto (opcional)");
+    const file = () => new File(["x"], "a.png", { type: "image/png" });
+    fireEvent.change(input, { target: { files: [file()] } });
+    const img = await screen.findByAltText("Foto del niño");
+    const first = img.getAttribute("src");
+    fireEvent.change(await screen.findByLabelText("Cambiar foto"), { target: { files: [file()] } });
+    await waitFor(() => expect(screen.getByAltText("Foto del niño").getAttribute("src")).not.toBe(first));
+    expect(revoke).toHaveBeenCalledWith(first);
   });
 
   it("shows an error when the photo cannot be processed", async () => {

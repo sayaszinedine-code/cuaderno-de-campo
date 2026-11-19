@@ -46,6 +46,7 @@ function Ficha({ student }: { student: Student }) {
   const [message, setMessage] = useState("");
   const [photoError, setPhotoError] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoVersion, setPhotoVersion] = useState(0);
 
   const set = (key: keyof Details) => (e: { target: { value: string } }) => {
     setMessage("");
@@ -71,7 +72,7 @@ function Ficha({ student }: { student: Student }) {
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [storage, student.photo]);
+  }, [storage, student.photo, photoVersion]);
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
@@ -105,7 +106,8 @@ function Ficha({ student }: { student: Student }) {
       setPhotoError("No se pudo guardar la foto. Revisa que la carpeta siga disponible.");
       return;
     }
-    await update((d) => updateStudent(d, student.id, { photo: path }));
+    setPhotoVersion((v) => v + 1);
+    if (student.photo !== path) await update((d) => updateStudent(d, student.id, { photo: path }));
   }
 
   const age = student.birthDate ? formatAge(student.birthDate, todayISO()) : "";

@@ -160,12 +160,12 @@ function EditClassroom({
     return !msg;
   }
 
-  const toggleCompetency = (id: string, enabled: boolean) => {
-    const disabled = enabled
-      ? classroom.disabledCompetencyIds.filter((x) => x !== id)
-      : [...classroom.disabledCompetencyIds, id];
-    return run((d) => updateClassroom(d, classroom.id, { disabledCompetencyIds: disabled }));
-  };
+  const toggleCompetency = (id: string, enabled: boolean) =>
+    run((d) => {
+      const current = d.classrooms.find((c) => c.id === classroom.id)?.disabledCompetencyIds ?? [];
+      const disabled = enabled ? current.filter((x) => x !== id) : [...current, id];
+      return updateClassroom(d, classroom.id, { disabledCompetencyIds: disabled });
+    });
 
   return (
     <div className="space-y-4">
