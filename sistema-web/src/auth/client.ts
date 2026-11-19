@@ -1,5 +1,16 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { isProfileStatus, type Profile } from "./session";
+import {
+  createClient,
+  isAuthRetryableFetchError,
+  type SupabaseClient,
+} from "@supabase/supabase-js";
+import {
+  createLocalStorageCache,
+  isProfileRole,
+  isProfileStatus,
+  NetworkError,
+  type AccountCache,
+  type Profile,
+} from "./session";
 
 export type SignUpInput = {
   email: string;
@@ -51,7 +62,7 @@ function loginRedirect(): string {
 
 export function mapProfileRow(row: ProfileRow): Profile {
   if (!isProfileStatus(row.status)) throw new Error(`Estado de cuenta desconocido: ${row.status}`);
-  if (row.role !== "teacher" && row.role !== "admin") {
+  if (!isProfileRole(row.role)) {
     throw new Error(`Rol de cuenta desconocido: ${row.role}`);
   }
   return {
@@ -90,7 +101,9 @@ export async function signIn(email: string, password: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function signOut(): Promise<void> {
+/** Signs out and always forgets the offline approval check (shared PCs). */
+export async function signOut(cache: AccountCache = createLocalStorageCache()): Promise<void> {
+  cache.clear();
   const { error } = await getSupabase().auth.signOut();
   if (error) throw error;
 }
@@ -102,21 +115,52 @@ export async function sendPasswordReset(email: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Server-side status 0 (fetch failed) or 5xx means the server could not be reached. */
+function isTransportStatus(status: number | undefined): boolean {
+  return status !== undefined && (status === 0 || status >= 500);
+}
+
+async function withNetworkGuard<T>(run: () => PromiseLike<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof TypeError) throw new NetworkError(undefined, { cause: error });
+    throw error;
+  }
+}
+
+/** Verifies the session with the server. null = no valid session; NetworkError = unknown. */
 async function currentUserId(): Promise<string | null> {
-  const { data, error } = await getSupabase().auth.getUser();
-  if (error || !data.user) return null;
-  return data.user.id;
+  const { data, error } = await withNetworkGuard(() => getSupabase().auth.getUser());
+  if (error) {
+    if (isAuthRetryableFetchError(error)) throw new NetworkError(undefined, { cause: error });
+    // Missing session, invalid/expired JWT, deleted user…: signed-out.
+    return null;
+  }
+  return data.user?.id ?? null;
+}
+
+/** User id of the locally persisted session; reads storage only, no network. */
+export async function getLocalUserId(): Promise<string | null> {
+  const { data, error } = await getSupabase().auth.getSession();
+  if (error) return null;
+  return data.session?.user.id ?? null;
 }
 
 export async function fetchOwnProfile(): Promise<Profile | null> {
   const userId = await currentUserId();
   if (!userId) return null;
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .select(PROFILE_COLUMNS)
-    .eq("id", userId)
-    .maybeSingle<ProfileRow>();
-  if (error) throw error;
+  const { data, error, status } = await withNetworkGuard(() =>
+    getSupabase()
+      .from("profiles")
+      .select(PROFILE_COLUMNS)
+      .eq("id", userId)
+      .maybeSingle<ProfileRow>(),
+  );
+  if (error) {
+    if (isTransportStatus(status)) throw new NetworkError(undefined, { cause: error });
+    throw error;
+  }
   return data ? mapProfileRow(data) : null;
 }
 

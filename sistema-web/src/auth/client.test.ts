@@ -7,6 +7,7 @@ const { auth, single, maybeSingle, eq, select, update, from, createClient } = vi
     signOut: vi.fn(),
     resetPasswordForEmail: vi.fn(),
     getUser: vi.fn(),
+    getSession: vi.fn(),
   };
   const single = vi.fn();
   const maybeSingle = vi.fn();
@@ -18,7 +19,10 @@ const { auth, single, maybeSingle, eq, select, update, from, createClient } = vi
   return { auth, single, maybeSingle, eq, select, update, from, createClient };
 });
 
-vi.mock("@supabase/supabase-js", () => ({ createClient }));
+vi.mock("@supabase/supabase-js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@supabase/supabase-js")>()),
+  createClient,
+}));
 
 async function load() {
   vi.resetModules();
@@ -41,6 +45,7 @@ const row = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
 });
@@ -173,5 +178,63 @@ describe("signIn / signOut / sendPasswordReset", () => {
     expect(auth.resetPasswordForEmail).toHaveBeenCalledWith("a@example.com", {
       redirectTo: `${window.location.origin}/login/`,
     });
+  });
+});
+
+describe("sign-out and network handling", () => {
+  it("signOut clears the offline account check, even if Supabase fails", async () => {
+    localStorage.setItem(
+      "account-check",
+      JSON.stringify({ userId: "u1", status: "active", role: "teacher", checkedAt: "2026-11-19T00:00:00Z" }),
+    );
+    auth.signOut.mockResolvedValue({ error: new Error("offline") });
+    const { signOut } = await load();
+    await expect(signOut()).rejects.toThrow("offline");
+    expect(localStorage.getItem("account-check")).toBeNull();
+  });
+
+  it("fetchOwnProfile throws NetworkError when getUser cannot reach the server", async () => {
+    const { AuthRetryableFetchError } = await import("@supabase/supabase-js");
+    auth.getUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthRetryableFetchError("Failed to fetch", 0),
+    });
+    const { fetchOwnProfile } = await load();
+    const { NetworkError } = await import("./session");
+    await expect(fetchOwnProfile()).rejects.toBeInstanceOf(NetworkError);
+  });
+
+  it("fetchOwnProfile returns null when the session is missing", async () => {
+    const { AuthSessionMissingError } = await import("@supabase/supabase-js");
+    auth.getUser.mockResolvedValue({ data: { user: null }, error: new AuthSessionMissingError() });
+    const { fetchOwnProfile } = await load();
+    expect(await fetchOwnProfile()).toBeNull();
+  });
+
+  it("fetchOwnProfile throws NetworkError when the profiles request fails in transport", async () => {
+    auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    maybeSingle.mockResolvedValue({
+      data: null,
+      error: { message: "TypeError: Failed to fetch", details: "", hint: "", code: "" },
+      status: 0,
+    });
+    const { fetchOwnProfile } = await load();
+    const { NetworkError } = await import("./session");
+    await expect(fetchOwnProfile()).rejects.toBeInstanceOf(NetworkError);
+  });
+
+  it("fetchOwnProfile throws NetworkError when fetch itself rejects", async () => {
+    auth.getUser.mockRejectedValue(new TypeError("Failed to fetch"));
+    const { fetchOwnProfile } = await load();
+    const { NetworkError } = await import("./session");
+    await expect(fetchOwnProfile()).rejects.toBeInstanceOf(NetworkError);
+  });
+
+  it("getLocalUserId reads the persisted session without network", async () => {
+    auth.getSession.mockResolvedValue({ data: { session: { user: { id: "u1" } } }, error: null });
+    const { getLocalUserId } = await load();
+    expect(await getLocalUserId()).toBe("u1");
+    auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    expect(await getLocalUserId()).toBeNull();
   });
 });

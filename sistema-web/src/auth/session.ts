@@ -16,13 +16,23 @@ export type Profile = {
 export type CachedCheck = {
   userId: string;
   status: ProfileStatus;
+  role: ProfileRole;
   checkedAt: string;
 };
 
 export type AccountCache = {
   get(): CachedCheck | null;
   set(c: CachedCheck): void;
+  clear(): void;
 };
+
+/** Transport failure (no connectivity, timeout, 5xx): the account state is unknown, not signed-out. */
+export class NetworkError extends Error {
+  constructor(message = "No se pudo conectar con el servidor.", options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "NetworkError";
+  }
+}
 
 export type AccountState =
   | { kind: "signed-out" }
@@ -30,8 +40,11 @@ export type AccountState =
   | { kind: "offline-expired" };
 
 export type ResolveDeps = {
+  /** Resolves null when there is no session; throws NetworkError on transport failures. */
   fetchProfile(): Promise<Profile | null>;
   online: boolean;
+  /** User id of the locally persisted session (read without network), or null when signed out. */
+  localUserId: string | null;
   cache: AccountCache;
   now: Date;
 };
@@ -40,9 +53,14 @@ export type ResolveDeps = {
 export const OFFLINE_GRACE_MS = 30 * 24 * 60 * 60 * 1000;
 
 const STATUSES: readonly ProfileStatus[] = ["pending", "active", "suspended"];
+const ROLES: readonly ProfileRole[] = ["teacher", "admin"];
 
 export function isProfileStatus(value: unknown): value is ProfileStatus {
   return typeof value === "string" && (STATUSES as readonly string[]).includes(value);
+}
+
+export function isProfileRole(value: unknown): value is ProfileRole {
+  return typeof value === "string" && (ROLES as readonly string[]).includes(value);
 }
 
 function profileFromCache(check: CachedCheck): Profile {
@@ -55,7 +73,7 @@ function profileFromCache(check: CachedCheck): Profile {
     ugel: "",
     region: "",
     status: check.status,
-    role: "teacher",
+    role: check.role,
   };
 }
 
@@ -63,14 +81,39 @@ export async function resolveAccountState(deps: ResolveDeps): Promise<AccountSta
   const { fetchProfile, online, cache, now } = deps;
 
   if (online) {
-    const profile = await fetchProfile();
-    if (!profile) return { kind: "signed-out" };
-    cache.set({ userId: profile.id, status: profile.status, checkedAt: now.toISOString() });
-    return { kind: profile.status, profile };
+    try {
+      const profile = await fetchProfile();
+      if (!profile) {
+        cache.clear();
+        return { kind: "signed-out" };
+      }
+      cache.set({
+        userId: profile.id,
+        status: profile.status,
+        role: profile.role,
+        checkedAt: now.toISOString(),
+      });
+      return { kind: profile.status, profile };
+    } catch (error) {
+      if (!(error instanceof NetworkError)) throw error;
+      // navigator.onLine lies on flaky connections: fall back to the offline rules.
+    }
   }
 
+  return resolveOffline(deps);
+}
+
+function resolveOffline({ localUserId, cache, now }: ResolveDeps): AccountState {
   const check = cache.get();
-  if (!check) return { kind: "signed-out" };
+  if (!localUserId) {
+    if (check) cache.clear();
+    return { kind: "signed-out" };
+  }
+  if (!check) return { kind: "offline-expired" };
+  if (check.userId !== localUserId) {
+    cache.clear();
+    return { kind: "signed-out" };
+  }
 
   const checkedAt = Date.parse(check.checkedAt);
   const age = now.getTime() - checkedAt;
@@ -85,11 +128,16 @@ function parseCachedCheck(raw: string | null): CachedCheck | null {
   try {
     const value: unknown = JSON.parse(raw);
     if (typeof value !== "object" || value === null) return null;
-    const { userId, status, checkedAt } = value as Record<string, unknown>;
-    if (typeof userId !== "string" || typeof checkedAt !== "string" || !isProfileStatus(status)) {
+    const { userId, status, role = "teacher", checkedAt } = value as Record<string, unknown>;
+    if (
+      typeof userId !== "string" ||
+      typeof checkedAt !== "string" ||
+      !isProfileStatus(status) ||
+      !isProfileRole(role)
+    ) {
       return null;
     }
-    return { userId, status, checkedAt };
+    return { userId, status, role, checkedAt };
   } catch {
     return null;
   }
@@ -109,6 +157,13 @@ export function createLocalStorageCache(key = "account-check"): AccountCache {
         localStorage.setItem(key, JSON.stringify(c));
       } catch {
         // Storage unavailable (private mode, quota): the next online check retries.
+      }
+    },
+    clear() {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // Storage unavailable: nothing was persisted.
       }
     },
   };
