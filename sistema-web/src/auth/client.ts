@@ -114,7 +114,7 @@ export async function signOut(cache: AccountCache = createLocalStorageCache()): 
 
 export async function sendPasswordReset(email: string): Promise<void> {
   const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo: loginRedirect(),
+    redirectTo: `${window.location.origin}/recuperar/`,
   });
   if (error) throw error;
 }

@@ -176,7 +176,7 @@ describe("signIn / signOut / sendPasswordReset", () => {
     expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: "a@example.com", password: "pw" });
     expect(auth.signOut).toHaveBeenCalled();
     expect(auth.resetPasswordForEmail).toHaveBeenCalledWith("a@example.com", {
-      redirectTo: `${window.location.origin}/login/`,
+      redirectTo: `${window.location.origin}/recuperar/`,
     });
   });
 });
