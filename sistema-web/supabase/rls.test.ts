@@ -60,11 +60,14 @@ async function createUser(
 
 type Row = { id: string; status: string; role: string; institution: string | null };
 
+// Booting the WASM Postgres can exceed vitest's default 10 s hook timeout on a cold or busy machine.
+const PGLITE_BOOT_TIMEOUT_MS = 60_000;
+
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(SUPABASE_BOOTSTRAP);
   await db.exec(migration);
-});
+}, PGLITE_BOOT_TIMEOUT_MS);
 
 afterAll(async () => {
   await db.close();
