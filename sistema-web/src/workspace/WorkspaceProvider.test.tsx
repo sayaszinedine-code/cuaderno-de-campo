@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
 import type { Storage } from "@/storage/types";
 import { yearDataPath } from "@/domain/paths";
+import type { YearData } from "@/domain/schema";
 
 const pick = vi.hoisted(() => ({
   restoreStorage: vi.fn(),
@@ -43,7 +44,7 @@ function mkRoom(id: string) {
 
 function renderWs() {
   return render(
-    <WorkspaceProvider>
+    <WorkspaceProvider userId="u1">
       <Probe />
     </WorkspaceProvider>,
   );
@@ -61,8 +62,10 @@ describe("WorkspaceProvider", () => {
     pick.chooseFolder.mockResolvedValue(new MemoryStorage());
     renderWs();
     expect(await screen.findByText("Elige dónde guardar tu cuaderno")).toBeInTheDocument();
+    expect(pick.restoreStorage).toHaveBeenCalledWith("u1");
     fireEvent.click(screen.getByRole("button", { name: "Elegir carpeta" }));
     expect(await screen.findByText(`year:${YEAR}`)).toBeInTheDocument();
+    expect(pick.chooseFolder).toHaveBeenCalledWith("u1");
   });
 
   it("treats a cancelled picker as a no-op", async () => {
@@ -82,6 +85,7 @@ describe("WorkspaceProvider", () => {
     expect(screen.getByRole("button", { name: "Elegir otra carpeta" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Permitir" }));
     expect(await screen.findByText(`year:${YEAR}`)).toBeInTheDocument();
+    expect(pick.grantPermission).toHaveBeenCalledWith("u1");
   });
 
   it("stays on the permission screen when the permission is refused", async () => {
@@ -100,6 +104,7 @@ describe("WorkspaceProvider", () => {
     renderWs();
     expect(await screen.findByText(`year:${YEAR}`)).toBeInTheDocument();
     expect(pick.restoreStorage).not.toHaveBeenCalled();
+    expect(pick.openFallbackStorage).toHaveBeenCalledWith("u1");
     expect(
       screen.getByText(
         "Tu navegador no permite elegir una carpeta. Tus datos se guardarán dentro del navegador: usa Chrome o Edge en tu computadora y haz respaldos.",
@@ -180,7 +185,7 @@ describe("WorkspaceProvider", () => {
       );
     }
     render(
-      <WorkspaceProvider>
+      <WorkspaceProvider userId="u1">
         <Years />
       </WorkspaceProvider>,
     );
@@ -218,7 +223,7 @@ describe("WorkspaceProvider", () => {
         </div>
       );
     }
-    render(<WorkspaceProvider><Both /></WorkspaceProvider>);
+    render(<WorkspaceProvider userId="u1"><Both /></WorkspaceProvider>);
     fireEvent.click(await screen.findByRole("button", { name: "go" }));
     fireEvent.click(screen.getByRole("button", { name: "switch" }));
     expect(await screen.findByText("folder:memory:new")).toBeInTheDocument();
@@ -228,5 +233,103 @@ describe("WorkspaceProvider", () => {
     expect(newWrite).not.toHaveBeenCalled();
     expect(await newStorage.readText(yearDataPath(YEAR))).toBeNull();
     expect(calls).toBe(1);
+  });
+
+  it("opens the most recent year with data when the current year has none", async () => {
+    const storage = new MemoryStorage();
+    for (const y of [YEAR - 3, YEAR - 1]) {
+      await storage.writeTextAtomic(
+        yearDataPath(y),
+        JSON.stringify({ version: 1, schoolYear: y, periods: [], classrooms: [mkRoom(`r${y}`)], students: [] }),
+      );
+    }
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+    renderWs();
+    expect(await screen.findByText(`year:${YEAR - 1}`)).toBeInTheDocument();
+    expect(screen.getByText("classrooms:1")).toBeInTheDocument();
+    expect(screen.getByText(`years:${YEAR},${YEAR - 1},${YEAR - 3}`)).toBeInTheDocument();
+  });
+
+  it("opens the current year when it has data, even if a later year exists", async () => {
+    const storage = new MemoryStorage();
+    for (const y of [YEAR, YEAR + 1]) {
+      await storage.writeTextAtomic(
+        yearDataPath(y),
+        JSON.stringify({ version: 1, schoolYear: y, periods: [], classrooms: [], students: [] }),
+      );
+    }
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+    renderWs();
+    expect(await screen.findByText(`year:${YEAR}`)).toBeInTheDocument();
+  });
+
+  describe("update() result", () => {
+    let result: Promise<boolean> | undefined;
+    function Saver({ fn }: { fn: (d: YearData) => YearData }) {
+      const ws = useWorkspace();
+      return <button onClick={() => (result = ws.update(fn))}>save</button>;
+    }
+    const addRoom = (d: YearData) => ({ ...d, classrooms: [...d.classrooms, mkRoom("x")] });
+    async function clickSave(fn: (d: YearData) => YearData, storage: Storage) {
+      pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+      render(
+        <WorkspaceProvider userId="u1">
+          <Saver fn={fn} />
+        </WorkspaceProvider>,
+      );
+      fireEvent.click(await screen.findByRole("button", { name: "save" }));
+      return result;
+    }
+
+    it("resolves true when the save committed", async () => {
+      expect(await clickSave(addRoom, new MemoryStorage())).toBe(true);
+    });
+
+    it("resolves false (and shows the banner) when the save fails", async () => {
+      const storage = new MemoryStorage();
+      vi.spyOn(storage, "writeTextAtomic").mockRejectedValue(new Error("disk gone"));
+      expect(await clickSave(addRoom, storage)).toBe(false);
+      expect(await screen.findByText("No se pudo guardar. Revisa que la carpeta siga disponible.")).toBeInTheDocument();
+    });
+
+    it("resolves false when fn throws", async () => {
+      const boom = () => {
+        throw new Error("bad");
+      };
+      expect(await clickSave(boom, new MemoryStorage())).toBe(false);
+    });
+  });
+
+  it("resolves update() false when it was skipped as stale after a folder change", async () => {
+    const oldStorage = new MemoryStorage();
+    const realWrite = oldStorage.writeTextAtomic.bind(oldStorage);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    vi.spyOn(oldStorage, "writeTextAtomic").mockImplementation(async (p, t) => {
+      await gate;
+      await realWrite(p, t);
+    });
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage: oldStorage });
+    pick.chooseFolder.mockResolvedValue(new MemoryStorage());
+    const results: Promise<boolean>[] = [];
+    function Both() {
+      const ws = useWorkspace();
+      return (
+        <div>
+          <button onClick={() => {
+            results.push(ws.update((d) => ({ ...d, classrooms: [mkRoom("slow")] })));
+            results.push(ws.update((d) => ({ ...d, classrooms: [...d.classrooms, mkRoom("queued")] })));
+          }}>go</button>
+          <button onClick={() => void ws.changeFolder()}>switch</button>
+        </div>
+      );
+    }
+    render(<WorkspaceProvider userId="u1"><Both /></WorkspaceProvider>);
+    fireEvent.click(await screen.findByRole("button", { name: "go" }));
+    fireEvent.click(screen.getByRole("button", { name: "switch" }));
+    await waitFor(() => expect(pick.chooseFolder).toHaveBeenCalled());
+    release();
+    expect(await results[0]).toBe(false);
+    expect(await results[1]).toBe(false);
   });
 });

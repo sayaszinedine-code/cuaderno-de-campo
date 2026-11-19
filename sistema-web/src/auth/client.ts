@@ -3,6 +3,7 @@ import {
   isAuthRetryableFetchError,
   type SupabaseClient,
 } from "@supabase/supabase-js";
+import { forgetFolder } from "@/storage/pick";
 import {
   createLocalStorageCache,
   isProfileRole,
@@ -105,9 +106,15 @@ export async function signIn(email: string, password: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Signs out and always forgets the offline approval check (shared PCs). */
+/**
+ * Signs out and always forgets the offline approval check and this account's remembered folder (shared PCs).
+ * Local data is never deleted: it simply is not opened for another account.
+ */
 export async function signOut(cache: AccountCache = createLocalStorageCache()): Promise<void> {
+  const session = readLocalSession();
+  const userId = (session.kind === "present" ? session.userId : null) ?? cache.get()?.userId ?? null;
   cache.clear();
+  if (userId) await forgetFolder(userId);
   const { error } = await getSupabase().auth.signOut();
   if (error) throw error;
 }

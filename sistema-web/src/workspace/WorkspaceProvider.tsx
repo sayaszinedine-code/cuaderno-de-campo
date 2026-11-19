@@ -31,8 +31,11 @@ export type WorkspaceValue = {
   profile: TeacherProfile | null;
   /** Writes are queued: each one waits for the previous. Rejects when the save fails. */
   saveProfile(p: TeacherProfile): Promise<void>;
-  /** Applies `fn` to the latest data and saves. Never rejects: a failure shows the save banner. */
-  update(fn: (d: YearData) => YearData): Promise<void>;
+  /**
+   * Applies `fn` to the latest data and saves. Never rejects: resolves true only when the save committed;
+   * false when `fn` threw, the save failed (the save banner is shown) or the write was skipped as stale.
+   */
+  update(fn: (d: YearData) => YearData): Promise<boolean>;
   reload(): Promise<void>;
   /** Opens the folder picker and switches to the chosen folder. */
   changeFolder(): Promise<void>;
@@ -68,7 +71,15 @@ function isAbort(e: unknown): boolean {
   return e instanceof Error && e.name === "AbortError";
 }
 
-export function WorkspaceProvider({ children }: { children: ReactNode }) {
+/** Picks the year to open: the current one if it has data, else the most recent past year with data. */
+function initialYear(yearsWithData: number[]): number {
+  const now = currentYear();
+  if (yearsWithData.includes(now)) return now;
+  return yearsWithData.filter((y) => y < now).sort((a, b) => b - a)[0] ?? now;
+}
+
+/** `userId` scopes the remembered folder and the browser-internal storage to the signed-in account. */
+export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>({ status: "loading" });
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [notice, setNotice] = useState("");
@@ -111,10 +122,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setPhase({ status: "loading" });
       try {
         const repo = createWorkspaceRepo(storage);
-        const year = currentYear();
-        const [list, yearData, profile] = await Promise.all([repo.listYears(), repo.loadYear(year), repo.loadProfile()]);
+        const [list, profile] = await Promise.all([repo.listYears(), repo.loadProfile()]);
+        const year = initialYear(list);
+        const yearData = await repo.loadYear(year);
         if (gen !== generation.current) return;
-        commit({ years: withYear(list, year), year, yearData, profile });
+        commit({ years: withYear(withYear(list, currentYear()), year), year, yearData, profile });
         setPhase({ status: "ready", storage, repo, fallback });
       } catch (e) {
         if (gen !== generation.current) return;
@@ -129,14 +141,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const applyRestored = useCallback(async () => {
     if (supportsFolderAccess()) {
-      const state = await restoreStorage();
+      const state = await restoreStorage(userId);
       if (state.status === "ready") return activate(state.storage, false);
       return setPhase(state);
     }
-    const opfs = await openFallbackStorage();
+    const opfs = await openFallbackStorage(userId);
     if (opfs) return activate(opfs, true);
     setPhase({ status: "unsupported" });
-  }, [activate]);
+  }, [activate, userId]);
 
   useEffect(() => {
     void applyRestored();
@@ -146,19 +158,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const pickFolder = useCallback(async () => {
     setNotice("");
     try {
-      const storage = await chooseFolder();
+      const storage = await chooseFolder(userId);
       await activate(storage, false);
     } catch (e) {
       if (!isAbort(e)) setNotice("No se pudo abrir la carpeta elegida.");
     }
-  }, [activate]);
+  }, [activate, userId]);
 
   const allow = useCallback(async () => {
     setNotice("");
-    const storage = await grantPermission();
+    const storage = await grantPermission(userId);
     if (storage) await activate(storage, false);
     else setNotice("No se concedió el permiso. Inténtalo otra vez o elige otra carpeta.");
-  }, [activate]);
+  }, [activate, userId]);
 
   const readyPhase = phase.status === "ready" ? phase : null;
 
@@ -220,22 +232,31 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             if (live()) setNotice("No se pudo abrir ese año.");
           }
         }),
-      update: (fn) =>
-        enqueue(async (live) => {
+      update: async (fn) => {
+        const saved = await enqueue(async (live): Promise<boolean> => {
           const cur = latest.current;
-          if (!cur) return;
+          if (!cur) return false;
+          let next: YearData;
           try {
-            const next = fn(cur.yearData);
+            next = fn(cur.yearData);
+          } catch {
+            return false;
+          }
+          try {
             await repo.saveYear(next);
-            if (!live()) return;
+            if (!live()) return false;
             commit({ ...cur, yearData: next, years: withYear(cur.years, next.schoolYear) });
             setSaveError(false);
+            return true;
           } catch {
-            if (!live()) return;
+            if (!live()) return false;
             setSaveError(true);
             await refreshFromDisk(cur.year, live);
+            return false;
           }
-        }),
+        });
+        return saved === true;
+      },
       saveProfile: (p): Promise<void> =>
         enqueue(async (live) => {
           await repo.saveProfile(p);

@@ -24,6 +24,8 @@ vi.mock("@supabase/supabase-js", async (importOriginal) => ({
   createClient,
 }));
 
+vi.mock("@/storage/pick", () => ({ forgetFolder: vi.fn(async () => undefined) }));
+
 async function load() {
   vi.resetModules();
   return import("./client");
@@ -182,6 +184,27 @@ describe("signIn / signOut / sendPasswordReset", () => {
 });
 
 describe("sign-out and network handling", () => {
+  it("signOut forgets the current user's remembered folder", async () => {
+    localStorage.setItem(
+      "account-check",
+      JSON.stringify({ userId: "u1", status: "active", role: "teacher", checkedAt: "2026-11-19T00:00:00Z" }),
+    );
+    auth.signOut.mockResolvedValue({ error: null });
+    const { signOut } = await load();
+    const pick = await import("@/storage/pick");
+    await signOut();
+    expect(pick.forgetFolder).toHaveBeenCalledWith("u1");
+  });
+
+  it("signOut takes the user id from the stored session when there is no account check", async () => {
+    localStorage.setItem("cuaderno-auth", JSON.stringify({ user: { id: "u2" } }));
+    auth.signOut.mockResolvedValue({ error: null });
+    const { signOut } = await load();
+    const pick = await import("@/storage/pick");
+    await signOut();
+    expect(pick.forgetFolder).toHaveBeenCalledWith("u2");
+  });
+
   it("signOut clears the offline account check, even if Supabase fails", async () => {
     localStorage.setItem(
       "account-check",
