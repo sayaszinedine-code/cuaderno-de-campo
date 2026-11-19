@@ -13,6 +13,15 @@ const ALL_BANDS: readonly string[] = [...CYCLE_BANDS.I, ...CYCLE_BANDS.II];
 const ageBand = z.custom<AgeBand>((v) => typeof v === "string" && ALL_BANDS.includes(v));
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
+/** Workspace-relative path: no absolute/drive/backslash forms and no `.`, `..` or empty segments. */
+const relPath = z
+  .string()
+  .min(1)
+  .refine((v) => !v.startsWith("/") && !/^[A-Za-z]:/.test(v) && !v.includes("\\"), { message: "must be relative" })
+  .refine((v) => v.split("/").every((seg) => seg !== "" && seg !== "." && seg !== ".."), {
+    message: "invalid path segment",
+  });
+
 // Strict shapes define the TypeScript types (no index signature); the exported schemas are their loose
 // counterparts used for parsing and saving.
 const teacherProfileShape = z.object({
@@ -54,7 +63,7 @@ const studentShape = z.object({
   guardianPhone: z.string().optional(),
   motherTongue: z.string().optional(),
   healthNotes: z.string().optional(),
-  photo: z.string().optional(),
+  photo: relPath.optional(),
   active: z.boolean(),
 });
 
@@ -104,7 +113,7 @@ const fieldNoteShape = z.object({
   competencyId: z.string().optional(),
   performances: z.array(selectedPerformanceShape.loose()),
   evidenceText: z.string(),
-  evidence: z.array(z.string()),
+  evidence: z.array(relPath),
   interpretation: z.string(),
   reflection: z.string(),
   level: z.enum(LEVELS).optional(),
