@@ -188,4 +188,45 @@ describe("WorkspaceProvider", () => {
     await act(async () => btn.click());
     expect(await screen.findByRole("button", { name: new RegExp(`prev ${YEAR - 1}`) })).toBeInTheDocument();
   });
+
+  it("does not let a pending save leak into a newly chosen folder", async () => {
+    const oldStorage = new MemoryStorage();
+    const newStorage = new MemoryStorage();
+    const realWrite = oldStorage.writeTextAtomic.bind(oldStorage);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let calls = 0;
+    vi.spyOn(oldStorage, "writeTextAtomic").mockImplementation(async (p, t) => {
+      calls++;
+      if (calls === 1) await gate;
+      await realWrite(p, t);
+    });
+    const newWrite = vi.spyOn(newStorage, "writeTextAtomic");
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage: oldStorage });
+    pick.chooseFolder.mockResolvedValue(newStorage);
+    function Both() {
+      const ws = useWorkspace();
+      return (
+        <div>
+          <p>rooms:{ws.yearData.classrooms.length}</p>
+          <p>folder:{ws.storage.kind}:{ws.storage === newStorage ? "new" : "old"}</p>
+          <button onClick={() => {
+            void ws.update((d) => ({ ...d, classrooms: [mkRoom("slow")] }));
+            void ws.update((d) => ({ ...d, classrooms: [...d.classrooms, mkRoom("queued")] }));
+          }}>go</button>
+          <button onClick={() => void ws.changeFolder()}>switch</button>
+        </div>
+      );
+    }
+    render(<WorkspaceProvider><Both /></WorkspaceProvider>);
+    fireEvent.click(await screen.findByRole("button", { name: "go" }));
+    fireEvent.click(screen.getByRole("button", { name: "switch" }));
+    expect(await screen.findByText("folder:memory:new")).toBeInTheDocument();
+    release();
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+    expect(screen.getByText("rooms:0")).toBeInTheDocument();
+    expect(newWrite).not.toHaveBeenCalled();
+    expect(await newStorage.readText(yearDataPath(YEAR))).toBeNull();
+    expect(calls).toBe(1);
+  });
 });

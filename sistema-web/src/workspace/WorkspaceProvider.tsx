@@ -88,8 +88,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setLoaded(next);
   }, []);
 
-  const enqueue = useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
-    const run = queue.current.then(task, task);
+  /**
+   * Serializes tasks. A task enqueued before a folder change becomes stale: it is skipped if it has not
+   * started, and an in-flight one must check `live()` before committing anything.
+   */
+  const enqueue = useCallback(<T,>(task: (live: () => boolean) => Promise<T>): Promise<T | undefined> => {
+    const gen = generation.current;
+    const live = () => generation.current === gen;
+    const guarded = async () => (live() ? task(live) : undefined);
+    const run = queue.current.then(guarded, guarded);
     queue.current = run.catch(() => undefined);
     return run;
   }, []);
@@ -157,7 +164,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     if (!readyPhase) return;
-    await enqueue(async () => {
+    await enqueue(async (live) => {
       const year = latest.current?.year ?? currentYear();
       try {
         const [list, yearData, profile] = await Promise.all([
@@ -165,8 +172,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           readyPhase.repo.loadYear(year),
           readyPhase.repo.loadProfile(),
         ]);
+        if (!live()) return;
         commit({ years: withYear(list, year), year, yearData, profile });
       } catch (e) {
+        if (!live()) return;
         setPhase({
           status: "error",
           message: e instanceof WorkspaceDataError ? DATA_ERROR_MESSAGE : "No se pudo leer la carpeta.",
@@ -179,11 +188,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!readyPhase || !loaded) return null;
     const { repo, storage } = readyPhase;
 
-    const refreshFromDisk = async (year: number) => {
+    const refreshFromDisk = async (year: number, live: () => boolean) => {
       try {
         const [list, yearData] = await Promise.all([repo.listYears(), repo.loadYear(year)]);
         const cur = latest.current;
-        if (cur) commit({ ...cur, years: withYear(list, year), year, yearData });
+        if (cur && live()) commit({ ...cur, years: withYear(list, year), year, yearData });
       } catch {
         // Keep the last known in-memory state.
       }
@@ -200,35 +209,38 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       reload,
       changeFolder: pickFolder,
       setYear: (y) =>
-        enqueue(async () => {
+        enqueue(async (live) => {
           const cur = latest.current;
           if (!cur) return;
           try {
             const yearData = await repo.loadYear(y);
+            if (!live()) return;
             commit({ ...cur, year: y, years: withYear(cur.years, y), yearData });
           } catch {
-            setNotice("No se pudo abrir ese año.");
+            if (live()) setNotice("No se pudo abrir ese año.");
           }
         }),
       update: (fn) =>
-        enqueue(async () => {
+        enqueue(async (live) => {
           const cur = latest.current;
           if (!cur) return;
           try {
             const next = fn(cur.yearData);
             await repo.saveYear(next);
+            if (!live()) return;
             commit({ ...cur, yearData: next, years: withYear(cur.years, next.schoolYear) });
             setSaveError(false);
           } catch {
+            if (!live()) return;
             setSaveError(true);
-            await refreshFromDisk(cur.year);
+            await refreshFromDisk(cur.year, live);
           }
         }),
-      saveProfile: (p) =>
-        enqueue(async () => {
+      saveProfile: (p): Promise<void> =>
+        enqueue(async (live) => {
           await repo.saveProfile(p);
           const cur = latest.current;
-          if (cur) commit({ ...cur, profile: p });
+          if (cur && live()) commit({ ...cur, profile: p });
         }),
     };
   }, [readyPhase, loaded, reload, pickFolder, enqueue, commit]);
