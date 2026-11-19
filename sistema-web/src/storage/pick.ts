@@ -2,7 +2,6 @@ import { get, set } from "idb-keyval";
 import type { Storage, StorageState } from "./types";
 import { FsAccessStorage } from "./fs-access";
 import { OpfsStorage } from "./opfs";
-import { MemoryStorage } from "./memory";
 
 const KEY = "workspace-dir";
 
@@ -56,14 +55,12 @@ export async function grantPermission(): Promise<Storage | null> {
   }
 }
 
-/** Fallback for browsers without folder access: OPFS if available, otherwise memory. */
-export async function openFallbackStorage(): Promise<Storage> {
-  if (OpfsStorage.isSupported()) {
-    try {
-      return await OpfsStorage.open();
-    } catch {
-      /* fall through */
-    }
+/** OPFS fallback for browsers without folder access. Null when unsupported: never silently use volatile storage. */
+export async function openFallbackStorage(): Promise<Storage | null> {
+  if (!OpfsStorage.isSupported()) return null;
+  try {
+    return await OpfsStorage.open();
+  } catch {
+    return null;
   }
-  return new MemoryStorage();
 }

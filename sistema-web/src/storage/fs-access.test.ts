@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { FakeDirectoryHandle, asDirHandle, domError } from "./test/fake-fs";
 
 const store = new Map<string, unknown>();
@@ -7,7 +7,7 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async (k: string, v: unknown) => void store.set(k, v)),
 }));
 
-import { restoreStorage, chooseFolder, grantPermission, supportsFolderAccess } from "./pick";
+import { openFallbackStorage, restoreStorage, chooseFolder, grantPermission, supportsFolderAccess } from "./pick";
 
 describe("restoreStorage", () => {
   beforeEach(() => store.clear());
@@ -77,5 +77,25 @@ describe("chooseFolder / grantPermission", () => {
     expect(await grantPermission()).toBeNull();
     store.clear();
     expect(await grantPermission()).toBeNull();
+  });
+});
+
+describe("openFallbackStorage", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("returns null when OPFS is unsupported (no volatile fallback)", async () => {
+    vi.stubGlobal("navigator", {});
+    expect(await openFallbackStorage()).toBeNull();
+  });
+
+  it("returns OpfsStorage when supported", async () => {
+    const root = new FakeDirectoryHandle("opfs");
+    vi.stubGlobal("navigator", { storage: { getDirectory: async () => asDirHandle(root) } });
+    expect((await openFallbackStorage())?.kind).toBe("opfs");
+  });
+
+  it("returns null when getDirectory rejects", async () => {
+    vi.stubGlobal("navigator", { storage: { getDirectory: async () => { throw new Error("denied"); } } });
+    expect(await openFallbackStorage()).toBeNull();
   });
 });

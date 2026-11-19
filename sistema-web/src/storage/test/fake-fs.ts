@@ -14,12 +14,13 @@ class FakeFileHandle {
   move?: (newName: string) => Promise<void>;
   constructor(
     public name: string,
-    dir: FakeDirectoryHandle,
+    private dir: FakeDirectoryHandle,
     private box: FileBox,
     withMove: boolean,
   ) {
     if (withMove) {
       this.move = async (newName) => {
+        if (dir.moveError) throw domError(dir.moveError);
         dir.entriesMap.delete(this.name);
         dir.entriesMap.set(newName, this.box);
         this.name = newName;
@@ -33,10 +34,14 @@ class FakeFileHandle {
     const chunks: BlobPart[] = [];
     return {
       write: async (d: BlobPart) => {
+        if (this.dir.failWrite?.(this.name)) throw domError("QuotaExceededError");
         chunks.push(d);
       },
       close: async () => {
         this.box.data = new Blob(chunks);
+      },
+      abort: async () => {
+        chunks.length = 0;
       },
     };
   }
@@ -47,6 +52,10 @@ export class FakeDirectoryHandle {
   entriesMap = new Map<string, FakeDirectoryHandle | FileBox>();
   permission: Perm = "granted";
   gone = false;
+  /** Failure injection: move() rejects with this error name. */
+  moveError?: string;
+  /** Failure injection: write() rejects for files whose name matches. */
+  failWrite?: (fileName: string) => boolean;
   constructor(
     public name = "root",
     private withMove = true,
@@ -68,6 +77,8 @@ export class FakeDirectoryHandle {
     if (e) throw domError("TypeMismatchError");
     if (!opts?.create) throw domError("NotFoundError");
     const d = new FakeDirectoryHandle(name, this.withMove);
+    d.moveError = this.moveError;
+    d.failWrite = this.failWrite;
     this.entriesMap.set(name, d);
     return d;
   }

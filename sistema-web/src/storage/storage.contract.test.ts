@@ -94,3 +94,38 @@ storageContract("FsAccessStorage (with move)", () => new FsAccessStorage(asDirHa
 storageContract("FsAccessStorage (without move)", () => new FsAccessStorage(asDirHandle(new FakeDirectoryHandle("w", false))));
 // OpfsStorage shares FsAccessStorage's implementation; contract run guards the wrapper.
 storageContract("OpfsStorage", () => new OpfsStorage(asDirHandle(new FakeDirectoryHandle("opfs", true))));
+
+describe("FsAccessStorage failure handling", () => {
+  const mk = (withMove: boolean) => {
+    const fake = new FakeDirectoryHandle("w", withMove);
+    return { fake, s: new FsAccessStorage(asDirHandle(fake)) };
+  };
+
+  it("falls back to rewrite when move() throws NotSupportedError", async () => {
+    const { fake, s } = mk(true);
+    fake.moveError = "NotSupportedError";
+    await s.writeTextAtomic("d/f.json", "hello");
+    expect(await s.readText("d/f.json")).toBe("hello");
+    expect((await s.list("d")).map((e) => e.name)).toEqual(["f.json"]);
+  });
+
+  it("failed destination write rejects, keeps original and leaves no .tmp", async () => {
+    const { fake, s } = mk(false);
+    await s.writeTextAtomic("f.json", "original");
+    fake.failWrite = (n) => n === "f.json";
+    await expect(s.writeTextAtomic("f.json", "new")).rejects.toThrow();
+    fake.failWrite = undefined;
+    expect(await s.readText("f.json")).toBe("original");
+    expect((await s.list("")).map((e) => e.name)).toEqual(["f.json"]);
+  });
+
+  it("failed tmp write rejects without touching the original", async () => {
+    const { fake, s } = mk(true);
+    await s.writeTextAtomic("f.json", "original");
+    fake.failWrite = () => true;
+    await expect(s.writeTextAtomic("f.json", "new")).rejects.toThrow("QuotaExceededError");
+    fake.failWrite = undefined;
+    expect(await s.readText("f.json")).toBe("original");
+    expect((await s.list("")).map((e) => e.name)).toEqual(["f.json"]);
+  });
+});

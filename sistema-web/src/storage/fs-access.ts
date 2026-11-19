@@ -55,9 +55,11 @@ export class FsAccessStorage implements Storage {
     const w = await handle.createWritable();
     try {
       await w.write(data);
-    } finally {
-      await w.close();
+    } catch (e) {
+      await w.abort?.().catch(() => undefined);
+      throw e;
     }
+    await w.close();
   }
 
   async writeFile(path: string, data: Blob): Promise<void> {
@@ -75,9 +77,16 @@ export class FsAccessStorage implements Storage {
     try {
       await this.put(dir, tmpName, blob);
       const tmp = await dir.getFileHandle(tmpName);
+      let moved = false;
       if (typeof tmp.move === "function") {
-        await tmp.move(name);
-      } else {
+        try {
+          await tmp.move(name);
+          moved = true;
+        } catch {
+          // Some browsers reject move() on picker handles; fall back to rewrite.
+        }
+      }
+      if (!moved) {
         await this.put(dir, name, blob);
         await dir.removeEntry(tmpName);
       }
