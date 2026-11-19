@@ -12,6 +12,7 @@ const NAV: NavItem[] = [
   { label: "Inicio", href: "/inicio/" },
   { label: "Cuaderno" },
   { label: "Niños", href: "/ninos/" },
+  { label: "Aulas", href: "/aulas/" },
   { label: "Notas" },
   { label: "Unidades" },
   { label: "Asistencia" },
@@ -28,7 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const desktopItems: NavItem[] = [...NAV, ...admin];
   const mobileItems = NAV.filter((i) => ["Inicio", "Cuaderno", "Niños", "Notas"].includes(i.label));
   const moreItems: NavItem[] = [
-    ...NAV.filter((i) => ["Unidades", "Asistencia", "Agenda"].includes(i.label)),
+    ...NAV.filter((i) => ["Aulas", "Unidades", "Asistencia", "Agenda"].includes(i.label)),
     { label: "Perfil", href: "/perfil/" },
     { label: "Carpeta", href: "/carpeta/" },
     ...admin,
