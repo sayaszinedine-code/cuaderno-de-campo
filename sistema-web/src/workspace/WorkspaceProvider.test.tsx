@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
 import type { Storage } from "@/storage/types";
-import { gradesPath, notesPath, unitsPath, yearDataPath } from "@/domain/paths";
+import { agendaPath, attendancePath, gradesPath, notesPath, unitsPath, yearDataPath } from "@/domain/paths";
 import type { FieldNote, NotesFile, YearData } from "@/domain/schema";
 
 const pick = vi.hoisted(() => ({
@@ -639,6 +639,126 @@ describe("grades and units", () => {
     await storage.writeTextAtomic(path(YEAR), "{no json");
     const write = vi.spyOn(storage, "writeTextAtomic");
     renderGU(storage);
+    expect(
+      await screen.findByText("No se pudo leer tus datos (archivo dañado o de una versión más nueva). No se modificó nada."),
+    ).toBeInTheDocument();
+    expect(write).not.toHaveBeenCalled();
+  });
+});
+
+describe("attendance and agenda", () => {
+  const mkEvent = (id: string) => ({
+    id,
+    date: "2026-05-20",
+    title: "t",
+    type: "Reunión" as const,
+    note: "",
+    createdAt: "",
+    updatedAt: "",
+  });
+  const day = { date: "2026-05-18", classroomId: "c1", marks: { s1: "P" as const } };
+  let results: Promise<boolean>[] = [];
+
+  function AAProbe() {
+    const ws = useWorkspace();
+    return (
+      <div>
+        <p>year:{ws.year}</p>
+        <p>days:{ws.attendance.days.length}</p>
+        <p>events:{ws.agenda.events.map((e) => e.id).join(",")}</p>
+        <button onClick={() => results.push(ws.updateAttendance((f) => ({ ...f, days: [...f.days, day] })))}>add-day</button>
+        <button onClick={() => results.push(ws.updateAgenda((f) => ({ ...f, events: [...f.events, mkEvent("e1")] })))}>add-event</button>
+        <button
+          onClick={() => {
+            results.push(ws.update((d) => ({ ...d, classrooms: [...d.classrooms, mkRoom("a")] })));
+            results.push(ws.updateAttendance((f) => ({ ...f, days: [...f.days, day] })));
+            results.push(ws.updateAgenda((f) => ({ ...f, events: [...f.events, mkEvent("e2")] })));
+          }}
+        >
+          all
+        </button>
+        <button onClick={() => results.push(ws.updateAttendance((f) => ({ ...f, days: [...f.days, day] }), { year: YEAR }))}>
+          day-current
+        </button>
+        <button onClick={() => results.push(ws.updateAgenda((f) => ({ ...f, events: [...f.events, mkEvent("g")] }), { year: YEAR }))}>
+          event-current
+        </button>
+        <button onClick={() => void ws.setYear(YEAR - 1)}>prev</button>
+      </div>
+    );
+  }
+  function renderAA(storage: Storage) {
+    results = [];
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+    render(
+      <WorkspaceProvider userId="u1">
+        <AAProbe />
+      </WorkspaceProvider>,
+    );
+  }
+
+  it("saves to their own files", async () => {
+    const storage = new MemoryStorage();
+    renderAA(storage);
+    fireEvent.click(await screen.findByRole("button", { name: "add-day" }));
+    fireEvent.click(screen.getByRole("button", { name: "add-event" }));
+    expect(await Promise.all(results)).toEqual([true, true]);
+    expect(JSON.parse((await storage.readText(attendancePath(YEAR))) ?? "{}").days).toHaveLength(1);
+    expect(JSON.parse((await storage.readText(agendaPath(YEAR))) ?? "{}").events).toHaveLength(1);
+    expect(await screen.findByText("days:1")).toBeInTheDocument();
+    expect(await screen.findByText("events:e1")).toBeInTheDocument();
+  });
+
+  it("serializes with update through the queue", async () => {
+    const storage = new MemoryStorage();
+    const real = storage.writeTextAtomic.bind(storage);
+    let inFlight = 0;
+    let maxInFlight = 0;
+    vi.spyOn(storage, "writeTextAtomic").mockImplementation(async (p, t) => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      await real(p, t);
+      inFlight--;
+    });
+    renderAA(storage);
+    fireEvent.click(await screen.findByRole("button", { name: "all" }));
+    expect(await Promise.all(results)).toEqual([true, true, true]);
+    expect(maxInFlight).toBe(1);
+  });
+
+  it("year-guarded updates write nothing when another year is loaded", async () => {
+    const storage = new MemoryStorage();
+    renderAA(storage);
+    await screen.findByText(`year:${YEAR}`);
+    fireEvent.click(screen.getByRole("button", { name: "prev" }));
+    await screen.findByText(`year:${YEAR - 1}`);
+    const write = vi.spyOn(storage, "writeTextAtomic");
+    fireEvent.click(screen.getByRole("button", { name: "day-current" }));
+    fireEvent.click(screen.getByRole("button", { name: "event-current" }));
+    expect(await Promise.all(results)).toEqual([false, false]);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("setYear loads the attendance and agenda of that year", async () => {
+    const storage = new MemoryStorage();
+    await storage.writeTextAtomic(attendancePath(YEAR - 1), JSON.stringify({ version: 1, schoolYear: YEAR - 1, days: [day] }));
+    await storage.writeTextAtomic(agendaPath(YEAR - 1), JSON.stringify({ version: 1, schoolYear: YEAR - 1, events: [mkEvent("old")] }));
+    renderAA(storage);
+    await screen.findByText(`year:${YEAR}`);
+    fireEvent.click(screen.getByRole("button", { name: "prev" }));
+    expect(await screen.findByText("events:old")).toBeInTheDocument();
+    expect(screen.getByText("days:1")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["asistencia.json", attendancePath],
+    ["agenda.json", agendaPath],
+  ])("shows the data error and writes nothing when %s is corrupt", async (_n, path) => {
+    const storage = new MemoryStorage();
+    await storage.writeTextAtomic(path(YEAR), "{no json");
+    const write = vi.spyOn(storage, "writeTextAtomic");
+    renderAA(storage);
     expect(
       await screen.findByText("No se pudo leer tus datos (archivo dañado o de una versión más nueva). No se modificó nada."),
     ).toBeInTheDocument();

@@ -1,12 +1,16 @@
 import type { Storage } from "@/storage/types";
-import { gradesPath, notesPath, profilePath, unitsPath, yearDataPath } from "./paths";
+import { agendaPath, attendancePath, gradesPath, notesPath, profilePath, unitsPath, yearDataPath } from "./paths";
 import {
   SCHEMA_VERSION,
+  agendaFileSchema,
+  attendanceFileSchema,
   gradesFileSchema,
   notesFileSchema,
   profileFileSchema,
   unitsFileSchema,
   yearDataSchema,
+  type AgendaFile,
+  type AttendanceFile,
   type GradesFile,
   type NotesFile,
   type Period,
@@ -61,6 +65,12 @@ export interface WorkspaceRepo {
   /** Returns an empty (unsaved) UnitsFile when the file does not exist. */
   loadUnits(y: number): Promise<UnitsFile>;
   saveUnits(f: UnitsFile, opts?: SaveOptions): Promise<void>;
+  /** Returns an empty (unsaved) AttendanceFile when the file does not exist. */
+  loadAttendance(y: number): Promise<AttendanceFile>;
+  saveAttendance(f: AttendanceFile, opts?: SaveOptions): Promise<void>;
+  /** Returns an empty (unsaved) AgendaFile when the file does not exist. */
+  loadAgenda(y: number): Promise<AgendaFile>;
+  saveAgenda(f: AgendaFile, opts?: SaveOptions): Promise<void>;
 }
 
 interface DocSchema<T> {
@@ -180,6 +190,22 @@ export function createWorkspaceRepo(storage: Storage): WorkspaceRepo {
 
     async saveUnits(f, opts) {
       await saveDoc(unitsPath(f.schoolYear), unitsFileSchema, f, opts);
+    },
+
+    async loadAttendance(y) {
+      return loadDoc(attendancePath(y), attendanceFileSchema, () => ({ version: SCHEMA_VERSION, schoolYear: y, days: [] }));
+    },
+
+    async saveAttendance(f, opts) {
+      await saveDoc(attendancePath(f.schoolYear), attendanceFileSchema, f, opts);
+    },
+
+    async loadAgenda(y) {
+      return loadDoc(agendaPath(y), agendaFileSchema, () => ({ version: SCHEMA_VERSION, schoolYear: y, events: [] }));
+    },
+
+    async saveAgenda(f, opts) {
+      await saveDoc(agendaPath(f.schoolYear), agendaFileSchema, f, opts);
     },
   };
 }

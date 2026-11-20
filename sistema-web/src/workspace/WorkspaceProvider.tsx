@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createWorkspaceRepo, WorkspaceDataError, type WorkspaceRepo } from "@/domain/workspace-repo";
-import type { FieldNote, GradesFile, NotesFile, TeacherProfile, UnitsFile, YearData } from "@/domain/schema";
+import type { AgendaFile, AttendanceFile, FieldNote, GradesFile, NotesFile, TeacherProfile, UnitsFile, YearData } from "@/domain/schema";
 import {
   chooseFolder,
   grantPermission,
@@ -51,6 +51,14 @@ export type WorkspaceValue = {
   units: UnitsFile;
   /** Same semantics as `updateNotes`, for the units file. */
   updateUnits(fn: (f: UnitsFile) => UnitsFile, opts?: { year?: number }): Promise<boolean>;
+  /** Attendance of the open year (`asistencia.json`). */
+  attendance: AttendanceFile;
+  /** Same semantics as `updateNotes`, for the attendance file. */
+  updateAttendance(fn: (f: AttendanceFile) => AttendanceFile, opts?: { year?: number }): Promise<boolean>;
+  /** Agenda of the open year (`agenda.json`). */
+  agenda: AgendaFile;
+  /** Same semantics as `updateNotes`, for the agenda file. */
+  updateAgenda(fn: (f: AgendaFile) => AgendaFile, opts?: { year?: number }): Promise<boolean>;
   reload(): Promise<void>;
   /** Opens the folder picker and switches to the chosen folder. */
   changeFolder(): Promise<void>;
@@ -81,20 +89,24 @@ type Loaded = {
   notesFile: NotesFile;
   gradesFile: GradesFile;
   unitsFile: UnitsFile;
+  attendanceFile: AttendanceFile;
+  agendaFile: AgendaFile;
   profile: TeacherProfile | null;
 };
 
-type YearDocs = Pick<Loaded, "yearData" | "notesFile" | "gradesFile" | "unitsFile">;
+type YearDocs = Pick<Loaded, "yearData" | "notesFile" | "gradesFile" | "unitsFile" | "attendanceFile" | "agendaFile">;
 
 /** Loads every document of one year; the single place that knows which files make up a year. */
 async function loadYearDocs(repo: WorkspaceRepo, y: number): Promise<YearDocs> {
-  const [yearData, notesFile, gradesFile, unitsFile] = await Promise.all([
+  const [yearData, notesFile, gradesFile, unitsFile, attendanceFile, agendaFile] = await Promise.all([
     repo.loadYear(y),
     repo.loadNotes(y),
     repo.loadGrades(y),
     repo.loadUnits(y),
+    repo.loadAttendance(y),
+    repo.loadAgenda(y),
   ]);
-  return { yearData, notesFile, gradesFile, unitsFile };
+  return { yearData, notesFile, gradesFile, unitsFile, attendanceFile, agendaFile };
 }
 
 const currentYear = () => new Date().getFullYear();
@@ -289,6 +301,8 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       notes: loaded.notesFile.notes,
       grades: loaded.gradesFile,
       units: loaded.unitsFile,
+      attendance: loaded.attendanceFile,
+      agenda: loaded.agendaFile,
       profile: loaded.profile,
       canChooseFolder: supportsFolderAccess(),
       reload,
@@ -333,6 +347,22 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           (l) => l.unitsFile,
           (l, unitsFile) => ({ ...l, unitsFile }),
           (f) => repo.saveUnits(f),
+          fn,
+          opts?.year,
+        ),
+      updateAttendance: (fn, opts) =>
+        mutate(
+          (l) => l.attendanceFile,
+          (l, attendanceFile) => ({ ...l, attendanceFile }),
+          (f) => repo.saveAttendance(f),
+          fn,
+          opts?.year,
+        ),
+      updateAgenda: (fn, opts) =>
+        mutate(
+          (l) => l.agendaFile,
+          (l, agendaFile) => ({ ...l, agendaFile }),
+          (f) => repo.saveAgenda(f),
           fn,
           opts?.year,
         ),

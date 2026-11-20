@@ -16,6 +16,8 @@ export const yearDataPath = (y: number) => `${y}/datos/anio.json`;
 export const notesPath = (y: number) => `${y}/datos/cuaderno.json`;
 export const gradesPath = (y: number) => `${y}/datos/notas.json`;
 export const unitsPath = (y: number) => `${y}/datos/unidades.json`;
+export const attendancePath = (y: number) => `${y}/datos/asistencia.json`;
+export const agendaPath = (y: number) => `${y}/datos/agenda.json`;
 
 /** "B1" -> "Bimestre 1". */
 const periodFolder = (id: Period["id"]) => `Bimestre ${id.slice(1)}`;

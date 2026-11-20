@@ -211,6 +211,57 @@ const unitsFileShape = z.object({
   sessions: z.array(sessionShape),
 });
 
+export const ATTENDANCE_MARKS = ["P", "T", "F", "J"] as const;
+export const ATTENDANCE_LABELS: Record<(typeof ATTENDANCE_MARKS)[number], string> = {
+  P: "Presente",
+  T: "Tardanza",
+  F: "Falta",
+  J: "Falta justificada",
+};
+
+const attendanceDayShape = z.object({
+  date: isoDate,
+  classroomId: z.string().min(1),
+  marks: z.record(z.string(), z.enum(ATTENDANCE_MARKS)),
+});
+
+const attendanceFileShape = z.object({
+  version: z.literal(SCHEMA_VERSION),
+  schoolYear: z.number().int().min(1000).max(9999),
+  days: z.array(attendanceDayShape),
+});
+
+export const EVENT_TYPES = [
+  "Reunión",
+  "Entrega de documentos",
+  "Actividad con niños",
+  "Fecha cívica",
+  "Capacitación",
+  "Personal",
+] as const;
+
+const agendaEventShape = z.object({
+  id: z.string().min(1),
+  date: isoDate,
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+  title: z.string(),
+  type: z.enum(EVENT_TYPES),
+  note: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const agendaFileShape = z.object({
+  version: z.literal(SCHEMA_VERSION),
+  schoolYear: z.number().int().min(1000).max(9999),
+  events: z.array(agendaEventShape),
+});
+
+export const attendanceDaySchema = attendanceDayShape.loose();
+export const attendanceFileSchema = attendanceFileShape.extend({ days: z.array(attendanceDaySchema) }).loose();
+export const agendaEventSchema = agendaEventShape.loose();
+export const agendaFileSchema = agendaFileShape.extend({ events: z.array(agendaEventSchema) }).loose();
+
 export const attachmentSchema = attachmentShape.loose();
 export const unitSchema = unitShape.loose();
 export const sessionSchema = sessionShape.loose();
@@ -272,3 +323,9 @@ export type Unit = z.infer<typeof unitShape>;
 export type Session = z.infer<typeof sessionShape>;
 export type UnitsFile = z.infer<typeof unitsFileShape>;
 export type GradesFile = z.infer<typeof gradesFileShape>;
+export type AttendanceMark = (typeof ATTENDANCE_MARKS)[number];
+export type AttendanceDay = z.infer<typeof attendanceDayShape>;
+export type AttendanceFile = z.infer<typeof attendanceFileShape>;
+export type EventType = (typeof EVENT_TYPES)[number];
+export type AgendaEvent = z.infer<typeof agendaEventShape>;
+export type AgendaFile = z.infer<typeof agendaFileShape>;
