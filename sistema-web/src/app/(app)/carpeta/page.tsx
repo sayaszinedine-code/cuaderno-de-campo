@@ -4,7 +4,7 @@ import { BackupPanel } from "@/backup/BackupPanel";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 export default function CarpetaPage() {
-  const { storage, canChooseFolder, changeFolder } = useWorkspace();
+  const { storage, canChooseFolder, changeFolder, backupBusy } = useWorkspace();
   const inBrowser = storage.kind !== "fs-access";
 
   return (
@@ -14,7 +14,7 @@ export default function CarpetaPage() {
         <p className="text-sm text-muted">{inBrowser ? "Guardado dentro del navegador" : "Carpeta en tu computadora"}</p>
         <p className="text-lg font-medium">{storage.label}</p>
         {canChooseFolder && (
-          <button className="btn-secondary" onClick={() => void changeFolder()}>
+          <button className="btn-secondary" disabled={backupBusy !== null} onClick={() => void changeFolder()}>
             Cambiar carpeta
           </button>
         )}

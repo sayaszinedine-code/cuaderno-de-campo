@@ -64,9 +64,14 @@ export function BackupPanel() {
 
   async function download() {
     if (!saved) return;
-    const blob = await storage.readFile(`Respaldos/${saved}`);
-    if (blob) downloadBlob(blob, saved);
-    else setError("No se encontró el respaldo en la carpeta.");
+    setError("");
+    try {
+      const blob = await storage.readFile(`Respaldos/${saved}`);
+      if (!blob) throw new Error("missing");
+      downloadBlob(blob, saved);
+    } catch {
+      if (mounted.current) setError("No se pudo descargar el respaldo.");
+    }
   }
 
   async function choose(file: File) {

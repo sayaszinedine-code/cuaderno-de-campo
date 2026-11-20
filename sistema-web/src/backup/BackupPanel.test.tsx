@@ -130,4 +130,16 @@ describe("BackupPanel", () => {
     expect(screen.getByRole("heading", { name: "Mover a otra computadora" })).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
   });
+
+  it("shows an error when the download fails", async () => {
+    await seed(storage);
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "Hacer respaldo ahora" }));
+    await screen.findByText(/Respaldo guardado en/);
+    URL.createObjectURL = vi.fn(() => {
+      throw new Error("boom");
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Descargar respaldo" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo descargar el respaldo.");
+  });
 });

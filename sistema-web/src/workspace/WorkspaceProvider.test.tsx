@@ -790,10 +790,10 @@ describe("WorkspaceProvider backups", () => {
       </div>
     );
   }
-  const renderBackup = (storage: MemoryStorage) => {
+  const renderBackup = (storage: MemoryStorage, autoBackupDelayMs = 0) => {
     pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
     return render(
-      <WorkspaceProvider userId="u1">
+      <WorkspaceProvider userId="u1" autoBackupDelayMs={autoBackupDelayMs}>
         <BackupProbe />
       </WorkspaceProvider>,
     );
@@ -895,5 +895,67 @@ describe("WorkspaceProvider backups", () => {
     release();
     await waitFor(() => expect(screen.getByText("busy:null")).toBeInTheDocument());
     expect(restoreMock.restoreBackup).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not warn on an empty folder", async () => {
+    renderBackup(new MemoryStorage(), 100_000);
+    await screen.findByText(/warning:/);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText("warning:false")).toBeInTheDocument();
+  });
+
+  it("warns when there is data and no backup", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    renderBackup(storage, 100_000);
+    expect(await screen.findByText("warning:true")).toBeInTheDocument();
+  });
+
+  it("does not warn when there is data and the backup is recent", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    await seedBackup(storage, 2);
+    renderBackup(storage, 100_000);
+    await screen.findByText(/warning:/);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText("warning:false")).toBeInTheDocument();
+  });
+
+  it("waits for the app to be idle before the automatic backup", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    renderBackup(storage, 10_000);
+    await screen.findByText(/warning:/);
+    await new Promise((r) => setTimeout(r, 80));
+    expect(await autos(storage)).toHaveLength(0);
+  });
+
+  it("postpones the automatic backup while the teacher keeps writing", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    renderBackup(storage, 200);
+    const write = await screen.findByRole("button", { name: "write" });
+    await new Promise((r) => setTimeout(r, 120));
+    fireEvent.click(write);
+    await new Promise((r) => setTimeout(r, 150)); // 270 ms after open, but only 150 after the write
+    expect(await autos(storage)).toHaveLength(0);
+    await waitFor(async () => expect(await autos(storage)).toHaveLength(1), { timeout: 2000 });
+  });
+
+  it("cancels the pending automatic backup on unmount", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    const { unmount } = renderBackup(storage, 100);
+    await screen.findByText(/warning:/);
+    unmount();
+    await new Promise((r) => setTimeout(r, 250));
+    expect(await autos(storage)).toHaveLength(0);
+  });
+
+  it("clears the empty-folder state after a first write", async () => {
+    const storage = new MemoryStorage();
+    renderBackup(storage, 100_000);
+    fireEvent.click(await screen.findByRole("button", { name: "write" }));
+    await waitFor(() => expect(screen.getByText("warning:true")).toBeInTheDocument());
   });
 });

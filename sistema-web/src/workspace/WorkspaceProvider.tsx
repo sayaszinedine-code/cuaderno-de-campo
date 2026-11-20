@@ -129,6 +129,8 @@ const currentYear = () => new Date().getFullYear();
 const DAY_MS = 86_400_000;
 const AUTO_BACKUP_AFTER_DAYS = 7;
 const BACKUP_WARNING_AFTER_DAYS = 14;
+const AUTO_BACKUP_IDLE_MS = 60_000;
+const FOLDER_CHANGED_MESSAGE = "La carpeta cambió. Inténtalo de nuevo.";
 const BUSY_MESSAGE = "Espera a que termine el respaldo o la restauración en curso.";
 
 /** Whole days since a local `YYYY-MM-DD` date (Infinity when unparsable). */
@@ -160,7 +162,16 @@ function initialYear(yearsWithData: number[]): number {
 }
 
 /** `userId` scopes the remembered folder and the browser-internal storage to the signed-in account. */
-export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
+export function WorkspaceProvider({
+  userId,
+  children,
+  autoBackupDelayMs = AUTO_BACKUP_IDLE_MS,
+}: {
+  userId: string;
+  children: ReactNode;
+  /** How long the app must be idle (no queued work, no writes) before the automatic backup starts. Injectable for tests. */
+  autoBackupDelayMs?: number;
+}) {
   const [phase, setPhase] = useState<Phase>({ status: "loading" });
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [notice, setNotice] = useState("");
@@ -168,6 +179,9 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   const [backupDate, setBackupDate] = useState<string | null | undefined>(undefined);
   const [backupError, setBackupError] = useState("");
   const [backupBusy, setBackupBusy] = useState<"backup" | "restore" | null>(null);
+  const [folderHasData, setFolderHasData] = useState(false);
+  const pending = useRef(0);
+  const lastActivity = useRef(Date.now());
   const busyRef = useRef<"backup" | "restore" | null>(null);
 
   const generation = useRef(0);
@@ -192,7 +206,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     const gen = generation.current;
     const live = () => generation.current === gen;
     const guarded = async () => (live() ? task(live) : undefined);
+    pending.current++;
     const run = queue.current.then(guarded, guarded);
+    void run.then(
+      () => void pending.current--,
+      () => void pending.current--,
+    );
     queue.current = run.catch(() => undefined);
     return run;
   }, []);
@@ -205,6 +224,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       setNotice("");
       setSaveError(false);
       setBackupDate(undefined);
+      setFolderHasData(false);
       setBackupError("");
       setPhase({ status: "loading" });
       try {
@@ -294,8 +314,13 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       busyRef.current = kind;
       setBackupBusy(kind);
       try {
-        const out = await enqueue(task);
-        if (out === undefined) throw new Error("La carpeta cambió. Inténtalo de nuevo.");
+        const out = await enqueue(async (live) => {
+          const r = await task(live);
+          // The folder was switched while this ran: never report success for a folder that is no longer open.
+          if (!live()) throw new Error(FOLDER_CHANGED_MESSAGE);
+          return r;
+        });
+        if (out === undefined) throw new Error(FOLDER_CHANGED_MESSAGE);
         return out;
       } finally {
         busyRef.current = null;
@@ -309,9 +334,13 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     if (!readyStorage) throw new Error("La carpeta no está lista.");
     return runBackupTask("backup", async (live) => {
       const { saveBackup, lastBackupDate } = await import("@/backup/backup");
+      const { hasData } = await import("@/backup/backup");
       const name = await saveBackup(readyStorage, "manual");
-      const date = await lastBackupDate(readyStorage);
-      if (live()) setBackupDate(date);
+      const [date, data] = await Promise.all([lastBackupDate(readyStorage), hasData(readyStorage)]);
+      if (live()) {
+        setBackupDate(date);
+        setFolderHasData(data);
+      }
       return name;
     });
   }, [readyStorage, runBackupTask]);
@@ -327,9 +356,13 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         } finally {
           // Even after a partial failure the screen must show what is really on disk, inside this same slot.
           await reloadNow(repo, live);
-          const { lastBackupDate } = await import("@/backup/backup");
+          const { lastBackupDate, hasData } = await import("@/backup/backup");
           const date = await lastBackupDate(storage).catch(() => null);
-          if (live()) setBackupDate(date);
+          const data = await hasData(storage).catch(() => true);
+          if (live()) {
+            setBackupDate(date);
+            setFolderHasData(data);
+          }
         }
         return true;
       });
@@ -337,38 +370,84 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     [readyPhase, runBackupTask, reloadNow],
   );
 
-  /** Weekly automatic backup: queued after the first paint, never throws into the UI. */
+  /**
+   * Weekly automatic backup. The status (date, has data) is read right away without touching the queue; the backup
+   * itself starts only after the app has been idle for `autoBackupDelayMs`. Known limit: once it runs it holds the
+   * write queue until the zip is done, so saves wait on very large folders.
+   */
   const autoBackupFor = useRef<Storage | null>(null);
   useEffect(() => {
     if (!readyStorage || autoBackupFor.current === readyStorage) return;
     autoBackupFor.current = readyStorage;
     const storage = readyStorage;
-    void enqueue(async (live) => {
-      try {
-        const { lastBackupDate, hasData, saveBackup } = await import("@/backup/backup");
-        let date = await lastBackupDate(storage);
-        if (live()) setBackupDate(date);
-        const stale = date ? daysSince(date) > AUTO_BACKUP_AFTER_DAYS : await hasData(storage);
-        if (!stale || busyRef.current) return;
-        busyRef.current = "backup";
-        setBackupBusy("backup");
+    const gen = generation.current;
+    const live = () => generation.current === gen;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let idleHandle: number | undefined;
+    lastActivity.current = Date.now();
+
+    const idle = () => pending.current === 0 && Date.now() - lastActivity.current >= autoBackupDelayMs;
+    const wait = () => Math.max(autoBackupDelayMs - (Date.now() - lastActivity.current), 50);
+
+    const start = () => {
+      idleHandle = undefined;
+      if (cancelled || !live()) return;
+      if (!idle()) return schedule();
+      void enqueue(async (stillLive) => {
         try {
-          await saveBackup(storage, "auto");
-          date = await lastBackupDate(storage);
-          if (live()) {
-            setBackupDate(date);
-            setBackupError("");
+          if (!stillLive() || busyRef.current) return;
+          const { saveBackup, lastBackupDate } = await import("@/backup/backup");
+          busyRef.current = "backup";
+          setBackupBusy("backup");
+          try {
+            await saveBackup(storage, "auto");
+            const date = await lastBackupDate(storage);
+            if (stillLive()) {
+              setBackupDate(date);
+              setBackupError("");
+            }
+          } finally {
+            busyRef.current = null;
+            setBackupBusy(null);
           }
-        } finally {
-          busyRef.current = null;
-          setBackupBusy(null);
+        } catch (e) {
+          console.warn("Automatic backup failed", e);
+          if (stillLive()) setBackupError(errorMessage(e));
         }
+      }).catch(() => undefined);
+    };
+    const schedule = () => {
+      timer = setTimeout(() => {
+        timer = undefined;
+        if (cancelled || !live()) return;
+        if (!idle()) return schedule();
+        if (typeof window.requestIdleCallback === "function") idleHandle = window.requestIdleCallback(start, { timeout: 10_000 });
+        else start();
+      }, wait());
+    };
+
+    void (async () => {
+      try {
+        const { lastBackupDate, hasData } = await import("@/backup/backup");
+        const [date, data] = await Promise.all([lastBackupDate(storage), hasData(storage)]);
+        if (cancelled || !live()) return;
+        setBackupDate(date);
+        setFolderHasData(data);
+        const stale = date ? daysSince(date) > AUTO_BACKUP_AFTER_DAYS : data;
+        if (stale) schedule();
       } catch (e) {
-        console.warn("Automatic backup failed", e);
-        if (live()) setBackupError(errorMessage(e));
+        console.warn("Backup status check failed", e);
       }
-    }).catch(() => undefined);
-  }, [readyStorage, enqueue]);
+    })();
+
+    return () => {
+      cancelled = true;
+      autoBackupFor.current = null;
+      if (timer !== undefined) clearTimeout(timer);
+      if (idleHandle !== undefined && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleHandle);
+    };
+  }, [readyStorage, enqueue, autoBackupDelayMs]);
 
   const value = useMemo<WorkspaceValue | null>(() => {
     if (!readyPhase || !loaded) return null;
@@ -392,6 +471,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       fn: (d: D) => D,
       year?: number,
     ): Promise<boolean> => {
+      lastActivity.current = Date.now();
       const saved = await enqueue(async (live): Promise<boolean> => {
         const cur = latest.current;
         if (!cur) return false;
@@ -406,6 +486,8 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           await save(next);
           if (!live()) return false;
           commit(store(cur, next));
+          lastActivity.current = Date.now();
+          setFolderHasData(true);
           setSaveError(false);
           return true;
         } catch {
@@ -433,7 +515,8 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       canChooseFolder: supportsFolderAccess(),
       reload,
       backupDate,
-      backupWarning: backupDate === null || (backupDate !== undefined && daysSince(backupDate) > BACKUP_WARNING_AFTER_DAYS),
+      backupWarning:
+        folderHasData && (backupDate === null || (backupDate !== undefined && daysSince(backupDate) > BACKUP_WARNING_AFTER_DAYS)),
       backupError,
       backupBusy,
       runBackup,
@@ -500,12 +583,15 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         ),
       saveProfile: (p): Promise<void> =>
         enqueue(async (live) => {
+          lastActivity.current = Date.now();
           await repo.saveProfile(p);
+          lastActivity.current = Date.now();
+          setFolderHasData(true);
           const cur = latest.current;
           if (cur && live()) commit({ ...cur, profile: p });
         }),
     };
-  }, [readyPhase, loaded, reload, backupDate, backupError, backupBusy, runBackup, restoreBackupFile, pickFolder, enqueue, commit]);
+  }, [readyPhase, loaded, reload, backupDate, folderHasData, backupError, backupBusy, runBackup, restoreBackupFile, pickFolder, enqueue, commit]);
 
   if (value && readyPhase) {
     return (

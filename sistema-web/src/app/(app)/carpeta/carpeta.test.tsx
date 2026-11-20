@@ -24,7 +24,7 @@ beforeEach(() => {
 describe("Carpeta page", () => {
   it("shows the folder and explains the structure", async () => {
     render(
-      <WorkspaceProvider userId="u1">
+      <WorkspaceProvider userId="u1" autoBackupDelayMs={100_000}>
         <CarpetaPage />
       </WorkspaceProvider>,
     );
@@ -38,7 +38,7 @@ describe("Carpeta page", () => {
     Object.defineProperty(other, "label", { value: "Otra carpeta" });
     pick.chooseFolder.mockResolvedValue(other);
     render(
-      <WorkspaceProvider userId="u1">
+      <WorkspaceProvider userId="u1" autoBackupDelayMs={100_000}>
         <CarpetaPage />
       </WorkspaceProvider>,
     );
