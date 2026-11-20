@@ -11,6 +11,13 @@
   --accent: #f6c445;
   --accent-soft: #fdf0c4;
   --danger-soft: #fde4e1;
+  --success: #1d7a3a;
+  --success-soft: #d8f0dc;
+  --success-foreground: #14532b;
+  --warning-soft: #ffe8c2;
+  --warning-foreground: #7a4a00;
+  --attention-soft: #fde4e1;
+  --attention-foreground: #8a2a22;
   --pattern-opacity: 0.5;
   --pattern-filter: none;
 }
@@ -28,6 +35,13 @@
     --accent: #f2c13d;
     --accent-soft: #4a3d12;
     --danger-soft: #4d2320;
+  --success: #4fc37a;
+  --success-soft: #1f4a2e;
+  --success-foreground: #bff0cf;
+  --warning-soft: #4d3a12;
+  --warning-foreground: #ffd98a;
+  --attention-soft: #4d2320;
+  --attention-foreground: #ffc2bb;
     --pattern-opacity: 0.07;
     --pattern-filter: invert(1);
   }
@@ -45,6 +59,13 @@
   --accent: #f2c13d;
   --accent-soft: #4a3d12;
   --danger-soft: #4d2320;
+  --success: #4fc37a;
+  --success-soft: #1f4a2e;
+  --success-foreground: #bff0cf;
+  --warning-soft: #4d3a12;
+  --warning-foreground: #ffd98a;
+  --attention-soft: #4d2320;
+  --attention-foreground: #ffc2bb;
   --pattern-opacity: 0.07;
   --pattern-filter: invert(1);
 }
@@ -61,6 +82,13 @@
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-attention-soft: var(--attention-soft);
+  --color-attention-foreground: var(--attention-foreground);
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
