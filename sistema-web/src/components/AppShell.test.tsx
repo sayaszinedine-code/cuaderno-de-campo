@@ -23,6 +23,7 @@ describe("AppShell mobile nav", () => {
     expect(within(menu).getByRole("link", { name: "Perfil" })).toBeInTheDocument();
     expect(within(menu).getByRole("link", { name: "Mi cuenta" })).toHaveAttribute("href", expect.stringMatching(/^\/cuenta\/?$/));
     expect(within(menu).getByRole("link", { name: "Unidades" })).toHaveAttribute("href", expect.stringMatching(/^\/unidades\/?$/));
+    expect(within(menu).getByRole("link", { name: "Agenda" })).toHaveAttribute("href", expect.stringMatching(/^\/agenda\/?$/));
     expect(within(menu).getByRole("link", { name: "Asistencia" })).toHaveAttribute("href", expect.stringMatching(/^\/asistencia\/?$/));
   });
 

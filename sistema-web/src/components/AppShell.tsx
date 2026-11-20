@@ -16,7 +16,7 @@ const NAV: NavItem[] = [
   { label: "Notas", href: "/notas/" },
   { label: "Unidades", href: "/unidades/" },
   { label: "Asistencia", href: "/asistencia/" },
-  { label: "Agenda" },
+  { label: "Agenda", href: "/agenda/" },
 ];
 
 /** Personal pages: on desktop after the main list, on mobile inside «Más». */
