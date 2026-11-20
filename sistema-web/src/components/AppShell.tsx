@@ -14,7 +14,7 @@ const NAV: NavItem[] = [
   { label: "Niños", href: "/ninos/" },
   { label: "Aulas", href: "/aulas/" },
   { label: "Notas", href: "/notas/" },
-  { label: "Unidades" },
+  { label: "Unidades", href: "/unidades/" },
   { label: "Asistencia" },
   { label: "Agenda" },
 ];
