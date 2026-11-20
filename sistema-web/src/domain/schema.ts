@@ -94,6 +94,12 @@ export const MOMENTS = [
   "Fuera del aula / visita",
 ] as const;
 export const LEVELS = ["AD", "A", "B", "C"] as const;
+export const LEVEL_LABELS: Record<(typeof LEVELS)[number], string> = {
+  AD: "Logro destacado",
+  A: "Logro esperado",
+  B: "En proceso",
+  C: "En inicio",
+};
 
 const selectedPerformanceShape = z.object({
   competencyId: z.string(),
@@ -126,6 +132,97 @@ const notesFileShape = z.object({
   schoolYear: z.number().int().min(1000).max(9999),
   notes: z.array(fieldNoteShape),
 });
+
+const gradeEntryShape = z.object({
+  studentId: z.string().min(1),
+  competencyId: z.string().min(1),
+  periodId: periodShape.shape.id,
+  level: z.enum(LEVELS).optional(),
+  conclusion: z.string(),
+  updatedAt: z.string(),
+});
+
+const finalOverrideShape = z.object({
+  studentId: z.string().min(1),
+  competencyId: z.string().min(1),
+  level: z.enum(LEVELS).optional(),
+  conclusion: z.string(),
+  updatedAt: z.string(),
+});
+
+const gradesFileShape = z.object({
+  version: z.literal(SCHEMA_VERSION),
+  schoolYear: z.number().int().min(1000).max(9999),
+  entries: z.array(gradeEntryShape),
+  finals: z.array(finalOverrideShape),
+});
+
+export const UNIT_KINDS = ["unidad", "proyecto", "experiencia"] as const;
+export const UNIT_KIND_LABELS: Record<(typeof UNIT_KINDS)[number], string> = {
+  unidad: "Unidad de aprendizaje",
+  proyecto: "Proyecto de aprendizaje",
+  experiencia: "Experiencia de aprendizaje",
+};
+
+const attachmentShape = z.object({
+  name: z.string(),
+  path: relPath,
+  size: z.number().int().nonnegative(),
+  type: z.string(),
+  addedAt: z.string(),
+});
+
+const unitShape = z.object({
+  id: z.string().min(1),
+  classroomId: z.string().min(1),
+  periodId: periodShape.shape.id,
+  kind: z.enum(UNIT_KINDS),
+  title: z.string(),
+  start: isoDate.optional(),
+  end: isoDate.optional(),
+  purpose: z.string(),
+  competencyIds: z.array(z.string()),
+  performances: z.array(selectedPerformanceShape.loose()),
+  description: z.string(),
+  attachments: z.array(attachmentShape.loose()),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const sessionShape = z.object({
+  id: z.string().min(1),
+  unitId: z.string().min(1),
+  date: isoDate,
+  title: z.string(),
+  purpose: z.string(),
+  competencyIds: z.array(z.string()),
+  performances: z.array(selectedPerformanceShape.loose()),
+  description: z.string(),
+  attachments: z.array(attachmentShape.loose()),
+  noteIds: z.array(z.string()),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const unitsFileShape = z.object({
+  version: z.literal(SCHEMA_VERSION),
+  schoolYear: z.number().int().min(1000).max(9999),
+  units: z.array(unitShape),
+  sessions: z.array(sessionShape),
+});
+
+export const attachmentSchema = attachmentShape.loose();
+export const unitSchema = unitShape.loose();
+export const sessionSchema = sessionShape.loose();
+export const unitsFileSchema = unitsFileShape
+  .extend({ units: z.array(unitSchema), sessions: z.array(sessionSchema) })
+  .loose();
+
+export const gradeEntrySchema = gradeEntryShape.loose();
+export const finalOverrideSchema = finalOverrideShape.loose();
+export const gradesFileSchema = gradesFileShape
+  .extend({ entries: z.array(gradeEntrySchema), finals: z.array(finalOverrideSchema) })
+  .loose();
 
 export const fieldNoteSchema = fieldNoteShape.loose();
 export const notesFileSchema = notesFileShape.extend({ notes: z.array(fieldNoteSchema) }).loose();
@@ -168,3 +265,10 @@ export type Level = (typeof LEVELS)[number];
 export type SelectedPerformance = z.infer<typeof selectedPerformanceShape>;
 export type FieldNote = z.infer<typeof fieldNoteShape>;
 export type NotesFile = z.infer<typeof notesFileShape>;
+export type GradeEntry = z.infer<typeof gradeEntryShape>;
+export type FinalOverride = z.infer<typeof finalOverrideShape>;
+export type Attachment = z.infer<typeof attachmentShape>;
+export type Unit = z.infer<typeof unitShape>;
+export type Session = z.infer<typeof sessionShape>;
+export type UnitsFile = z.infer<typeof unitsFileShape>;
+export type GradesFile = z.infer<typeof gradesFileShape>;

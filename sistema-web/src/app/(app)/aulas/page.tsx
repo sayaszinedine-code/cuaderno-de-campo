@@ -11,6 +11,7 @@ import {
 } from "@/domain/classrooms";
 import type { Classroom, Period, YearData } from "@/domain/schema";
 import { CYCLE_BANDS, getCompetencies, type AgeBand, type Cycle } from "@/curriculum";
+import { countStoredLevels, stripLevelsForDescriptive } from "@/domain/grades";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 function errorText(e: unknown): string {
@@ -157,6 +158,10 @@ function EditClassroom({
   const [name, setName] = useState(classroom.name);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const { updateGrades, year, grades, notes, units, yearData } = useWorkspace();
+  /** Number of stored levels waiting for the teacher's confirmation before going descriptive. */
+  const [pendingStrip, setPendingStrip] = useState<number | null>(null);
+  const hasRecords = units.units.some((u) => u.classroomId === classroom.id) || notes.some((n) => n.classroomId === classroom.id);
   const optional = getCompetencies(classroom.cycle).filter((c) => c.optional);
 
   async function run(change: (d: YearData) => YearData): Promise<boolean> {
@@ -164,6 +169,33 @@ function EditClassroom({
     setError(msg);
     setSaved(ok);
     return ok;
+  }
+
+  /** Saves the grading mode; going descriptive also drops this classroom's stored levels (kept conclusions). */
+  async function setGrading(value: Classroom["cycleIGrading"]) {
+    let changed: YearData | null = null;
+    const ok = await run((d) => (changed = updateClassroom(d, classroom.id, { cycleIGrading: value })));
+    const next = changed as YearData | null;
+    if (!ok || value !== "descriptive" || !next) return;
+    const room = next.classrooms.find((c) => c.id === classroom.id);
+    if (!room) return;
+    const stripped = await updateGrades((f) => stripLevelsForDescriptive(f, room, next.students), { year });
+    if (!stripped) {
+      setSaved(false);
+      setError("No se pudieron quitar los niveles. Intenta de nuevo.");
+    }
+  }
+
+  /** Radio change: going descriptive with stored levels asks first; everything else applies right away. */
+  function chooseGrading(value: Classroom["cycleIGrading"]) {
+    if (value === "descriptive" && classroom.cycleIGrading !== "descriptive") {
+      const count = countStoredLevels(grades, classroom.id, yearData.students);
+      if (count > 0) {
+        setPendingStrip(count);
+        return;
+      }
+    }
+    void setGrading(value);
   }
 
   const toggleCompetency = (id: string, enabled: boolean) =>
@@ -222,11 +254,31 @@ function EditClassroom({
                 type="radio"
                 name={`grading-${classroom.id}`}
                 checked={classroom.cycleIGrading === value}
-                onChange={() => void run((d) => updateClassroom(d, classroom.id, { cycleIGrading: value }))}
+                onChange={() => chooseGrading(value)}
               />
               {label}
             </label>
           ))}
+          {pendingStrip !== null && (
+            <div role="alertdialog" aria-label="Confirmar cambio" className="space-y-2 rounded-xl bg-danger-soft p-3">
+              <p>{`Se quitarán ${pendingStrip} niveles AD/A/B/C guardados de esta aula. Las conclusiones se conservan. No se puede deshacer.`}</p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => {
+                    setPendingStrip(null);
+                    void setGrading("descriptive");
+                  }}
+                >
+                  Sí, cambiar
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => setPendingStrip(null)}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </fieldset>
       )}
 
@@ -240,14 +292,17 @@ function EditClassroom({
       <button
         type="button"
         className="btn-secondary"
-        disabled={hasStudents}
+        disabled={hasStudents || hasRecords}
         onClick={async () => {
-          if (await run((d) => deleteClassroom(d, classroom.id))) onDeleted();
+          if (await run((d) => deleteClassroom(d, classroom.id, { units: units.units, notes }))) onDeleted();
         }}
       >
         Eliminar aula
       </button>
       {hasStudents && <p className="text-sm text-muted">Un aula con niños registrados no se puede eliminar.</p>}
+      {!hasStudents && hasRecords && (
+        <p className="text-sm text-muted">No puedes eliminar un aula con unidades o registros del cuaderno.</p>
+      )}
     </div>
   );
 }

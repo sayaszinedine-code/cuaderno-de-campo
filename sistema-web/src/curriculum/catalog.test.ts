@@ -154,3 +154,14 @@ describe("performances", () => {
     expect(last.example).toBeUndefined();
   });
 });
+
+describe("competency short names", () => {
+  it.each(["I", "II"] as Cycle[])("are non-empty, at most 32 chars and unique in cycle %s", (cycle) => {
+    const names = getCompetencies(cycle).map((c) => c.shortName);
+    names.forEach((n) => {
+      expect(n.length).toBeGreaterThan(0);
+      expect(n.length).toBeLessThanOrEqual(32);
+    });
+    expect(new Set(names).size).toBe(names.length);
+  });
+});

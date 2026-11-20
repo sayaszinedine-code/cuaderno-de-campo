@@ -1,4 +1,4 @@
-import type { Classroom, FieldNote, Student } from "./schema";
+import type { Classroom, FieldNote, Period, Session, Student, Unit } from "./schema";
 
 /** Strips path-hostile characters, collapses spaces, caps at 80 chars; never empty or dot-only. */
 export function safeName(s: string): string {
@@ -14,6 +14,11 @@ export function safeName(s: string): string {
 export const profilePath = () => "datos/perfil.json";
 export const yearDataPath = (y: number) => `${y}/datos/anio.json`;
 export const notesPath = (y: number) => `${y}/datos/cuaderno.json`;
+export const gradesPath = (y: number) => `${y}/datos/notas.json`;
+export const unitsPath = (y: number) => `${y}/datos/unidades.json`;
+
+/** "B1" -> "Bimestre 1". */
+const periodFolder = (id: Period["id"]) => `Bimestre ${id.slice(1)}`;
 
 function bandsLabel(bands: Classroom["bands"]): string {
   if (bands.length !== 1) return "multiedad";
@@ -46,4 +51,21 @@ export function noteDir(
   note: Pick<FieldNote, "id" | "date">,
 ): string {
   return `${classroomDir(y, c)}Cuaderno de campo/${withIdSuffix(note.date, note.id, 8)}/`;
+}
+
+export function unitDir(
+  y: number,
+  c: Pick<Classroom, "id" | "name" | "bands">,
+  u: Pick<Unit, "id" | "title" | "periodId">,
+): string {
+  return `${classroomDir(y, c)}Unidades y sesiones/${periodFolder(u.periodId)}/${withIdSuffix(u.title || "Sin título", u.id, 8)}/`;
+}
+
+export function sessionDir(
+  y: number,
+  c: Pick<Classroom, "id" | "name" | "bands">,
+  u: Pick<Unit, "id" | "title" | "periodId">,
+  s: Pick<Session, "id" | "date" | "title">,
+): string {
+  return `${unitDir(y, c, u)}Sesiones/${withIdSuffix(`${s.date} ${s.title}`.trim(), s.id, 8)}/`;
 }

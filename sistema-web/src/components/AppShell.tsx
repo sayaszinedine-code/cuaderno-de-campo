@@ -13,8 +13,8 @@ const NAV: NavItem[] = [
   { label: "Cuaderno", href: "/cuaderno/" },
   { label: "Niños", href: "/ninos/" },
   { label: "Aulas", href: "/aulas/" },
-  { label: "Notas" },
-  { label: "Unidades" },
+  { label: "Notas", href: "/notas/" },
+  { label: "Unidades", href: "/unidades/" },
   { label: "Asistencia" },
   { label: "Agenda" },
 ];

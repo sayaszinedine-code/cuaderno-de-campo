@@ -19,6 +19,8 @@ export interface Competency {
    */
   areaByCycle?: Partial<Record<Cycle, string>>;
   name: string;
+  /** Compact label (≤ 32 chars, unique per cycle) for table headers and cards. */
+  shortName: string;
   cycles: Cycle[];
   transversal: boolean;
   /** Can be disabled per classroom (Religión, Castellano como segunda lengua, transversales). */

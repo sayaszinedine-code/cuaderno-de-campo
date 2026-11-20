@@ -1,13 +1,17 @@
 import type { Storage } from "@/storage/types";
-import { notesPath, profilePath, yearDataPath } from "./paths";
+import { gradesPath, notesPath, profilePath, unitsPath, yearDataPath } from "./paths";
 import {
   SCHEMA_VERSION,
+  gradesFileSchema,
   notesFileSchema,
   profileFileSchema,
+  unitsFileSchema,
   yearDataSchema,
+  type GradesFile,
   type NotesFile,
   type Period,
   type TeacherProfile,
+  type UnitsFile,
   type YearData,
 } from "./schema";
 
@@ -51,13 +55,20 @@ export interface WorkspaceRepo {
   /** Returns an empty (unsaved) NotesFile when the file does not exist. */
   loadNotes(y: number): Promise<NotesFile>;
   saveNotes(f: NotesFile, opts?: SaveOptions): Promise<void>;
+  /** Returns an empty (unsaved) GradesFile when the file does not exist. */
+  loadGrades(y: number): Promise<GradesFile>;
+  saveGrades(f: GradesFile, opts?: SaveOptions): Promise<void>;
+  /** Returns an empty (unsaved) UnitsFile when the file does not exist. */
+  loadUnits(y: number): Promise<UnitsFile>;
+  saveUnits(f: UnitsFile, opts?: SaveOptions): Promise<void>;
 }
 
-function parseFile<T>(
-  path: string,
-  text: string,
-  schema: { safeParse(v: unknown): { success: true; data: T } | { success: false; error: { message: string } } },
-): T {
+interface DocSchema<T> {
+  parse(v: unknown): T;
+  safeParse(v: unknown): { success: true; data: T } | { success: false; error: { message: string } };
+}
+
+function parseFile<T>(path: string, text: string, schema: Pick<DocSchema<T>, "safeParse">): T {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -80,6 +91,19 @@ export function createWorkspaceRepo(storage: Storage): WorkspaceRepo {
     if (opts?.overwriteInvalid) return;
     const existing = await storage.readText(path);
     if (existing !== null) parseFile(path, existing, schema);
+  }
+
+  /** Loads a validated document, or `empty()` (unsaved) when the file does not exist. */
+  async function loadDoc<T>(path: string, schema: DocSchema<T>, empty: () => T): Promise<T> {
+    const text = await storage.readText(path);
+    return text === null ? empty() : parseFile(path, text, schema);
+  }
+
+  /** Validates, refuses to clobber an invalid existing file (unless overwriteInvalid), then writes atomically. */
+  async function saveDoc<T>(path: string, schema: DocSchema<T>, data: T, opts?: SaveOptions): Promise<void> {
+    const valid = schema.parse(data);
+    await guardExisting(path, schema, opts);
+    await storage.writeTextAtomic(path, JSON.stringify(valid, null, 2));
   }
 
   return {
@@ -125,16 +149,37 @@ export function createWorkspaceRepo(storage: Storage): WorkspaceRepo {
     },
 
     async loadNotes(y) {
-      const path = notesPath(y);
-      const text = await storage.readText(path);
-      if (text === null) return { version: SCHEMA_VERSION, schoolYear: y, notes: [] };
-      return parseFile(path, text, notesFileSchema);
+      return loadDoc(notesPath(y), notesFileSchema, () => ({ version: SCHEMA_VERSION, schoolYear: y, notes: [] }));
     },
 
     async saveNotes(f, opts) {
-      const data = notesFileSchema.parse(f);
-      await guardExisting(notesPath(data.schoolYear), notesFileSchema, opts);
-      await storage.writeTextAtomic(notesPath(data.schoolYear), JSON.stringify(data, null, 2));
+      await saveDoc(notesPath(f.schoolYear), notesFileSchema, f, opts);
+    },
+
+    async loadGrades(y) {
+      return loadDoc(gradesPath(y), gradesFileSchema, () => ({
+        version: SCHEMA_VERSION,
+        schoolYear: y,
+        entries: [],
+        finals: [],
+      }));
+    },
+
+    async saveGrades(f, opts) {
+      await saveDoc(gradesPath(f.schoolYear), gradesFileSchema, f, opts);
+    },
+
+    async loadUnits(y) {
+      return loadDoc(unitsPath(y), unitsFileSchema, () => ({
+        version: SCHEMA_VERSION,
+        schoolYear: y,
+        units: [],
+        sessions: [],
+      }));
+    },
+
+    async saveUnits(f, opts) {
+      await saveDoc(unitsPath(f.schoolYear), unitsFileSchema, f, opts);
     },
   };
 }

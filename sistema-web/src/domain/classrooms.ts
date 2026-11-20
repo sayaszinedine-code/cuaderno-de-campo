@@ -80,10 +80,17 @@ export function updateClassroom(d: YearData, id: string, patch: ClassroomPatch):
   return { ...d, classrooms: d.classrooms.map((c) => (c.id === id ? next : c)) };
 }
 
-export function deleteClassroom(d: YearData, id: string): YearData {
+export function deleteClassroom(
+  d: YearData,
+  id: string,
+  refs: { units: { classroomId: string }[]; notes: { classroomId: string }[] },
+): YearData {
   findClassroom(d, id);
   if (d.students.some((s) => s.classroomId === id)) {
     throw new Error("No puedes eliminar un aula con niños registrados.");
+  }
+  if (refs.units.some((u) => u.classroomId === id) || refs.notes.some((n) => n.classroomId === id)) {
+    throw new Error("No puedes eliminar un aula con unidades o registros del cuaderno.");
   }
   return { ...d, classrooms: d.classrooms.filter((c) => c.id !== id) };
 }

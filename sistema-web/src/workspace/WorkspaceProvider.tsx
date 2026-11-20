@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createWorkspaceRepo, WorkspaceDataError, type WorkspaceRepo } from "@/domain/workspace-repo";
-import type { FieldNote, NotesFile, TeacherProfile, YearData } from "@/domain/schema";
+import type { FieldNote, GradesFile, NotesFile, TeacherProfile, UnitsFile, YearData } from "@/domain/schema";
 import {
   chooseFolder,
   grantPermission,
@@ -43,6 +43,14 @@ export type WorkspaceValue = {
    * false without writing when the loaded year is a different one (e.g. changed while a form was open).
    */
   updateNotes(fn: (f: NotesFile) => NotesFile, opts?: { year?: number }): Promise<boolean>;
+  /** Grades of the open year (`notas.json`). */
+  grades: GradesFile;
+  /** Same semantics as `updateNotes`, for the grades file. */
+  updateGrades(fn: (f: GradesFile) => GradesFile, opts?: { year?: number }): Promise<boolean>;
+  /** Units and sessions of the open year (`unidades.json`). */
+  units: UnitsFile;
+  /** Same semantics as `updateNotes`, for the units file. */
+  updateUnits(fn: (f: UnitsFile) => UnitsFile, opts?: { year?: number }): Promise<boolean>;
   reload(): Promise<void>;
   /** Opens the folder picker and switches to the chosen folder. */
   changeFolder(): Promise<void>;
@@ -71,8 +79,23 @@ type Loaded = {
   year: number;
   yearData: YearData;
   notesFile: NotesFile;
+  gradesFile: GradesFile;
+  unitsFile: UnitsFile;
   profile: TeacherProfile | null;
 };
+
+type YearDocs = Pick<Loaded, "yearData" | "notesFile" | "gradesFile" | "unitsFile">;
+
+/** Loads every document of one year; the single place that knows which files make up a year. */
+async function loadYearDocs(repo: WorkspaceRepo, y: number): Promise<YearDocs> {
+  const [yearData, notesFile, gradesFile, unitsFile] = await Promise.all([
+    repo.loadYear(y),
+    repo.loadNotes(y),
+    repo.loadGrades(y),
+    repo.loadUnits(y),
+  ]);
+  return { yearData, notesFile, gradesFile, unitsFile };
+}
 
 const currentYear = () => new Date().getFullYear();
 
@@ -137,9 +160,9 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         const repo = createWorkspaceRepo(storage);
         const [list, profile] = await Promise.all([repo.listYears(), repo.loadProfile()]);
         const year = initialYear(list);
-        const [yearData, notesFile] = await Promise.all([repo.loadYear(year), repo.loadNotes(year)]);
+        const docs = await loadYearDocs(repo, year);
         if (gen !== generation.current) return;
-        commit({ years: withYear(withYear(list, currentYear()), year), year, yearData, notesFile, profile });
+        commit({ years: withYear(withYear(list, currentYear()), year), year, ...docs, profile });
         setPhase({ status: "ready", storage, repo, fallback });
       } catch (e) {
         if (gen !== generation.current) return;
@@ -192,14 +215,13 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     await enqueue(async (live) => {
       const year = latest.current?.year ?? currentYear();
       try {
-        const [list, yearData, notesFile, profile] = await Promise.all([
+        const [list, docs, profile] = await Promise.all([
           readyPhase.repo.listYears(),
-          readyPhase.repo.loadYear(year),
-          readyPhase.repo.loadNotes(year),
+          loadYearDocs(readyPhase.repo, year),
           readyPhase.repo.loadProfile(),
         ]);
         if (!live()) return;
-        commit({ years: withYear(list, year), year, yearData, notesFile, profile });
+        commit({ years: withYear(list, year), year, ...docs, profile });
       } catch (e) {
         if (!live()) return;
         setPhase({
@@ -216,19 +238,15 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
     const refreshFromDisk = async (year: number, live: () => boolean) => {
       try {
-        const [list, yearData, notesFile] = await Promise.all([
-          repo.listYears(),
-          repo.loadYear(year),
-          repo.loadNotes(year),
-        ]);
+        const [list, docs] = await Promise.all([repo.listYears(), loadYearDocs(repo, year)]);
         const cur = latest.current;
-        if (cur && live()) commit({ ...cur, years: withYear(list, year), year, yearData, notesFile });
+        if (cur && live()) commit({ ...cur, years: withYear(list, year), year, ...docs });
       } catch {
         // Keep the last known in-memory state.
       }
     };
 
-    /** Queued read-modify-write of one document; shared by `update` and `updateNotes`. */
+    /** Queued read-modify-write of one document; shared by `update`, `updateNotes`, `updateGrades` and `updateUnits`. */
     const mutate = async <D,>(
       select: (l: Loaded) => D,
       store: (l: Loaded, d: D) => Loaded,
@@ -269,6 +287,8 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       years: loaded.years,
       yearData: loaded.yearData,
       notes: loaded.notesFile.notes,
+      grades: loaded.gradesFile,
+      units: loaded.unitsFile,
       profile: loaded.profile,
       canChooseFolder: supportsFolderAccess(),
       reload,
@@ -278,9 +298,9 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           const cur = latest.current;
           if (!cur) return;
           try {
-            const [yearData, notesFile] = await Promise.all([repo.loadYear(y), repo.loadNotes(y)]);
+            const docs = await loadYearDocs(repo, y);
             if (!live()) return;
-            commit({ ...cur, year: y, years: withYear(cur.years, y), yearData, notesFile });
+            commit({ ...cur, year: y, years: withYear(cur.years, y), ...docs });
           } catch {
             if (live()) setNotice("No se pudo abrir ese año.");
           }
@@ -297,6 +317,22 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           (l) => l.notesFile,
           (l, notesFile) => ({ ...l, notesFile }),
           (f) => repo.saveNotes(f),
+          fn,
+          opts?.year,
+        ),
+      updateGrades: (fn, opts) =>
+        mutate(
+          (l) => l.gradesFile,
+          (l, gradesFile) => ({ ...l, gradesFile }),
+          (f) => repo.saveGrades(f),
+          fn,
+          opts?.year,
+        ),
+      updateUnits: (fn, opts) =>
+        mutate(
+          (l) => l.unitsFile,
+          (l, unitsFile) => ({ ...l, unitsFile }),
+          (f) => repo.saveUnits(f),
           fn,
           opts?.year,
         ),

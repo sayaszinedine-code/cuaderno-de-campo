@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
 import type { Storage } from "@/storage/types";
-import { notesPath, yearDataPath } from "@/domain/paths";
+import { gradesPath, notesPath, unitsPath, yearDataPath } from "@/domain/paths";
 import type { FieldNote, NotesFile, YearData } from "@/domain/schema";
 
 const pick = vi.hoisted(() => ({
@@ -484,5 +484,164 @@ describe("WorkspaceProvider", () => {
       ).toBeInTheDocument();
       expect(write).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("grades and units", () => {
+  const entry = { studentId: "s1", competencyId: "k1", periodId: "B1" as const, level: "A" as const, conclusion: "x", updatedAt: "" };
+  const gradesJson = (y: number, ok = true) =>
+    JSON.stringify({ version: 1, schoolYear: y, entries: ok ? [entry] : [], finals: [] });
+  const mkUnit = (id: string) => ({
+    id,
+    classroomId: "c1",
+    periodId: "B1" as const,
+    kind: "unidad" as const,
+    title: "",
+    purpose: "",
+    competencyIds: [],
+    performances: [],
+    description: "",
+    attachments: [],
+    createdAt: "",
+    updatedAt: "",
+  });
+  const unitsJson = (y: number, ids: string[]) =>
+    JSON.stringify({ version: 1, schoolYear: y, units: ids.map(mkUnit), sessions: [] });
+  let results: Promise<boolean>[] = [];
+
+  function GUProbe() {
+    const ws = useWorkspace();
+    return (
+      <div>
+        <p>year:{ws.year}</p>
+        <p>entries:{ws.grades.entries.length}</p>
+        <p>units:{ws.units.units.map((u) => u.id).join(",")}</p>
+        <button
+          onClick={() => results.push(ws.updateGrades((f) => ({ ...f, entries: [...f.entries, entry] })))}
+        >
+          add-grade
+        </button>
+        <button
+          onClick={() =>
+            results.push(ws.updateUnits((f) => ({ ...f, units: [...f.units, mkUnit("u1")] })))
+          }
+        >
+          add-unit
+        </button>
+        <button
+          onClick={() => {
+            results.push(ws.update((d) => ({ ...d, classrooms: [...d.classrooms, mkRoom("a")] })));
+            results.push(ws.updateGrades((f) => ({ ...f, entries: [...f.entries, entry] })));
+            results.push(ws.updateUnits((f) => ({ ...f, units: [...f.units, mkUnit("u2")] })));
+          }}
+        >
+          all
+        </button>
+        <button
+          onClick={() => results.push(ws.updateGrades((f) => ({ ...f, entries: [...f.entries, entry] }), { year: YEAR }))}
+        >
+          grade-current
+        </button>
+        <button
+          onClick={() =>
+            results.push(ws.updateUnits((f) => ({ ...f, units: [...f.units, mkUnit("g")] }), { year: YEAR }))
+          }
+        >
+          unit-current
+        </button>
+        <button onClick={() => void ws.setYear(YEAR - 1)}>prev</button>
+      </div>
+    );
+  }
+  function renderGU(storage: Storage) {
+    results = [];
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+    render(
+      <WorkspaceProvider userId="u1">
+        <GUProbe />
+      </WorkspaceProvider>,
+    );
+  }
+
+  it("updateGrades and updateUnits save to their own files", async () => {
+    const storage = new MemoryStorage();
+    renderGU(storage);
+    fireEvent.click(await screen.findByRole("button", { name: "add-grade" }));
+    fireEvent.click(screen.getByRole("button", { name: "add-unit" }));
+    expect(await Promise.all(results)).toEqual([true, true]);
+    expect(JSON.parse((await storage.readText(gradesPath(YEAR))) ?? "{}").entries).toHaveLength(1);
+    expect(JSON.parse((await storage.readText(unitsPath(YEAR))) ?? "{}").units).toHaveLength(1);
+    expect(await screen.findByText("entries:1")).toBeInTheDocument();
+    expect(await screen.findByText("units:u1")).toBeInTheDocument();
+  });
+
+  it("serializes update, updateGrades and updateUnits", async () => {
+    const storage = new MemoryStorage();
+    const real = storage.writeTextAtomic.bind(storage);
+    let inFlight = 0;
+    let maxInFlight = 0;
+    vi.spyOn(storage, "writeTextAtomic").mockImplementation(async (p, t) => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      await real(p, t);
+      inFlight--;
+    });
+    renderGU(storage);
+    fireEvent.click(await screen.findByRole("button", { name: "all" }));
+    expect(await Promise.all(results)).toEqual([true, true, true]);
+    expect(maxInFlight).toBe(1);
+  });
+
+  it("returns false, shows the banner and reverts to disk when saving fails", async () => {
+    const storage = new MemoryStorage();
+    vi.spyOn(storage, "writeTextAtomic").mockRejectedValue(new Error("disk gone"));
+    renderGU(storage);
+    fireEvent.click(await screen.findByRole("button", { name: "add-grade" }));
+    expect(await screen.findByText("No se pudo guardar. Revisa que la carpeta siga disponible.")).toBeInTheDocument();
+    expect(await results[0]).toBe(false);
+    expect(screen.getByText("entries:0")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "add-unit" }));
+    expect(await results[1]).toBe(false);
+    expect(screen.getByText("units:")).toBeInTheDocument();
+  });
+
+  it("year-guarded updates write nothing when another year is loaded", async () => {
+    const storage = new MemoryStorage();
+    renderGU(storage);
+    await screen.findByText(`year:${YEAR}`);
+    fireEvent.click(screen.getByRole("button", { name: "prev" }));
+    await screen.findByText(`year:${YEAR - 1}`);
+    const write = vi.spyOn(storage, "writeTextAtomic");
+    fireEvent.click(screen.getByRole("button", { name: "grade-current" }));
+    fireEvent.click(screen.getByRole("button", { name: "unit-current" }));
+    expect(await Promise.all(results)).toEqual([false, false]);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("setYear loads the grades and units of that year", async () => {
+    const storage = new MemoryStorage();
+    await storage.writeTextAtomic(gradesPath(YEAR - 1), gradesJson(YEAR - 1));
+    await storage.writeTextAtomic(unitsPath(YEAR - 1), unitsJson(YEAR - 1, ["old"]));
+    renderGU(storage);
+    await screen.findByText(`year:${YEAR}`);
+    expect(screen.getByText("entries:0")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "prev" }));
+    expect(await screen.findByText("units:old")).toBeInTheDocument();
+    expect(screen.getByText("entries:1")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["notas.json", gradesPath],
+    ["unidades.json", unitsPath],
+  ])("shows the data error and writes nothing when %s is corrupt", async (_n, path) => {
+    const storage = new MemoryStorage();
+    await storage.writeTextAtomic(path(YEAR), "{no json");
+    const write = vi.spyOn(storage, "writeTextAtomic");
+    renderGU(storage);
+    expect(
+      await screen.findByText("No se pudo leer tus datos (archivo dañado o de una versión más nueva). No se modificó nada."),
+    ).toBeInTheDocument();
+    expect(write).not.toHaveBeenCalled();
   });
 });

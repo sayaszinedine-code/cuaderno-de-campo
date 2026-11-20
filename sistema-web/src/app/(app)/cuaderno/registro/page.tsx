@@ -10,6 +10,7 @@ import { areasForCycles } from "@/domain/areas";
 import { activeCompetencies, classroomLabel } from "@/domain/classrooms";
 import { newNote, removeNote, upsertNote, validateNote, validStudents } from "@/domain/notes";
 import { noteDir } from "@/domain/paths";
+import { linkedSessionsOfNote } from "@/domain/units";
 import { compressPhoto, EVIDENCE_MAX_SIZE } from "@/domain/photo";
 import { LEVELS, MOMENTS, NOTE_KIND_LABELS, type FieldNote, type Level, type NoteKind } from "@/domain/schema";
 import { AiNoteAction } from "@/notes/AiActions";
@@ -81,7 +82,7 @@ const basename = (p: string) => p.slice(p.lastIndexOf("/") + 1);
 function Form({ existing }: { existing: FieldNote | undefined }) {
   const router = useRouter();
   const { profile } = useAccount();
-  const { storage, year: currentYear, yearData, updateNotes } = useWorkspace();
+  const { storage, year: currentYear, yearData, units, updateNotes } = useWorkspace();
   /** The year this form was opened with: every write targets it, never a year chosen later. */
   const [year] = useState(currentYear);
 
@@ -124,6 +125,9 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   useEffect(() => {
     setAiSettings(loadAiSettings(profile.id));
   }, [profile.id]);
+
+  /** Unsaved edits or in-flight photos: the linked session must not be opened (they would be lost). */
+  const dirty = !!existing && (pending > 0 || JSON.stringify(note) !== JSON.stringify(existing));
 
   const classroom = yearData.classrooms.find((c) => c.id === note.classroomId);
   if (!classroom) return <p>El aula de este registro ya no existe.</p>;
@@ -295,6 +299,23 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
         Volver al cuaderno
       </Link>
       <h1 className="text-2xl font-semibold">{existing ? "Editar registro" : "Nuevo registro"}</h1>
+      {existing &&
+        linkedSessionsOfNote(units, existing.id).map((s) => (
+          <p key={s.id}>
+            {dirty ? (
+              <span aria-disabled="true" className="opacity-60">
+                {`Sesión vinculada: ${s.title || "Sin título"} (${s.date})`}
+              </span>
+            ) : (
+              <Link href={`/unidades/sesion/?id=${encodeURIComponent(s.id)}`} className="underline">
+                {`Sesión vinculada: ${s.title || "Sin título"} (${s.date})`}
+              </Link>
+            )}
+          </p>
+        ))}
+      {dirty && linkedSessionsOfNote(units, existing.id).length > 0 && (
+        <p className="text-sm text-muted">Guarda el registro antes de abrir la sesión.</p>
+      )}
 
       <label className="block space-y-1">
         <span>Fecha</span>

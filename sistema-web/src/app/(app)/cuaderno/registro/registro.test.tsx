@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
-import { notesPath, noteDir, yearDataPath } from "@/domain/paths";
+import { notesPath, noteDir, unitsPath, yearDataPath } from "@/domain/paths";
 import { addStudent, createClassroom, updateClassroom } from "@/domain/classrooms";
 import { newNote } from "@/domain/notes";
 import { getPerformances } from "@/curriculum";
@@ -127,6 +127,35 @@ describe("Registro page", () => {
     window.localStorage.setItem("notes-last:u1", JSON.stringify({ classroomId: "c1", moment: "Taller" }));
     renderPage();
     expect(await screen.findByLabelText("Momento de la jornada")).toHaveValue("Taller");
+  });
+
+  it("disables the linked session link while the note has unsaved changes", async () => {
+    await seed({ notes: [existing()] });
+    await storage.writeTextAtomic(
+      unitsPath(year),
+      JSON.stringify({
+        version: SCHEMA_VERSION,
+        schoolYear: year,
+        units: [],
+        sessions: [
+          {
+            id: "se1", unitId: "u1", date: `${year}-06-10`, title: "Sesión uno", purpose: "", competencyIds: [],
+            performances: [], description: "", attachments: [], noteIds: ["n1"], createdAt: "", updatedAt: "",
+          },
+        ],
+      }),
+    );
+    window.history.pushState({}, "", "/cuaderno/registro/?id=n1");
+    renderPage();
+    const area = await screen.findByLabelText("¿Qué hizo o dijo? Describe los hechos");
+    expect(screen.getByRole("link", { name: /Sesión vinculada: Sesión uno/ })).toBeInTheDocument();
+    expect(screen.queryByText("Guarda el registro antes de abrir la sesión.")).toBeNull();
+    fireEvent.change(area, { target: { value: "Armó dos torres" } });
+    expect(screen.queryByRole("link", { name: /Sesión vinculada/ })).toBeNull();
+    expect(screen.getByText(/Sesión vinculada: Sesión uno/)).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("Guarda el registro antes de abrir la sesión.")).toBeInTheDocument();
+    fireEvent.change(area, { target: { value: "Armó una torre" } });
+    expect(screen.getByRole("link", { name: /Sesión vinculada/ })).toBeInTheDocument();
   });
 
   it("edits an existing note", async () => {

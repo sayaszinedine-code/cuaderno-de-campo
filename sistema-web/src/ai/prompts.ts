@@ -48,6 +48,20 @@ export function interpretation(evidence: string, competency: string, performance
   );
 }
 
+export function descriptiveConclusion(input: {
+  competency: string;
+  /** Label of the achievement level (e.g. «A — Logro esperado»), when the classroom uses the scale. */
+  level?: string;
+  evidences: string[];
+}): BuiltPrompt {
+  const level = input.level ? `Nivel de logro: ${input.level}\n` : "";
+  const evidences = input.evidences.map((e, i) => `Registro ${i + 1}:\n${e}`).join("\n\n");
+  return build(
+    "Redacta la conclusión descriptiva del niño o niña en esta competencia, de 4 a 6 oraciones, en lenguaje positivo y comprensible para las familias. Incluye lo que logra, con ejemplos concretos de los registros; lo que está en proceso; y una recomendación práctica para la familia. Responde en español y no inventes datos: usa solo los registros dados.",
+    `Competencia: ${input.competency}\n${level}\nRegistros del cuaderno:\n${evidences}`,
+  );
+}
+
 export function describePhoto(context?: string): BuiltPrompt {
   return build(
     "Describe la foto en 3 o 4 oraciones objetivas: qué se ve y qué hace cada niño, sin juicios de valor. Responde en español y no inventes datos.",

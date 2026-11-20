@@ -149,3 +149,20 @@ export async function createClassroomAndStudent(page: Page) {
   await page.getByRole("button", { name: "Agregar niño" }).click();
   await expect(page.getByRole("link", { name: "Quispe, Valentina" })).toBeVisible();
 }
+
+/** Creates a field note for «Valentina Quispe» on `date` (YYYY-MM-DD) under the given Matemática competency. */
+export async function createNote(page: Page, opts: { date: string; text: string; competency: string }) {
+  await page.goto("/cuaderno/registro/");
+  await expect(page.getByRole("heading", { name: "Nuevo registro" })).toBeVisible();
+  await page.getByRole("button", { name: "Valentina Quispe" }).click();
+  await page.getByLabel("Fecha").fill(opts.date);
+  await page.getByLabel("¿Qué hizo o dijo? Describe los hechos").fill(opts.text);
+  await page.getByLabel(/^Área/).selectOption({ label: "Matemática" });
+  await page.getByLabel(/^Competencia/).selectOption({ label: opts.competency });
+  await page.getByRole("group", { name: "Desempeños" }).getByRole("checkbox").first().check();
+  await page.getByLabel("Interpretación en relación al desempeño").fill("Clasifica según un criterio.");
+  await page.getByLabel("Reflexión docente en relación a la actividad").fill("Repetir con material variado.");
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(page).toHaveURL(/\/cuaderno\/$/);
+  await expect(page.getByRole("article").filter({ hasText: opts.text })).toBeVisible();
+}
