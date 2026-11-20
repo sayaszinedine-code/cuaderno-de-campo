@@ -14,7 +14,7 @@ const ageBand = z.custom<AgeBand>((v) => typeof v === "string" && ALL_BANDS.incl
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 /** Workspace-relative path: no absolute/drive/backslash forms and no `.`, `..` or empty segments. */
-const relPath = z
+export const relPath = z
   .string()
   .min(1)
   .refine((v) => !v.startsWith("/") && !/^[A-Za-z]:/.test(v) && !v.includes("\\"), { message: "must be relative" })
