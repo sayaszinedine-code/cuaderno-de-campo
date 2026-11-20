@@ -136,7 +136,7 @@ describe("Asistencia page", () => {
     await renderIn();
     vi.spyOn(storage, "writeTextAtomic").mockRejectedValue(new Error("disk"));
     fireEvent.click(btn("Luz Rojas", "Presente"));
-    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect((await screen.findAllByRole("alert")).length).toBeGreaterThan(0);
     await waitFor(() => expect(btn("Luz Rojas", "Falta")).toHaveAttribute("aria-pressed", "true"));
     expect(btn("Luz Rojas", "Presente")).toHaveAttribute("aria-pressed", "false");
   });
@@ -197,27 +197,71 @@ describe("Asistencia page", () => {
     expect(btn("Luz Rojas", "Presente")).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("saves taps into the year switched to after load", async () => {
-    await seed();
-    await storage.writeTextAtomic(yearDataPath(year - 1), JSON.stringify({ ...base(), schoolYear: year - 1 }));
+  const seedPrevYear = async () => {
+    await storage.writeTextAtomic(yearDataPath(year - 1), JSON.stringify({
+      ...base(),
+      schoolYear: year - 1,
+      periods: base().periods.map((p) => ({ ...p, start: p.start.replace(String(year), String(year - 1)), end: p.end.replace(String(year), String(year - 1)) })),
+    }));
     await storage.writeTextAtomic(attendancePath(year - 1), JSON.stringify({ version: SCHEMA_VERSION, schoolYear: year - 1, days: [] }));
-    const Switch = () => {
-      const ws = useWorkspace();
-      return <button onClick={() => void ws.setYear(year - 1)}>cambiar año</button>;
-    };
+  };
+  const Switch = () => {
+    const ws = useWorkspace();
+    return (
+      <>
+        <button onClick={() => void ws.setYear(year - 1)}>cambiar año</button>
+        <output aria-label="año abierto">{ws.year}</output>
+      </>
+    );
+  };
+  const switchYear = async () => {
+    fireEvent.click(screen.getByRole("button", { name: "cambiar año" }));
+    await waitFor(() => expect(screen.getByLabelText("año abierto")).toHaveTextContent(String(year - 1)));
+  };
+
+  it("moves the date into the year switched to and saves taps there", async () => {
+    await seed();
+    await seedPrevYear();
     render(<WorkspaceProvider userId="u1"><Switch /><AsistenciaPage /></WorkspaceProvider>);
     await screen.findByText("Luz Rojas");
     fireEvent.change(screen.getByLabelText("Fecha"), { target: { value: D } });
-    fireEvent.click(screen.getByRole("button", { name: "cambiar año" }));
-    await waitFor(async () => expect(JSON.parse((await storage.readText(yearDataPath(year - 1))) ?? "{}").schoolYear).toBe(year - 1));
-    await waitFor(() => expect(screen.getByLabelText("Fecha")).toBeInTheDocument());
-    await new Promise((r) => setTimeout(r, 50));
+    await switchYear();
+    const shown = (screen.getByLabelText("Fecha") as HTMLInputElement).value;
+    expect(shown.startsWith(`${year - 1}-`)).toBe(true);
     fireEvent.click(btn("Luz Rojas", "Presente"));
     await waitFor(async () => {
       const f = JSON.parse((await storage.readText(attendancePath(year - 1))) ?? "{}");
-      expect(f.days[0]?.marks).toEqual({ s1: "P" });
+      expect(f.days).toEqual([{ date: shown, classroomId: "c1", marks: { s1: "P" } }]);
     });
     expect((await saved()).days).toEqual([]);
+  });
+
+  it("refuses a tap whose date is outside the open year", async () => {
+    await seed();
+    await renderIn(`${year - 1}-04-14`);
+    fireEvent.click(btn("Luz Rojas", "Presente"));
+    expect(await screen.findByText("No se guardó la marca. Inténtalo de nuevo.")).toBeInTheDocument();
+    expect(btn("Luz Rojas", "Presente")).toHaveAttribute("aria-pressed", "false");
+    expect((await saved()).days).toEqual([]);
+  });
+
+  it("shows a message when the save is reported as not committed", async () => {
+    await seed();
+    await renderIn();
+    vi.spyOn(storage, "writeTextAtomic").mockRejectedValue(new Error("disk"));
+    fireEvent.click(btn("Luz Rojas", "Presente"));
+    expect(await screen.findByText("No se guardó la marca. Inténtalo de nuevo.")).toBeInTheDocument();
+    expect(btn("Luz Rojas", "Presente")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("resets the bimester choice when the date changes", async () => {
+    await seed();
+    await renderIn(`${year}-04-14`);
+    fireEvent.click(screen.getByRole("tab", { name: "Resumen" }));
+    fireEvent.change(screen.getByLabelText("Bimestre"), { target: { value: "B3" } });
+    expect(screen.getByLabelText("Bimestre")).toHaveValue("B3");
+    fireEvent.change(screen.getByLabelText("Fecha"), { target: { value: `${year}-06-10` } });
+    expect(screen.getByLabelText("Bimestre")).toHaveValue("B2");
   });
 
   it("splits bimester summaries at the boundary dates", async () => {

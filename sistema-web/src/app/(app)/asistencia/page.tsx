@@ -33,6 +33,19 @@ export default function AsistenciaPage() {
   for (const [id, p] of Object.entries(pending)) if (p.year === year) optimistic[id] = p.mark;
   const [monthPick, setMonthPick] = useState("");
   const [periodPick, setPeriodPick] = useState<Period["id"] | null>(null);
+  /** Children whose last tap was not saved. */
+  const [failed, setFailed] = useState<Record<string, true>>({});
+  const [seenYear, setSeenYear] = useState(year);
+  if (seenYear !== year) {
+    // The open year changed: leave a date that belongs to the previous year.
+    setSeenYear(year);
+    const today = todayISO();
+    setDate(today.startsWith(`${year}-`) ? today : (yearData.periods[0]?.start ?? `${year}-01-01`));
+    setMonthPick("");
+    setPeriodPick(null);
+    setPending({});
+    setFailed({});
+  }
 
   const classroom = yearData.classrooms.find((c) => c.id === classroomPick) ?? yearData.classrooms[0];
   const students = useMemo(
@@ -61,6 +74,7 @@ export default function AsistenciaPage() {
 
   const resetDay = () => {
     setPending({});
+    setFailed({});
   };
 
   const commit = async (
@@ -68,6 +82,16 @@ export default function AsistenciaPage() {
     fn: (f: typeof attendance) => typeof attendance,
   ) => {
     const tapYear = year;
+    const ids = Object.keys(shown);
+    if (date.slice(0, 4) !== String(tapYear)) {
+      setFailed((f) => ({ ...f, ...Object.fromEntries(ids.map((id) => [id, true as const])) }));
+      return false;
+    }
+    setFailed((f) => {
+      const next = { ...f };
+      for (const id of ids) delete next[id];
+      return next;
+    });
     const seq = ++seqRef.current;
     setPending((o) => {
       const next = { ...o };
@@ -82,6 +106,7 @@ export default function AsistenciaPage() {
       for (const id of Object.keys(shown)) if (next[id]?.seq === seq) delete next[id];
       return next;
     });
+    if (!ok) setFailed((f) => ({ ...f, ...Object.fromEntries(ids.map((id) => [id, true as const])) }));
     return ok;
   };
 
@@ -195,6 +220,11 @@ export default function AsistenciaPage() {
                       </button>
                     ))}
                   </span>
+                  {failed[s.id] && (
+                    <p role="alert" className="w-full text-sm">
+                      No se guardó la marca. Inténtalo de nuevo.
+                    </p>
+                  )}
                 </li>
               );
             })}
