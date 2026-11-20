@@ -2,10 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const gen = vi.hoisted(() => vi.fn());
-vi.mock("@/ai", () => ({ generate: gen }));
+vi.mock("@/ai", () => ({ generateWithSettings: gen }));
 
 import { AiSettings } from "./AiSettings";
-import { loadAiSettings } from "@/ai/settings";
+import { loadAiSettings, saveAiSettings } from "@/ai/settings";
 import { AiError } from "@/ai/types";
 
 beforeEach(() => {
@@ -43,7 +43,21 @@ describe("AiSettings", () => {
     expect(screen.queryByText(/sk-secret/)).toBeNull();
     expect((input as HTMLInputElement).value).toBe("");
   });
+  it("disables Probar until enabled with consent", () => {
+    render(<AiSettings userId="u1" />);
+    expect(screen.getByRole("button", { name: "Probar" })).toBeDisabled();
+    expect(gen).not.toHaveBeenCalled();
+  });
+  it("Borrar clave removes the key and disables the assistant", () => {
+    saveAiSettings("u1", { enabled: true, provider: "claude", apiKey: "sk-abcd", consentAt: "2026-01-01T00:00:00Z" });
+    render(<AiSettings userId="u1" />);
+    fireEvent.click(screen.getByRole("button", { name: "Borrar clave" }));
+    const s = loadAiSettings("u1");
+    expect(s.apiKey).toBe("");
+    expect(s.enabled).toBe(false);
+  });
   it("Probar shows the result or the Spanish error", async () => {
+    saveAiSettings("u1", { enabled: true, provider: "deepseek", apiKey: "k", consentAt: "2026-01-01T00:00:00Z" });
     gen.mockResolvedValueOnce("Listo, el asistente funciona.");
     render(<AiSettings userId="u1" />);
     fireEvent.click(screen.getByRole("button", { name: "Probar" }));

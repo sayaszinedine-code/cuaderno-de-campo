@@ -37,6 +37,7 @@ export async function generateDeepseek(apiKey: string, req: AiRequest): Promise<
   let buffer = "";
   let full = "";
   let done = false;
+  let failed = false;
 
   const handleLine = (raw: string) => {
     const line = raw.trim();
@@ -47,7 +48,11 @@ export async function generateDeepseek(apiKey: string, req: AiRequest): Promise<
       return;
     }
     try {
-      const json = JSON.parse(data) as { choices?: { delta?: { content?: string | null } }[] };
+      const json = JSON.parse(data) as { error?: unknown; choices?: { delta?: { content?: string | null } }[] };
+      if (json.error) {
+        failed = true;
+        return;
+      }
       const delta = json.choices?.[0]?.delta?.content;
       if (delta) {
         full += delta;
@@ -67,14 +72,18 @@ export async function generateDeepseek(apiKey: string, req: AiRequest): Promise<
       buffer = lines.pop() ?? "";
       for (const l of lines) {
         handleLine(l);
-        if (done) break;
+        if (done || failed) break;
       }
+      if (failed) break;
     }
-    if (!done && buffer) handleLine(buffer);
+    buffer += decoder.decode();
+    if (!done && !failed && buffer) handleLine(buffer);
+    if (done || failed) await reader.cancel().catch(() => undefined);
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") throw abortError();
     if (e instanceof TypeError) throw new AiError("network");
     throw new AiError("other");
   }
+  if (failed || !full) throw new AiError("other");
   return full;
 }

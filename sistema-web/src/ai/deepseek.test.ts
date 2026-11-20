@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { generate } from "./index";
+import { generate, generateWithSettings } from "./index";
 import { AiError } from "./types";
 
 const enc = new TextEncoder();
@@ -55,5 +55,53 @@ describe("deepseek", () => {
   it("requires a key", async () => {
     await expect(generate("deepseek", " ", { system: "s", prompt: "p" })).rejects.toBeInstanceOf(AiError);
     await expect(generate("claude", "", { system: "s", prompt: "p" })).rejects.toMatchObject({ code: "no-key" });
+  });
+
+  it("cancels the reader after [DONE]", async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(enc.encode(line("a") + "data: [DONE]\n\n"));
+      },
+      cancel,
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
+    expect(await generate("deepseek", "k", { system: "s", prompt: "p" })).toBe("a");
+    expect(cancel).toHaveBeenCalled();
+  });
+  it("flushes a multibyte char split across chunks", async () => {
+    const bytes = enc.encode(line("ñ") + "data: [DONE]\n\n");
+    const cut = bytes.indexOf(0xc3) + 1;
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(bytes.slice(0, cut));
+        c.enqueue(bytes.slice(cut));
+        c.close();
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
+    expect(await generate("deepseek", "k", { system: "s", prompt: "p" })).toBe("ñ");
+  });
+  it("fails with other on empty text or error object", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(sse(["data: [DONE]\n\n"])));
+    await expect(generate("deepseek", "k", { system: "s", prompt: "p" })).rejects.toMatchObject({ code: "other" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(sse([`data: ${JSON.stringify({ error: { message: "x" } })}\n\n`])));
+    await expect(generate("deepseek", "k", { system: "s", prompt: "p" })).rejects.toMatchObject({ code: "other" });
+  });
+});
+
+describe("generateWithSettings", () => {
+  it("blocks without enabled and consent before any request", async () => {
+    const f = vi.fn();
+    vi.stubGlobal("fetch", f);
+    const base = { provider: "deepseek" as const, apiKey: "k" };
+    await expect(generateWithSettings({ ...base, enabled: false, consentAt: "2026-01-01T00:00:00Z" }, { system: "s", prompt: "p" })).rejects.toMatchObject({ code: "disabled" });
+    await expect(generateWithSettings({ ...base, enabled: true }, { system: "s", prompt: "p" })).rejects.toMatchObject({ code: "disabled" });
+    expect(f).not.toHaveBeenCalled();
+  });
+  it("runs when enabled with consent", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(sse([line("ok"), "data: [DONE]\n\n"])));
+    const out = await generateWithSettings({ enabled: true, provider: "deepseek", apiKey: "k", consentAt: "2026-01-01T00:00:00Z" }, { system: "s", prompt: "p" });
+    expect(out).toBe("ok");
   });
 });

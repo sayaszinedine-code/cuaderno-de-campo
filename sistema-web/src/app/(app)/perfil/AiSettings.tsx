@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { generate } from "@/ai";
+import { generateWithSettings } from "@/ai";
 import { loadAiSettings, saveAiSettings, type AiSettings as Settings } from "@/ai/settings";
 import { prompts, SYSTEM_PROMPT } from "@/ai/prompts";
 import { AI_ERROR_MESSAGES, AI_PROVIDERS, AiError, type AiProviderId } from "@/ai/types";
@@ -56,11 +56,16 @@ export function AiSettings({ userId }: { userId: string }) {
     setKeyInput("");
   }
 
+  function clearKey() {
+    persist({ ...settings, enabled: false, apiKey: "" });
+    setTestResult(null);
+  }
+
   async function test() {
     setTesting(true);
     setTestResult(null);
     try {
-      const text = await generate(settings.provider, settings.apiKey, {
+      const text = await generateWithSettings(settings, {
         system: SYSTEM_PROMPT,
         prompt: prompts.test,
       });
@@ -123,9 +128,16 @@ export function AiSettings({ userId }: { userId: string }) {
         <button type="button" className="btn" onClick={saveKey} disabled={!keyInput.trim()}>
           Guardar clave
         </button>
-        {settings.apiKey && <p className="text-sm">Clave guardada: …{settings.apiKey.slice(-4)}</p>}
+        {settings.apiKey && (
+          <>
+            <p className="text-sm">Clave guardada: …{settings.apiKey.slice(-4)}</p>
+            <button type="button" className="btn" onClick={clearKey}>Borrar clave</button>
+          </>
+        )}
       </div>
-      <button type="button" className="btn" onClick={test} disabled={testing}>
+      <button type="button" className="btn" onClick={test}
+        disabled={testing || !settings.enabled || !settings.consentAt}
+      >
         {testing ? "Probando…" : "Probar"}
       </button>
       {testResult && (

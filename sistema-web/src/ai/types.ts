@@ -15,6 +15,7 @@ export type AiErrorCode =
   | "network"
   | "refused"
   | "no-images"
+  | "disabled"
   | "other";
 
 export class AiError extends Error {
@@ -33,6 +34,7 @@ export const AI_ERROR_MESSAGES: Record<AiErrorCode, string> = {
   network: "Sin conexión a internet. La IA necesita internet; lo demás funciona sin conexión.",
   refused: "La IA no pudo responder a esta solicitud.",
   "no-images": "Describir fotos solo está disponible con Claude.",
+  disabled: "Activa el asistente de IA en Perfil.",
   other: "No se pudo generar el texto. Intenta de nuevo.",
 };
 

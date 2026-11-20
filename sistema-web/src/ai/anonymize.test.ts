@@ -24,4 +24,31 @@ describe("anonymize", () => {
   it("handles no students", () => {
     expect(anonymize("hola", []).text).toBe("hola");
   });
+
+  it("handles NFD input (combining marks)", () => {
+    const nfd = "Mar\u0069\u0301a".normalize("NFD");
+    expect(anonymize(`${nfd} vino`, [{ firstNames: "María", lastNames: "Paz" }]).text).toBe("M. P. vino");
+    expect(anonymize("Mar\u0069\u0301a vino".normalize("NFD"), [{ firstNames: "María", lastNames: "Paz" }]).text).not.toMatch(/ar/);
+  });
+  it("splits compound names on hyphen and apostrophes", () => {
+    const a = { firstNames: "María-José", lastNames: "O’Brien" };
+    expect(anonymize("María llegó.", [a]).text).toBe("M. J. O. B. llegó.");
+    expect(anonymize("José llegó.", [a]).text).toBe("M. J. O. B. llegó.");
+    expect(anonymize("Brien llegó.", [a]).text).toBe("M. J. O. B. llegó.");
+    expect(anonymize("O’Brien y O'Brien", [a]).text).toBe("M. J. O. B. y M. J. O. B.");
+    expect(anonymize("María-José O'Brien", [a]).text).toBe("M. J. O. B.");
+  });
+  it("replaces an ambiguous shared token with its own initial", () => {
+    const ana = { firstNames: "Ana", lastNames: "Quispe" };
+    const luis = { firstNames: "Luis", lastNames: "Quispe" };
+    const r = anonymize("Quispe jugó. Ana y Luis Quispe.", [ana, luis]);
+    expect(r.text).toBe("Q. jugó. A. Q. y L. Q..");
+  });
+  it("disambiguates repeated initials and keeps legend keys unique", () => {
+    const a = { firstNames: "Ana", lastNames: "Paz" };
+    const b = { firstNames: "Alba", lastNames: "Pérez" };
+    const r = anonymize("Ana Paz y Alba Pérez", [a, b]);
+    expect(r.text).toBe("A. P. y A. P. (2)");
+    expect(r.legend).toEqual({ "A. P.": "Ana Paz", "A. P. (2)": "Alba Pérez" });
+  });
 });
