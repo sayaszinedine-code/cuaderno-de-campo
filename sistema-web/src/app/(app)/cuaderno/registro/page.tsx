@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { loadAiSettings, DEFAULT_AI_SETTINGS, type AiSettings } from "@/ai/settings";
 import { useAccount } from "@/components/AccountGate";
 import { areaIdFor } from "@/curriculum";
 import { areasForCycles } from "@/domain/areas";
@@ -11,6 +12,7 @@ import { newNote, removeNote, upsertNote, validateNote, validStudents } from "@/
 import { noteDir } from "@/domain/paths";
 import { compressPhoto, EVIDENCE_MAX_SIZE } from "@/domain/photo";
 import { LEVELS, MOMENTS, NOTE_KIND_LABELS, type FieldNote, type Level, type NoteKind } from "@/domain/schema";
+import { AiNoteAction } from "@/notes/AiActions";
 import { EvidencePhotos } from "@/notes/EvidencePhotos";
 import { PerformancePicker } from "@/notes/PerformancePicker";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
@@ -109,6 +111,10 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   useEffect(() => {
     evidenceRef.current?.focus();
   }, []);
+  const [aiSettings, setAiSettings] = useState<AiSettings>(DEFAULT_AI_SETTINGS);
+  useEffect(() => {
+    setAiSettings(loadAiSettings(profile.id));
+  }, [profile.id]);
 
   const classroom = yearData.classrooms.find((c) => c.id === note.classroomId);
   if (!classroom) return <p>El aula de este registro ya no existe.</p>;
@@ -125,6 +131,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   const competencies = activeCompetencies(classroom);
   const areas = areasForCycles([classroom.cycle]).filter((a) => competencies.some((c) => areaIdFor(c, classroom.cycle) === a.id));
   const areaCompetencies = competencies.filter((c) => areaIdFor(c, classroom.cycle) === note.areaId);
+  const classroomStudents = yearData.students.filter((s) => s.classroomId === classroom.id);
   const archivedChips = yearData.students.filter(
     (s) => !s.active && s.classroomId === classroom.id && note.studentIds.includes(s.id),
   );
@@ -337,7 +344,29 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
             onChange={(e) => patch({ evidenceText: e.target.value })}
           />
         </label>
+        <AiNoteAction
+          kind="objective"
+          settings={aiSettings}
+          note={note}
+          classroom={classroom}
+          classroomStudents={classroomStudents}
+          noteStudents={validStudents(note, yearData, existing?.studentIds)}
+          schoolYear={year}
+          storage={storage}
+          onPatch={patch}
+        />
         <EvidencePhotos storage={storage} paths={note.evidence} onRemove={removePhoto} />
+        <AiNoteAction
+          kind="photo"
+          settings={aiSettings}
+          note={note}
+          classroom={classroom}
+          classroomStudents={classroomStudents}
+          noteStudents={validStudents(note, yearData, existing?.studentIds)}
+          schoolYear={year}
+          storage={storage}
+          onPatch={patch}
+        />
         <label className="block space-y-1">
           <span>Agregar fotos</span>
           <input
@@ -353,6 +382,18 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
           />
         </label>
       </section>
+
+      <AiNoteAction
+          kind="suggest"
+          settings={aiSettings}
+          note={note}
+          classroom={classroom}
+          classroomStudents={classroomStudents}
+          noteStudents={validStudents(note, yearData, existing?.studentIds)}
+          schoolYear={year}
+          storage={storage}
+          onPatch={patch}
+        />
 
       <label className="block space-y-1">
         <span>Área</span>
@@ -407,6 +448,17 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
         <span>Interpretación en relación al desempeño</span>
         <textarea className="field" rows={3} value={note.interpretation} onChange={(e) => patch({ interpretation: e.target.value })} />
       </label>
+      <AiNoteAction
+          kind="interpretation"
+          settings={aiSettings}
+          note={note}
+          classroom={classroom}
+          classroomStudents={classroomStudents}
+          noteStudents={validStudents(note, yearData, existing?.studentIds)}
+          schoolYear={year}
+          storage={storage}
+          onPatch={patch}
+        />
 
       <label className="block space-y-1">
         <span>Reflexión docente en relación a la actividad</span>
