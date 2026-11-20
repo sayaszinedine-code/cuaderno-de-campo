@@ -22,12 +22,6 @@ const BADGE: Record<(typeof LEVELS)[number], string> = {
 
 const fullName = (s: Student) => `${s.firstNames} ${s.lastNames}`.trim();
 
-/** Header-friendly competency name: up to the first comma, trimmed to 40 characters. */
-function shortName(name: string): string {
-  const head = name.split(",")[0].trim();
-  return head.length > 40 ? `${head.slice(0, 39).trimEnd()}…` : head;
-}
-
 const QUERY = "(max-width: 767px)";
 
 /** True on phone-width screens; updates when the viewport crosses the breakpoint. */
@@ -76,7 +70,7 @@ export default function NotasPage() {
   const mobile = useIsMobile();
   const [classroomPick, setClassroomPick] = useState("");
   const [periodPick, setPeriodPick] = useState<Period["id"] | null>(null);
-  const [open, setOpen] = useState<{ studentId: string; competencyId: string } | null>(null);
+  const [open, setOpen] = useState<{ studentId: string; competencyId: string; opener: HTMLElement | null } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
@@ -128,9 +122,9 @@ export default function NotasPage() {
     return ok;
   };
 
-  const choose = (studentId: string, competencyId: string) => {
+  const choose = (studentId: string, competencyId: string, opener: HTMLElement) => {
     setMessage("");
-    setOpen({ studentId, competencyId });
+    setOpen({ studentId, competencyId, opener });
   };
 
   return (
@@ -187,9 +181,9 @@ export default function NotasPage() {
                           type="button"
                           aria-label={label(s, c.name, e)}
                           className="card flex w-full items-center justify-between gap-2 p-3 text-left"
-                          onClick={() => choose(s.id, c.id)}
+                          onClick={(e) => choose(s.id, c.id, e.currentTarget)}
                         >
-                          <span className="text-sm">{shortName(c.name)}</span>
+                          <span className="text-sm">{c.shortName}</span>
                           <CellContent entry={e} scale={scale} />
                         </button>
                       </li>
@@ -217,7 +211,7 @@ export default function NotasPage() {
               <tr>
                 {table.competencies.map((c) => (
                   <th key={c.id} scope="col" title={c.name} className="min-w-28 px-2 py-1 align-bottom font-medium">
-                    {shortName(c.name)}
+                    {c.shortName}
                   </th>
                 ))}
               </tr>
@@ -236,7 +230,7 @@ export default function NotasPage() {
                           type="button"
                           aria-label={label(s, c.name, e)}
                           className="min-h-11 w-full min-w-11 px-2 hover:bg-accent-soft"
-                          onClick={() => choose(s.id, c.id)}
+                          onClick={(e) => choose(s.id, c.id, e.currentTarget)}
                         >
                           <CellContent entry={e} scale={scale} />
                         </button>
@@ -271,6 +265,7 @@ export default function NotasPage() {
               storage={storage}
             />
           }
+          opener={open.opener}
           onSave={save}
           onClose={() => setOpen(null)}
         />

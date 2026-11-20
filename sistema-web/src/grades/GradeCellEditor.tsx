@@ -20,6 +20,7 @@ export function GradeCellEditor({
   evidence,
   onSave,
   onClose,
+  opener,
   children,
 }: {
   studentName: string;
@@ -32,19 +33,21 @@ export function GradeCellEditor({
   /** Resolves true when the grade was saved. */
   onSave: (values: GradeFormValues) => Promise<boolean>;
   onClose: () => void;
+  /** Element that opened the editor; gets focus back on close. */
+  opener?: HTMLElement | null;
   children?: (api: { values: GradeFormValues; setConclusion: (text: string) => void }) => ReactNode;
 }) {
   const [level, setLevel] = useState<Level | undefined>(initial.level);
   const [conclusion, setConclusion] = useState(initial.conclusion);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  const busy = useRef(false);
   const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     return () => opener?.focus?.();
-  }, []);
+  }, [opener]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Escape") {
@@ -67,11 +70,13 @@ export function GradeCellEditor({
   };
 
   const save = async () => {
-    if (saving) return;
+    if (busy.current) return;
+    busy.current = true;
     setSaving(true);
     setFailed(false);
     const ok = await onSave({ level: scale ? level : undefined, conclusion });
     if (!ok) {
+      busy.current = false;
       setFailed(true);
       setSaving(false);
     }
