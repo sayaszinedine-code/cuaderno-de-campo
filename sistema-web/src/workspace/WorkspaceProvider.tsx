@@ -38,8 +38,11 @@ export type WorkspaceValue = {
   update(fn: (d: YearData) => YearData): Promise<boolean>;
   /** Field notes of the open year (`cuaderno.json`). */
   notes: FieldNote[];
-  /** Same semantics as `update`, for the notes file; shares the write queue. */
-  updateNotes(fn: (f: NotesFile) => NotesFile): Promise<boolean>;
+  /**
+   * Same semantics as `update`, for the notes file; shares the write queue. With `opts.year`, resolves
+   * false without writing when the loaded year is a different one (e.g. changed while a form was open).
+   */
+  updateNotes(fn: (f: NotesFile) => NotesFile, opts?: { year?: number }): Promise<boolean>;
   reload(): Promise<void>;
   /** Opens the folder picker and switches to the chosen folder. */
   changeFolder(): Promise<void>;
@@ -231,10 +234,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       store: (l: Loaded, d: D) => Loaded,
       save: (d: D) => Promise<void>,
       fn: (d: D) => D,
+      year?: number,
     ): Promise<boolean> => {
       const saved = await enqueue(async (live): Promise<boolean> => {
         const cur = latest.current;
         if (!cur) return false;
+        if (year !== undefined && cur.year !== year) return false;
         let next: D;
         try {
           next = fn(select(cur));
@@ -287,12 +292,13 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           (d) => repo.saveYear(d),
           fn,
         ),
-      updateNotes: (fn) =>
+      updateNotes: (fn, opts) =>
         mutate(
           (l) => l.notesFile,
           (l, notesFile) => ({ ...l, notesFile }),
           (f) => repo.saveNotes(f),
           fn,
+          opts?.year,
         ),
       saveProfile: (p): Promise<void> =>
         enqueue(async (live) => {

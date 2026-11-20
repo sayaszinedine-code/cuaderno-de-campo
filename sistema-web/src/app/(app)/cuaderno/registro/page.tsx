@@ -19,6 +19,7 @@ import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 const LIST = "/cuaderno/";
 const PHOTO_FAILED = "No se pudo guardar una de las fotos.";
+const YEAR_CHANGED = "El año escolar cambió mientras editabas. Vuelve al cuaderno y abre el registro de nuevo.";
 const lastKey = (userId: string) => `notes-last:${userId}`;
 
 function readLast(userId: string): { classroomId?: string; moment?: string } {
@@ -80,7 +81,9 @@ const basename = (p: string) => p.slice(p.lastIndexOf("/") + 1);
 function Form({ existing }: { existing: FieldNote | undefined }) {
   const router = useRouter();
   const { profile } = useAccount();
-  const { storage, year, yearData, updateNotes } = useWorkspace();
+  const { storage, year: currentYear, yearData, updateNotes } = useWorkspace();
+  /** The year this form was opened with: every write targets it, never a year chosen later. */
+  const [year] = useState(currentYear);
 
   const [note, setNote] = useState<FieldNote>(() => {
     if (existing) return existing;
@@ -101,6 +104,10 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
 
   const noteRef = useRef(note);
   noteRef.current = note;
+  /** Guards «Sí, eliminar» against a double tap before the disabled state renders. */
+  const deletingRef = useRef(false);
+  const currentYearRef = useRef(currentYear);
+  currentYearRef.current = currentYear;
   /** Files written during this session (deleted on cancel). */
   const addedRef = useRef<string[]>([]);
   /** Photos taken out of the form that already existed; deleted after a successful save. */
@@ -134,8 +141,10 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   const areas = areasForCycles([classroom.cycle]).filter((a) => competencies.some((c) => areaIdFor(c, classroom.cycle) === a.id));
   const areaCompetencies = competencies.filter((c) => areaIdFor(c, classroom.cycle) === note.areaId);
   const noteStudents = validStudents(note, yearData, existing?.studentIds);
+  // Archived children of the saved note stay listed even when deselected, so they can be re-added.
+  const archivedIds = new Set([...(existing?.studentIds ?? []), ...note.studentIds]);
   const archivedChips = yearData.students.filter(
-    (s) => !s.active && s.classroomId === classroom.id && note.studentIds.includes(s.id),
+    (s) => !s.active && s.classroomId === classroom.id && archivedIds.has(s.id),
   );
   const hideLevel = classroom.cycle === "I" && classroom.cycleIGrading === "descriptive";
 
@@ -189,6 +198,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   }
 
   function removePhoto(path: string) {
+    if (busy) return;
     setMessage("");
     setNote((n) => ({ ...n, evidence: n.evidence.filter((p) => p !== path) }));
     if (addedRef.current.includes(path)) {
@@ -229,8 +239,11 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
     if (invalid) return;
     setSaving(true);
     try {
-      const ok = await updateNotes((f) => upsertNote(f, clean));
-      if (!ok) return;
+      const ok = await updateNotes((f) => upsertNote(f, clean), { year });
+      if (!ok) {
+        if (currentYearRef.current !== year) setError(YEAR_CHANGED);
+        return;
+      }
       await removeFiles(removedRef.current.filter((p) => !clean.evidence.includes(p)));
       removedRef.current = [];
       addedRef.current = [];
@@ -243,10 +256,21 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   }
 
   async function onDelete() {
-    const ok = await updateNotes((f) => removeNote(f, note.id));
-    if (!ok) return;
-    await removeFiles([...new Set([...(existing?.evidence ?? []), ...addedRef.current])]);
-    router.push(LIST);
+    if (deletingRef.current || busy) return;
+    deletingRef.current = true;
+    setSaving(true);
+    try {
+      const ok = await updateNotes((f) => removeNote(f, note.id), { year });
+      if (!ok) {
+        if (currentYearRef.current !== year) setError(YEAR_CHANGED);
+        return;
+      }
+      await removeFiles([...new Set([...(existing?.evidence ?? []), ...addedRef.current])]);
+      router.push(LIST);
+    } finally {
+      deletingRef.current = false;
+      setSaving(false);
+    }
   }
 
   const toggleStudent = (id: string) =>
@@ -370,7 +394,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
           storage={storage}
           onPatch={patch}
         />
-        <EvidencePhotos storage={storage} paths={note.evidence} onRemove={removePhoto} />
+        <EvidencePhotos storage={storage} paths={note.evidence} onRemove={removePhoto} disabled={busy} />
         <AiNoteAction
           kind="photo"
           settings={aiSettings}
@@ -522,10 +546,10 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
         <div role="alertdialog" aria-label="Confirmar eliminación" className="card space-y-3 p-4">
           <p>¿Eliminar este registro y sus fotos? No se puede deshacer.</p>
           <div className="flex gap-3">
-            <button type="button" className="btn-primary" onClick={() => void onDelete()}>
+            <button type="button" className="btn-primary" disabled={busy} onClick={() => void onDelete()}>
               Sí, eliminar
             </button>
-            <button type="button" className="btn-secondary" onClick={() => setConfirmDelete(false)}>
+            <button type="button" className="btn-secondary" disabled={busy} onClick={() => setConfirmDelete(false)}>
               No
             </button>
           </div>

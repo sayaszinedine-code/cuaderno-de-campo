@@ -371,6 +371,13 @@ describe("WorkspaceProvider", () => {
           >
             both
           </button>
+          <button
+            onClick={() =>
+              results.push(ws.updateNotes((f) => ({ ...f, notes: [...f.notes, mkNote("guarded")] }), { year: YEAR }))
+            }
+          >
+            add-current
+          </button>
           <button onClick={() => void ws.setYear(YEAR - 1)}>prev</button>
           <button onClick={() => void ws.reload()}>reload</button>
         </div>
@@ -424,6 +431,24 @@ describe("WorkspaceProvider", () => {
       expect(await screen.findByText("No se pudo guardar. Revisa que la carpeta siga disponible.")).toBeInTheDocument();
       expect(await results[0]).toBe(false);
       expect(screen.getByText("notes:")).toBeInTheDocument();
+    });
+
+    it("updateNotes with a year writes nothing when another year is loaded", async () => {
+      const storage = new MemoryStorage();
+      await storage.writeTextAtomic(notesPath(YEAR - 1), seedNotes(YEAR - 1, ["old"]));
+      renderNotes(storage);
+      await screen.findByText(`year:${YEAR}`);
+      fireEvent.click(screen.getByRole("button", { name: "add-current" }));
+      expect(await results[0]).toBe(true);
+      fireEvent.click(screen.getByRole("button", { name: "prev" }));
+      expect(await screen.findByText("notes:old")).toBeInTheDocument();
+      const before = await storage.readText(notesPath(YEAR - 1));
+      const write = vi.spyOn(storage, "writeTextAtomic");
+      fireEvent.click(screen.getByRole("button", { name: "add-current" }));
+      expect(await results[1]).toBe(false);
+      expect(write).not.toHaveBeenCalled();
+      expect(await storage.readText(notesPath(YEAR - 1))).toBe(before);
+      expect(screen.getByText("notes:old")).toBeInTheDocument();
     });
 
     it("loads the notes of the chosen year on setYear and on reload", async () => {

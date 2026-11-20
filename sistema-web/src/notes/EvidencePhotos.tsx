@@ -8,10 +8,13 @@ export function EvidencePhotos({
   storage,
   paths,
   onRemove,
+  disabled = false,
 }: {
   storage: Storage;
   paths: string[];
   onRemove: (path: string) => void;
+  /** Blocks «Quitar foto» while photos are being written or the note is being saved. */
+  disabled?: boolean;
 }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const key = paths.join("\n");
@@ -53,7 +56,7 @@ export function EvidencePhotos({
           ) : (
             <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-danger-soft text-xs">Sin vista previa</div>
           )}
-          <button type="button" className="btn-secondary w-full text-sm" onClick={() => onRemove(p)}>
+          <button type="button" className="btn-secondary w-full text-sm" disabled={disabled} onClick={() => onRemove(p)}>
             Quitar foto {i + 1}
           </button>
         </li>

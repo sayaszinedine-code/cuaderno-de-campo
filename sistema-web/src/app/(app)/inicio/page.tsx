@@ -18,7 +18,10 @@ export default function InicioPage() {
   const lastNotes = [...notes]
     .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 3);
-  const neglected = studentsWithoutRecentNotes(notes, yearData.students, todayISO());
+  // "Last 2 weeks" only means something for the school year in progress.
+  const today = todayISO();
+  const neglected =
+    year === Number(today.slice(0, 4)) ? studentsWithoutRecentNotes(notes, yearData.students, today) : [];
 
   return (
     <div className="max-w-2xl space-y-6">

@@ -25,7 +25,7 @@ vi.mock("@/domain/photo", async (orig) => ({ ...(await orig<typeof import("@/dom
 const ai = vi.hoisted(() => ({ generateWithSettings: vi.fn() }));
 vi.mock("@/ai", () => ai);
 
-import { WorkspaceProvider } from "@/workspace/WorkspaceProvider";
+import { useWorkspace, WorkspaceProvider } from "@/workspace/WorkspaceProvider";
 import RegistroPage from "./page";
 
 const year = new Date().getFullYear();
@@ -430,5 +430,92 @@ describe("Registro page", () => {
     await waitFor(() => expect(ai.generateWithSettings).toHaveBeenCalled());
     const sent = JSON.stringify(ai.generateWithSettings.mock.calls[0][1]);
     expect(sent).not.toMatch(/Luz|Pedro|Mamani|Rosa/);
+  });
+
+  it("does not save into another year when the year changes while the form is open", async () => {
+    await seed();
+    const prev = { ...build(), schoolYear: year - 1 };
+    await storage.writeTextAtomic(yearDataPath(year - 1), JSON.stringify(prev));
+    const prevNotes = JSON.stringify({ version: SCHEMA_VERSION, schoolYear: year - 1, notes: [] });
+    await storage.writeTextAtomic(notesPath(year - 1), prevNotes);
+    function YearSwitch() {
+      const ws = useWorkspace();
+      return (
+        <button type="button" onClick={() => void ws.setYear(year - 1)}>
+          {`año ${ws.year}`}
+        </button>
+      );
+    }
+    render(
+      <WorkspaceProvider userId="u1">
+        <YearSwitch />
+        <RegistroPage />
+      </WorkspaceProvider>,
+    );
+    await fillBasics();
+    fireEvent.click(screen.getByRole("button", { name: `año ${year}` }));
+    await screen.findByRole("button", { name: `año ${year - 1}` });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(
+      await screen.findByText("El año escolar cambió mientras editabas. Vuelve al cuaderno y abre el registro de nuevo."),
+    ).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    expect(await storage.readText(notesPath(year - 1))).toBe(prevNotes);
+    expect(await savedNotes()).toHaveLength(0);
+  });
+
+  it("a deselected archived child stays as a chip and can be re-added", async () => {
+    const d = build((x) => ({ ...x, students: x.students.map((s) => (s.id === "s1" ? { ...s, active: false } : s)) }));
+    await seed({ data: d, notes: [existing({ studentIds: ["s1", "s2"] })] });
+    window.history.pushState({}, "", "/cuaderno/registro/?id=n1");
+    renderPage();
+    const chip = await screen.findByRole("button", { name: "Luz Paz (archivado)" });
+    fireEvent.click(chip);
+    expect(screen.getByRole("button", { name: "Luz Paz (archivado)" })).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(screen.getByRole("button", { name: "Luz Paz (archivado)" }));
+    expect(screen.getByRole("button", { name: "Luz Paz (archivado)" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/cuaderno/"));
+    expect((await savedNotes())[0].studentIds).toEqual(["s2", "s1"]);
+  });
+
+  it("«Sí, eliminar» runs once and is disabled while deleting", async () => {
+    await seed({ notes: [existing()] });
+    window.history.pushState({}, "", "/cuaderno/registro/?id=n1");
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Eliminar registro" }));
+    const real = storage.writeTextAtomic.bind(storage);
+    let release: () => void = () => undefined;
+    const write = vi.spyOn(storage, "writeTextAtomic").mockImplementation(
+      (p, t) => new Promise<void>((res) => { release = () => void real(p, t).then(res); }),
+    );
+    const yes = screen.getByRole("button", { name: "Sí, eliminar" });
+    fireEvent.click(yes);
+    fireEvent.click(yes);
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("button", { name: "Sí, eliminar" })).toBeDisabled();
+    await act(async () => release());
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/cuaderno/"));
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it("«Quitar foto» is disabled while a photo is being written", async () => {
+    await seed();
+    renderPage();
+    await fillBasics();
+    const input = screen.getByLabelText("Agregar fotos");
+    fireEvent.change(input, { target: { files: [new File(["a"], "a.jpg", { type: "image/jpeg" })] } });
+    const remove = await screen.findByRole("button", { name: /Quitar foto/ });
+    expect(remove).toBeEnabled();
+    let release: () => void = () => undefined;
+    const real = storage.writeFile.bind(storage);
+    vi.spyOn(storage, "writeFile").mockImplementationOnce(
+      (p, b) => new Promise<void>((res) => { release = () => void real(p, b).then(res); }),
+    );
+    fireEvent.change(input, { target: { files: [new File(["b"], "b.jpg", { type: "image/jpeg" })] } });
+    await screen.findByText("Guardando fotos…");
+    expect(screen.getByRole("button", { name: "Quitar foto 1" })).toBeDisabled();
+    await act(async () => release());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Quitar foto 1" })).toBeEnabled());
   });
 });
