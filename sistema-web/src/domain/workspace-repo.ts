@@ -1,15 +1,17 @@
 import type { Storage } from "@/storage/types";
-import { gradesPath, notesPath, profilePath, yearDataPath } from "./paths";
+import { gradesPath, notesPath, profilePath, unitsPath, yearDataPath } from "./paths";
 import {
   SCHEMA_VERSION,
   gradesFileSchema,
   notesFileSchema,
   profileFileSchema,
+  unitsFileSchema,
   yearDataSchema,
   type GradesFile,
   type NotesFile,
   type Period,
   type TeacherProfile,
+  type UnitsFile,
   type YearData,
 } from "./schema";
 
@@ -56,6 +58,9 @@ export interface WorkspaceRepo {
   /** Returns an empty (unsaved) GradesFile when the file does not exist. */
   loadGrades(y: number): Promise<GradesFile>;
   saveGrades(f: GradesFile, opts?: SaveOptions): Promise<void>;
+  /** Returns an empty (unsaved) UnitsFile when the file does not exist. */
+  loadUnits(y: number): Promise<UnitsFile>;
+  saveUnits(f: UnitsFile, opts?: SaveOptions): Promise<void>;
 }
 
 interface DocSchema<T> {
@@ -162,6 +167,19 @@ export function createWorkspaceRepo(storage: Storage): WorkspaceRepo {
 
     async saveGrades(f, opts) {
       await saveDoc(gradesPath(f.schoolYear), gradesFileSchema, f, opts);
+    },
+
+    async loadUnits(y) {
+      return loadDoc(unitsPath(y), unitsFileSchema, () => ({
+        version: SCHEMA_VERSION,
+        schoolYear: y,
+        units: [],
+        sessions: [],
+      }));
+    },
+
+    async saveUnits(f, opts) {
+      await saveDoc(unitsPath(f.schoolYear), unitsFileSchema, f, opts);
     },
   };
 }
