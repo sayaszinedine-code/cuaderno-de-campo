@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { markAllPresent, markOf, setMark, summary } from "@/domain/attendance";
 import { classroomLabel, todayISO } from "@/domain/classrooms";
 import { periodOf } from "@/domain/notes";
@@ -25,9 +25,12 @@ export default function AsistenciaPage() {
   const [tab, setTab] = useState<Tab>("dia");
   const [classroomPick, setClassroomPick] = useState("");
   const [date, setDate] = useState(() => todayISO());
-  const [pinnedYear, setPinnedYear] = useState(year);
-  /** Marks shown before the save finishes; `null` is an optimistic removal. */
-  const [optimistic, setOptimistic] = useState<Record<string, AttendanceMark | null>>({});
+  /** Marks shown before the save finishes (`null` is an optimistic removal), tagged with the year and tap sequence. */
+  type Pending = { mark: AttendanceMark | null; seq: number; year: number };
+  const [pending, setPending] = useState<Record<string, Pending>>({});
+  const seqRef = useRef(0);
+  const optimistic: Record<string, AttendanceMark | null> = {};
+  for (const [id, p] of Object.entries(pending)) if (p.year === year) optimistic[id] = p.mark;
   const [monthPick, setMonthPick] = useState("");
   const [periodPick, setPeriodPick] = useState<Period["id"] | null>(null);
 
@@ -57,20 +60,26 @@ export default function AsistenciaPage() {
   const period = yearData.periods.find((p) => p.id === periodId);
 
   const resetDay = () => {
-    setOptimistic({});
-    setPinnedYear(year);
+    setPending({});
   };
 
   const commit = async (
     shown: Record<string, AttendanceMark | null>,
     fn: (f: typeof attendance) => typeof attendance,
   ) => {
-    setOptimistic((o) => ({ ...o, ...shown }));
-    const ok = await updateAttendance(fn, { year: pinnedYear });
-    // Success: the stored file now has the marks. Failure: drop the overlay to show the previous ones.
-    setOptimistic((o) => {
+    const tapYear = year;
+    const seq = ++seqRef.current;
+    setPending((o) => {
       const next = { ...o };
-      for (const id of Object.keys(shown)) if (next[id] === shown[id]) delete next[id];
+      for (const [id, mark] of Object.entries(shown)) next[id] = { mark, seq, year: tapYear };
+      return next;
+    });
+    const ok = await updateAttendance(fn, { year: tapYear });
+    // Success: the stored file now has the marks. Failure: drop the overlay to show the previous ones.
+    // Only this tap's own entries go; a later tap on the same child keeps its pending mark.
+    setPending((o) => {
+      const next = { ...o };
+      for (const id of Object.keys(shown)) if (next[id]?.seq === seq) delete next[id];
       return next;
     });
     return ok;
@@ -130,6 +139,7 @@ export default function AsistenciaPage() {
               if (!e.target.value) return;
               setDate(e.target.value);
               setMonthPick("");
+              setPeriodPick(null);
               resetDay();
             }}
           />

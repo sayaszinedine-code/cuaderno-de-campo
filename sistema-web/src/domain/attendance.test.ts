@@ -104,6 +104,19 @@ describe("summary", () => {
     expect(r).toEqual({ P: 0, T: 0, F: 0, J: 0, marked: 0, pct: null });
   });
 
+  it("counts only the requested classroom for a student with days in two", () => {
+    const r = summary(build(), { classroomId: "c2", studentId: "s1", from: "2026-03-01", to: "2026-03-31" });
+    expect(r).toEqual({ P: 0, T: 0, F: 1, J: 0, marked: 1, pct: 0 });
+  });
+
+  it("includes both boundary dates and excludes the neighbours", () => {
+    let f = setMark(empty(), "c1", "2026-05-15", "s1", "P");
+    f = setMark(f, "c1", "2026-05-16", "s1", "F");
+    const b1 = summary(f, { classroomId: "c1", studentId: "s1", from: "2026-03-01", to: "2026-05-15" });
+    const b2 = summary(f, { classroomId: "c1", studentId: "s1", from: "2026-05-16", to: "2026-07-31" });
+    expect([b1.P, b1.F, b2.P, b2.F]).toEqual([1, 0, 0, 1]);
+  });
+
   it("range is inclusive", () => {
     const r = summary(build(), { classroomId: "c1", studentId: "s1", from: "2026-03-02", to: "2026-03-02" });
     expect(r.marked).toBe(1);

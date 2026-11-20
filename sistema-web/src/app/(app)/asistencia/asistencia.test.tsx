@@ -16,7 +16,7 @@ vi.mock("@/components/AccountGate", () => ({
   useAccount: () => ({ refresh: vi.fn(), profile: { id: "u1" } }),
 }));
 
-import { WorkspaceProvider } from "@/workspace/WorkspaceProvider";
+import { WorkspaceProvider, useWorkspace } from "@/workspace/WorkspaceProvider";
 import AsistenciaPage from "./page";
 
 const year = new Date().getFullYear();
@@ -165,5 +165,71 @@ describe("Asistencia page", () => {
     expect(row("Luz Rojas").slice(0, 5)).toEqual(["0", "0", "0", "0", "—"]);
     fireEvent.change(screen.getByLabelText("Bimestre"), { target: { value: "B2" } });
     expect(row("Luz Rojas").slice(5)).toEqual(["0", "0", "1", "0", "0%"]);
+  });
+
+  it("keeps the last tap when the same child is tapped twice without awaiting", async () => {
+    await seed();
+    await renderIn();
+    fireEvent.click(btn("Luz Rojas", "Presente"));
+    fireEvent.click(btn("Luz Rojas", "Falta"));
+    await waitFor(async () => expect((await saved()).days[0]?.marks).toEqual({ s1: "F" }));
+    expect(btn("Luz Rojas", "Falta")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps the last tap when the first write rejects once", async () => {
+    await seed();
+    await renderIn();
+    vi.spyOn(storage, "writeTextAtomic").mockRejectedValueOnce(new Error("disk"));
+    fireEvent.click(btn("Luz Rojas", "Presente"));
+    fireEvent.click(btn("Luz Rojas", "Falta"));
+    await waitFor(async () => expect((await saved()).days[0]?.marks).toEqual({ s1: "F" }));
+    await waitFor(() => expect(btn("Luz Rojas", "Falta")).toHaveAttribute("aria-pressed", "true"));
+    expect(btn("Luz Rojas", "Presente")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("keeps a third tap pending after P, F, P", async () => {
+    await seed();
+    await renderIn();
+    fireEvent.click(btn("Luz Rojas", "Presente"));
+    fireEvent.click(btn("Luz Rojas", "Falta"));
+    fireEvent.click(btn("Luz Rojas", "Presente"));
+    await waitFor(async () => expect((await saved()).days[0]?.marks).toEqual({ s1: "P" }));
+    expect(btn("Luz Rojas", "Presente")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("saves taps into the year switched to after load", async () => {
+    await seed();
+    await storage.writeTextAtomic(yearDataPath(year - 1), JSON.stringify({ ...base(), schoolYear: year - 1 }));
+    await storage.writeTextAtomic(attendancePath(year - 1), JSON.stringify({ version: SCHEMA_VERSION, schoolYear: year - 1, days: [] }));
+    const Switch = () => {
+      const ws = useWorkspace();
+      return <button onClick={() => void ws.setYear(year - 1)}>cambiar año</button>;
+    };
+    render(<WorkspaceProvider userId="u1"><Switch /><AsistenciaPage /></WorkspaceProvider>);
+    await screen.findByText("Luz Rojas");
+    fireEvent.change(screen.getByLabelText("Fecha"), { target: { value: D } });
+    fireEvent.click(screen.getByRole("button", { name: "cambiar año" }));
+    await waitFor(async () => expect(JSON.parse((await storage.readText(yearDataPath(year - 1))) ?? "{}").schoolYear).toBe(year - 1));
+    await waitFor(() => expect(screen.getByLabelText("Fecha")).toBeInTheDocument());
+    await new Promise((r) => setTimeout(r, 50));
+    fireEvent.click(btn("Luz Rojas", "Presente"));
+    await waitFor(async () => {
+      const f = JSON.parse((await storage.readText(attendancePath(year - 1))) ?? "{}");
+      expect(f.days[0]?.marks).toEqual({ s1: "P" });
+    });
+    expect((await saved()).days).toEqual([]);
+  });
+
+  it("splits bimester summaries at the boundary dates", async () => {
+    await seed([
+      { date: `${year}-05-15`, classroomId: "c1", marks: { s1: "F" } },
+      { date: `${year}-05-16`, classroomId: "c1", marks: { s1: "P" } },
+    ]);
+    await renderIn(`${year}-05-15`);
+    fireEvent.click(screen.getByRole("tab", { name: "Resumen" }));
+    const row = () => within(screen.getByRole("row", { name: /Luz Rojas/ })).getAllByRole("cell").map((c) => c.textContent);
+    expect(row().slice(5)).toEqual(["0", "0", "1", "0", "0%"]);
+    fireEvent.change(screen.getByLabelText("Bimestre"), { target: { value: "B2" } });
+    expect(row().slice(5)).toEqual(["1", "0", "0", "0", "100%"]);
   });
 });
