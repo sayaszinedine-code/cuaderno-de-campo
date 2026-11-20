@@ -303,6 +303,30 @@ describe("Unidad form", () => {
     expect(screen.getByRole("link", { name: "Nueva sesión" })).toHaveAttribute("href", expect.stringMatching(/\/unidades\/sesion\/?\?unidad=u-1234567890$/));
   });
 
+  it("disables the session links while the unit has unsaved changes", async () => {
+    await seed([unit()], [session()]);
+    renderForm("?id=u-1234567890");
+    await screen.findByDisplayValue("Mi unidad");
+    expect(screen.queryByText("Guarda la unidad antes de abrir sesiones.")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Otro título" } });
+    expect(screen.getByText("Guarda la unidad antes de abrir sesiones.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Sesión 1/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Nueva sesión" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Nueva sesión" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Mi unidad" } });
+    expect(screen.getByRole("link", { name: /Sesión 1/ })).toBeInTheDocument();
+  });
+
+  it("disables the session links while a new attachment is pending", async () => {
+    await seed([unit()], [session()]);
+    renderForm("?id=u-1234567890");
+    await screen.findByDisplayValue("Mi unidad");
+    addFiles(pdf());
+    expect(await screen.findByText("plan.pdf")).toBeInTheDocument();
+    expect(screen.getByText("Guarda la unidad antes de abrir sesiones.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Nueva sesión" })).toBeNull();
+  });
+
   it("«Abrir» creates and revokes an object URL", async () => {
     const u = unit();
     const path = `${dirOf(u)}plan.pdf`;

@@ -86,6 +86,12 @@ function Form({ existing, aula, bim }: { existing: Unit | undefined; aula: strin
     classroomRef.current ? unitDir(year, classroomRef.current, unitRef.current) : "",
   );
   const busy = saving || files.busy;
+  /** Unsaved form edits or new/removed attachments: sessions must not be opened (they would lose them). */
+  const dirty =
+    !!existing &&
+    (files.busy ||
+      JSON.stringify({ ...unit, attachments: [] }) !== JSON.stringify({ ...existing, attachments: [] }) ||
+      files.attachments.map((a) => a.path).join("|") !== existing.attachments.map((a) => a.path).join("|"));
   const listUrl = `/unidades/?aula=${unit.classroomId}&bim=${unit.periodId}`;
 
   if (!classroom) return <p>El aula de esta unidad ya no existe.</p>;
@@ -318,16 +324,31 @@ function Form({ existing, aula, bim }: { existing: Unit | undefined; aula: strin
             <ul className="space-y-2">
               {sessions.map((s) => (
                 <li key={s.id}>
-                  <Link href={`/unidades/sesion/?id=${s.id}`} className="card block p-3">
-                    {s.date} · {s.title || "Sin título"}
-                  </Link>
+                  {dirty ? (
+                    <span aria-disabled="true" className="card block p-3 opacity-60">
+                      {s.date} · {s.title || "Sin título"}
+                    </span>
+                  ) : (
+                    <Link href={`/unidades/sesion/?id=${s.id}`} className="card block p-3">
+                      {s.date} · {s.title || "Sin título"}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
           )}
-          <Link href={`/unidades/sesion/?unidad=${existing.id}`} className="btn-secondary inline-block">
-            Nueva sesión
-          </Link>
+          {dirty ? (
+            <>
+              <button type="button" className="btn-secondary" disabled>
+                Nueva sesión
+              </button>
+              <p className="text-sm text-muted">Guarda la unidad antes de abrir sesiones.</p>
+            </>
+          ) : (
+            <Link href={`/unidades/sesion/?unidad=${existing.id}`} className="btn-secondary inline-block">
+              Nueva sesión
+            </Link>
+          )}
         </section>
       )}
 

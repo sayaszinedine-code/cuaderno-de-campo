@@ -126,6 +126,9 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
     setAiSettings(loadAiSettings(profile.id));
   }, [profile.id]);
 
+  /** Unsaved edits or in-flight photos: the linked session must not be opened (they would be lost). */
+  const dirty = !!existing && (pending > 0 || JSON.stringify(note) !== JSON.stringify(existing));
+
   const classroom = yearData.classrooms.find((c) => c.id === note.classroomId);
   if (!classroom) return <p>El aula de este registro ya no existe.</p>;
 
@@ -299,11 +302,20 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
       {existing &&
         linkedSessionsOfNote(units, existing.id).map((s) => (
           <p key={s.id}>
-            <Link href={`/unidades/sesion/?id=${encodeURIComponent(s.id)}`} className="underline">
-              {`Sesión vinculada: ${s.title || "Sin título"} (${s.date})`}
-            </Link>
+            {dirty ? (
+              <span aria-disabled="true" className="opacity-60">
+                {`Sesión vinculada: ${s.title || "Sin título"} (${s.date})`}
+              </span>
+            ) : (
+              <Link href={`/unidades/sesion/?id=${encodeURIComponent(s.id)}`} className="underline">
+                {`Sesión vinculada: ${s.title || "Sin título"} (${s.date})`}
+              </Link>
+            )}
           </p>
         ))}
+      {dirty && linkedSessionsOfNote(units, existing.id).length > 0 && (
+        <p className="text-sm text-muted">Guarda el registro antes de abrir la sesión.</p>
+      )}
 
       <label className="block space-y-1">
         <span>Fecha</span>
