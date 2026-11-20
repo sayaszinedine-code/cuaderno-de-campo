@@ -101,12 +101,21 @@ describe("activeCompetencies / updateClassroom", () => {
 describe("deleteClassroom", () => {
   it("deletes an empty classroom", () => {
     const d = createClassroom(empty(), { name: "A", cycle: "II", bands: ["3y"] }, () => "c1");
-    expect(deleteClassroom(d, "c1").classrooms).toEqual([]);
+    expect(deleteClassroom(d, "c1", { units: [], notes: [] }).classrooms).toEqual([]);
   });
   it("refuses when it has students", () => {
     let d = createClassroom(empty(), { name: "A", cycle: "II", bands: ["3y"] }, () => "c1");
     d = addStudent(d, { classroomId: "c1", firstNames: "Ana", lastNames: "Paz" }, () => "s1");
-    expect(() => deleteClassroom(d, "c1")).toThrow("No puedes eliminar un aula con niños registrados.");
+    expect(() => deleteClassroom(d, "c1", { units: [], notes: [] })).toThrow(
+      "No puedes eliminar un aula con niños registrados.",
+    );
+  });
+  it("refuses when it has units or field notes", () => {
+    const d = createClassroom(empty(), { name: "A", cycle: "II", bands: ["3y"] }, () => "c1");
+    const msg = "No puedes eliminar un aula con unidades o registros del cuaderno.";
+    expect(() => deleteClassroom(d, "c1", { units: [{ classroomId: "c1" }], notes: [] })).toThrow(msg);
+    expect(() => deleteClassroom(d, "c1", { units: [], notes: [{ classroomId: "c1" }] })).toThrow(msg);
+    expect(deleteClassroom(d, "c1", { units: [{ classroomId: "c9" }], notes: [{ classroomId: "c9" }] }).classrooms).toEqual([]);
   });
 });
 

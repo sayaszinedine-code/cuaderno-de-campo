@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
-import { gradesPath, yearDataPath } from "@/domain/paths";
+import { gradesPath, notesPath, yearDataPath } from "@/domain/paths";
 import { createClassroom, addStudent } from "@/domain/classrooms";
 import { SCHEMA_VERSION, type YearData } from "@/domain/schema";
 
@@ -107,7 +107,7 @@ describe("Aulas page", () => {
     await waitFor(async () => expect((await saved()).classrooms[0].cycleIGrading).toBe("scale"));
   });
 
-  it("strips saved levels of that classroom when cycle I grading becomes descriptive", async () => {
+  async function seedScaleWithLevel() {
     await seed((d) => {
       const withRoom = createClassroom(d, { name: "Nido", cycle: "I", bands: ["18m"] }, () => "c1");
       const withKid = addStudent(withRoom, { classroomId: "c1", firstNames: "Ana", lastNames: "Paz" }, () => "s1");
@@ -125,14 +125,87 @@ describe("Aulas page", () => {
         finals: [],
       }),
     );
+  }
+
+  it("asks before stripping levels, then strips them keeping conclusions on confirm", async () => {
+    await seedScaleWithLevel();
     renderIn(<AulasPage />);
     fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
     fireEvent.click(screen.getByLabelText("Solo conclusión descriptiva"));
+    expect(
+      await screen.findByText(
+        "Se quitarán 1 niveles AD/A/B/C guardados de esta aula. Las conclusiones se conservan. No se puede deshacer.",
+      ),
+    ).toBeInTheDocument();
+    expect((await saved()).classrooms[0].cycleIGrading).toBe("scale");
+    fireEvent.click(screen.getByRole("button", { name: "Sí, cambiar" }));
     await waitFor(async () => {
       const g = JSON.parse((await storage.readText(gradesPath(year))) ?? "{}");
       expect(g.entries[0].level).toBeUndefined();
       expect(g.entries[0].conclusion).toBe("ok");
     });
+    expect((await saved()).classrooms[0].cycleIGrading).toBe("descriptive");
+    expect(await screen.findByText("Cambios guardados.")).toBeInTheDocument();
+  });
+
+  it("keeps everything when the level removal is cancelled", async () => {
+    await seedScaleWithLevel();
+    renderIn(<AulasPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    fireEvent.click(screen.getByLabelText("Solo conclusión descriptiva"));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("button", { name: "Sí, cambiar" })).toBeNull();
+    expect((await saved()).classrooms[0].cycleIGrading).toBe("scale");
+    expect(JSON.parse((await storage.readText(gradesPath(year))) ?? "{}").entries[0].level).toBe("A");
+  });
+
+  it("switches to descriptive without asking when no levels are stored", async () => {
+    await seed((d) => {
+      const room = createClassroom(d, { name: "Nido", cycle: "I", bands: ["18m"] }, () => "c1");
+      return { ...room, classrooms: room.classrooms.map((c) => ({ ...c, cycleIGrading: "scale" as const })) };
+    });
+    renderIn(<AulasPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    fireEvent.click(screen.getByLabelText("Solo conclusión descriptiva"));
+    await waitFor(async () => expect((await saved()).classrooms[0].cycleIGrading).toBe("descriptive"));
+    expect(screen.queryByRole("button", { name: "Sí, cambiar" })).toBeNull();
+  });
+
+  it("shows an error instead of «guardado» when the levels cannot be removed", async () => {
+    await seedScaleWithLevel();
+    renderIn(<AulasPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    fireEvent.click(screen.getByLabelText("Solo conclusión descriptiva"));
+    const confirm = await screen.findByRole("button", { name: "Sí, cambiar" });
+    const orig = storage.writeTextAtomic.bind(storage);
+    vi.spyOn(storage, "writeTextAtomic").mockImplementation(async (path, text) => {
+      if (path === gradesPath(year)) throw new Error("disk");
+      return orig(path, text);
+    });
+    fireEvent.click(confirm);
+    expect(await screen.findByText("No se pudieron quitar los niveles. Intenta de nuevo.")).toBeInTheDocument();
+    expect(screen.queryByText("Cambios guardados.")).toBeNull();
+  });
+
+  it("does not delete a classroom that has units or field notes", async () => {
+    await seed((d) => createClassroom(d, { name: "Vacía", cycle: "II", bands: ["3y"] }, () => "c1"));
+    await storage.writeTextAtomic(
+      notesPath(year),
+      JSON.stringify({
+        version: SCHEMA_VERSION,
+        schoolYear: year,
+        notes: [
+          {
+            id: "n1", date: `${year}-04-01`, classroomId: "c1", studentIds: [], wholeGroup: true, moment: "x", kind: "obs",
+            performances: [], evidenceText: "", evidence: [], interpretation: "", reflection: "", createdAt: "", updatedAt: "",
+          },
+        ],
+      }),
+    );
+    renderIn(<AulasPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    expect(screen.getByRole("button", { name: "Eliminar aula" })).toBeDisabled();
+    expect(screen.getByText("No puedes eliminar un aula con unidades o registros del cuaderno.")).toBeInTheDocument();
   });
 
   it("disables and re-enables an optional competency", async () => {
