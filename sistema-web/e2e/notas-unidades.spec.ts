@@ -52,11 +52,17 @@ test("notas y unidades: nota con evidencia, consolidado anual, unidad con adjunt
   const cell = page.getByRole("button", { name: `Valentina Quispe — ${COMPETENCY}: A` });
   await expect(cell).toBeVisible();
   await expect(cell.getByText("A", { exact: true })).toBeVisible();
+  await cell.click();
+  await expect(page.getByRole("dialog").getByLabel("Conclusión descriptiva")).toHaveValue("Clasifica objetos según un criterio.");
+  await page.getByRole("dialog").getByRole("button", { name: "Cancelar" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
   // Consolidado anual: final automático desde B4
   await page.getByRole("link", { name: "Ver año de Valentina Quispe" }).click();
   await expect(page.getByRole("heading", { name: "Notas del año — Valentina Quispe" })).toBeVisible();
-  await expect(page.getByRole("button", { name: `${COMPETENCY} — Final: auto (de B4)` })).toBeVisible();
+  const finalButton = page.getByRole("button", { name: `${COMPETENCY} — Final: auto (de B4)` });
+  await expect(finalButton).toBeVisible();
+  await expect(finalButton.getByText("A", { exact: true })).toBeVisible();
 
   // Unidad «Mi familia» en B4 con adjunto .docx
   await page.goto("/unidades/");
@@ -103,7 +109,7 @@ test("notas y unidades: nota con evidencia, consolidado anual, unidad con adjunt
   ).toBeChecked();
 
   // El archivo existe de verdad en la carpeta
-  const files = await opfsFiles(page, "Unidades y sesiones/Bimestre 4/");
+  const files = await opfsFiles(page, "Unidades y sesiones/Bimestre 4/Mi familia - ");
   expect(files.filter((f) => f.endsWith("Planificacion.docx"))).toHaveLength(1);
 
   // Eliminar la unidad borra sus archivos
@@ -112,7 +118,7 @@ test("notas y unidades: nota con evidencia, consolidado anual, unidad con adjunt
   await page.getByRole("button", { name: "Sí, eliminar" }).click();
   await expect(page).toHaveURL(/\/unidades\/\?/);
   await expect(page.getByText("Aún no hay unidades en este bimestre.")).toBeVisible();
-  await expect.poll(() => opfsFiles(page, "Unidades y sesiones/Bimestre 4/")).toEqual([]);
+  await expect.poll(() => opfsFiles(page, "Unidades y sesiones/Bimestre 4/Mi familia - ")).toEqual([]);
 
   expect(aiRequests).toEqual([]);
 });
