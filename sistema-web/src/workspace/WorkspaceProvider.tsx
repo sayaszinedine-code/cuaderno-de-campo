@@ -60,6 +60,21 @@ export type WorkspaceValue = {
   /** Same semantics as `updateNotes`, for the agenda file. */
   updateAgenda(fn: (f: AgendaFile) => AgendaFile, opts?: { year?: number }): Promise<boolean>;
   reload(): Promise<void>;
+  /** Date (YYYY-MM-DD) of the newest backup in `Respaldos/`; null when there is none; undefined until first checked. */
+  backupDate: string | null | undefined;
+  /** True when there is no backup or the last one is more than 14 days old. */
+  backupWarning: boolean;
+  /** Last automatic backup failure (Spanish), shown only in the backups panel. Empty when none. */
+  backupError: string;
+  /** What the write queue is busy with for the backups panel; null when idle. */
+  backupBusy: "backup" | "restore" | null;
+  /** Makes a manual backup through the write queue; resolves with the file name. Rejects with a Spanish message. */
+  runBackup(): Promise<string>;
+  /**
+   * Restores `file` through the write queue (no other write interleaves), then reloads the workspace from disk
+   * inside the same queue slot. Rejects with a Spanish message; the workspace is reloaded either way.
+   */
+  restoreBackupFile(file: Blob, replace: boolean): Promise<void>;
   /** Opens the folder picker and switches to the chosen folder. */
   changeFolder(): Promise<void>;
   /** True when the browser can pick a real folder (false = browser-internal storage). */
@@ -111,6 +126,24 @@ async function loadYearDocs(repo: WorkspaceRepo, y: number): Promise<YearDocs> {
 
 const currentYear = () => new Date().getFullYear();
 
+const DAY_MS = 86_400_000;
+const AUTO_BACKUP_AFTER_DAYS = 7;
+const BACKUP_WARNING_AFTER_DAYS = 14;
+const BUSY_MESSAGE = "Espera a que termine el respaldo o la restauración en curso.";
+
+/** Whole days since a local `YYYY-MM-DD` date (Infinity when unparsable). */
+function daysSince(date: string, now: Date = new Date()): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return Infinity;
+  const then = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((today.getTime() - then.getTime()) / DAY_MS);
+}
+
+function errorMessage(e: unknown): string {
+  return e instanceof Error && e.message ? e.message : "No se pudo completar la operación.";
+}
+
 function withYear(years: number[], y: number): number[] {
   return [...new Set([...years, y])].sort((a, b) => b - a);
 }
@@ -132,6 +165,10 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [notice, setNotice] = useState("");
   const [saveError, setSaveError] = useState(false);
+  const [backupDate, setBackupDate] = useState<string | null | undefined>(undefined);
+  const [backupError, setBackupError] = useState("");
+  const [backupBusy, setBackupBusy] = useState<"backup" | "restore" | null>(null);
+  const busyRef = useRef<"backup" | "restore" | null>(null);
 
   const generation = useRef(0);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -167,6 +204,8 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       setLoaded(null);
       setNotice("");
       setSaveError(false);
+      setBackupDate(undefined);
+      setBackupError("");
       setPhase({ status: "loading" });
       try {
         const repo = createWorkspaceRepo(storage);
@@ -222,16 +261,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
   const readyPhase = phase.status === "ready" ? phase : null;
 
-  const reload = useCallback(async () => {
-    if (!readyPhase) return;
-    await enqueue(async (live) => {
+  /** Re-reads the open year from disk. Must run inside a queue slot. */
+  const reloadNow = useCallback(
+    async (repo: WorkspaceRepo, live: () => boolean) => {
       const year = latest.current?.year ?? currentYear();
       try {
-        const [list, docs, profile] = await Promise.all([
-          readyPhase.repo.listYears(),
-          loadYearDocs(readyPhase.repo, year),
-          readyPhase.repo.loadProfile(),
-        ]);
+        const [list, docs, profile] = await Promise.all([repo.listYears(), loadYearDocs(repo, year), repo.loadProfile()]);
         if (!live()) return;
         commit({ years: withYear(list, year), year, ...docs, profile });
       } catch (e) {
@@ -241,8 +276,99 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           message: e instanceof WorkspaceDataError ? DATA_ERROR_MESSAGE : "No se pudo leer la carpeta.",
         });
       }
+    },
+    [commit],
+  );
+
+  const reload = useCallback(async () => {
+    if (!readyPhase) return;
+    await enqueue((live) => reloadNow(readyPhase.repo, live));
+  }, [readyPhase, enqueue, reloadNow]);
+
+  const readyStorage = readyPhase?.storage ?? null;
+
+  /** Runs `task` as the only thing in the queue; `busyRef` makes a second call fail fast (double click, navigation). */
+  const runBackupTask = useCallback(
+    async <T,>(kind: "backup" | "restore", task: (live: () => boolean) => Promise<T>): Promise<T> => {
+      if (busyRef.current) throw new Error(BUSY_MESSAGE);
+      busyRef.current = kind;
+      setBackupBusy(kind);
+      try {
+        const out = await enqueue(task);
+        if (out === undefined) throw new Error("La carpeta cambió. Inténtalo de nuevo.");
+        return out;
+      } finally {
+        busyRef.current = null;
+        setBackupBusy(null);
+      }
+    },
+    [enqueue],
+  );
+
+  const runBackup = useCallback(async (): Promise<string> => {
+    if (!readyStorage) throw new Error("La carpeta no está lista.");
+    return runBackupTask("backup", async (live) => {
+      const { saveBackup, lastBackupDate } = await import("@/backup/backup");
+      const name = await saveBackup(readyStorage, "manual");
+      const date = await lastBackupDate(readyStorage);
+      if (live()) setBackupDate(date);
+      return name;
     });
-  }, [readyPhase, enqueue, commit]);
+  }, [readyStorage, runBackupTask]);
+
+  const restoreBackupFile = useCallback(
+    async (file: Blob, replace: boolean): Promise<void> => {
+      if (!readyPhase) throw new Error("La carpeta no está lista.");
+      const { repo, storage } = readyPhase;
+      await runBackupTask("restore", async (live) => {
+        try {
+          const { restoreBackup } = await import("@/backup/restore");
+          await restoreBackup(storage, file, { replace });
+        } finally {
+          // Even after a partial failure the screen must show what is really on disk, inside this same slot.
+          await reloadNow(repo, live);
+          const { lastBackupDate } = await import("@/backup/backup");
+          const date = await lastBackupDate(storage).catch(() => null);
+          if (live()) setBackupDate(date);
+        }
+        return true;
+      });
+    },
+    [readyPhase, runBackupTask, reloadNow],
+  );
+
+  /** Weekly automatic backup: queued after the first paint, never throws into the UI. */
+  const autoBackupFor = useRef<Storage | null>(null);
+  useEffect(() => {
+    if (!readyStorage || autoBackupFor.current === readyStorage) return;
+    autoBackupFor.current = readyStorage;
+    const storage = readyStorage;
+    void enqueue(async (live) => {
+      try {
+        const { lastBackupDate, hasData, saveBackup } = await import("@/backup/backup");
+        let date = await lastBackupDate(storage);
+        if (live()) setBackupDate(date);
+        const stale = date ? daysSince(date) > AUTO_BACKUP_AFTER_DAYS : await hasData(storage);
+        if (!stale || busyRef.current) return;
+        busyRef.current = "backup";
+        setBackupBusy("backup");
+        try {
+          await saveBackup(storage, "auto");
+          date = await lastBackupDate(storage);
+          if (live()) {
+            setBackupDate(date);
+            setBackupError("");
+          }
+        } finally {
+          busyRef.current = null;
+          setBackupBusy(null);
+        }
+      } catch (e) {
+        console.warn("Automatic backup failed", e);
+        if (live()) setBackupError(errorMessage(e));
+      }
+    }).catch(() => undefined);
+  }, [readyStorage, enqueue]);
 
   const value = useMemo<WorkspaceValue | null>(() => {
     if (!readyPhase || !loaded) return null;
@@ -306,6 +432,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       profile: loaded.profile,
       canChooseFolder: supportsFolderAccess(),
       reload,
+      backupDate,
+      backupWarning: backupDate === null || (backupDate !== undefined && daysSince(backupDate) > BACKUP_WARNING_AFTER_DAYS),
+      backupError,
+      backupBusy,
+      runBackup,
+      restoreBackupFile,
       changeFolder: pickFolder,
       setYear: (y) =>
         enqueue(async (live) => {
@@ -373,7 +505,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           if (cur && live()) commit({ ...cur, profile: p });
         }),
     };
-  }, [readyPhase, loaded, reload, pickFolder, enqueue, commit]);
+  }, [readyPhase, loaded, reload, backupDate, backupError, backupBusy, runBackup, restoreBackupFile, pickFolder, enqueue, commit]);
 
   if (value && readyPhase) {
     return (

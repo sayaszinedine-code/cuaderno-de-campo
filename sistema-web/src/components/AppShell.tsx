@@ -28,7 +28,7 @@ const PERSONAL: NavItem[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { profile } = useAccount();
-  const { year, years, setYear } = useWorkspace();
+  const { year, years, setYear, backupWarning } = useWorkspace();
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const admin: NavItem[] = profile.role === "admin" ? [{ label: "Administración", href: "/admin/" }] : [];
@@ -117,6 +117,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        {backupWarning && (
+          <p role="status" className="bg-accent-soft text-foreground mx-4 rounded-xl px-4 py-2 text-sm md:mx-8">
+            Haz un respaldo de tus datos. Ve a Carpeta › Respaldos.
+          </p>
+        )}
         <main className="px-4 py-4 md:px-8">{children}</main>
       </div>
     </div>

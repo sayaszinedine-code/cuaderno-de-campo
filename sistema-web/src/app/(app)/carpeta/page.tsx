@@ -1,5 +1,6 @@
 "use client";
 
+import { BackupPanel } from "@/backup/BackupPanel";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 export default function CarpetaPage() {
@@ -29,6 +30,7 @@ export default function CarpetaPage() {
       Niños/<Apellidos, Nombres>/`}</pre>
         <p>Haz copias de esta carpeta con frecuencia (por ejemplo, en una memoria USB).</p>
       </section>
+      <BackupPanel />
     </div>
   );
 }
