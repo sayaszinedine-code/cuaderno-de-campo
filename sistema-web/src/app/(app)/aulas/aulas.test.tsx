@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
-import { yearDataPath } from "@/domain/paths";
+import { gradesPath, yearDataPath } from "@/domain/paths";
 import { createClassroom, addStudent } from "@/domain/classrooms";
 import { SCHEMA_VERSION, type YearData } from "@/domain/schema";
 
@@ -105,6 +105,34 @@ describe("Aulas page", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
     fireEvent.click(screen.getByLabelText("AD, A, B, C y conclusión"));
     await waitFor(async () => expect((await saved()).classrooms[0].cycleIGrading).toBe("scale"));
+  });
+
+  it("strips saved levels of that classroom when cycle I grading becomes descriptive", async () => {
+    await seed((d) => {
+      const withRoom = createClassroom(d, { name: "Nido", cycle: "I", bands: ["18m"] }, () => "c1");
+      const withKid = addStudent(withRoom, { classroomId: "c1", firstNames: "Ana", lastNames: "Paz" }, () => "s1");
+      return {
+        ...withKid,
+        classrooms: withKid.classrooms.map((c) => ({ ...c, cycleIGrading: "scale" as const })),
+      };
+    });
+    await storage.writeTextAtomic(
+      gradesPath(year),
+      JSON.stringify({
+        version: SCHEMA_VERSION,
+        schoolYear: year,
+        entries: [{ studentId: "s1", competencyId: "k", periodId: "B1", level: "A", conclusion: "ok", updatedAt: "" }],
+        finals: [],
+      }),
+    );
+    renderIn(<AulasPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    fireEvent.click(screen.getByLabelText("Solo conclusión descriptiva"));
+    await waitFor(async () => {
+      const g = JSON.parse((await storage.readText(gradesPath(year))) ?? "{}");
+      expect(g.entries[0].level).toBeUndefined();
+      expect(g.entries[0].conclusion).toBe("ok");
+    });
   });
 
   it("disables and re-enables an optional competency", async () => {

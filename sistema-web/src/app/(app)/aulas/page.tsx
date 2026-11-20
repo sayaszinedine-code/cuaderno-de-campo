@@ -11,6 +11,7 @@ import {
 } from "@/domain/classrooms";
 import type { Classroom, Period, YearData } from "@/domain/schema";
 import { CYCLE_BANDS, getCompetencies, type AgeBand, type Cycle } from "@/curriculum";
+import { stripLevelsForDescriptive } from "@/domain/grades";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 function errorText(e: unknown): string {
@@ -157,6 +158,7 @@ function EditClassroom({
   const [name, setName] = useState(classroom.name);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const { updateGrades, year } = useWorkspace();
   const optional = getCompetencies(classroom.cycle).filter((c) => c.optional);
 
   async function run(change: (d: YearData) => YearData): Promise<boolean> {
@@ -164,6 +166,16 @@ function EditClassroom({
     setError(msg);
     setSaved(ok);
     return ok;
+  }
+
+  /** Saves the grading mode; going descriptive also drops this classroom's stored levels (kept conclusions). */
+  async function setGrading(value: Classroom["cycleIGrading"]) {
+    let changed: YearData | null = null;
+    const ok = await run((d) => (changed = updateClassroom(d, classroom.id, { cycleIGrading: value })));
+    const next = changed as YearData | null;
+    if (!ok || value !== "descriptive" || !next) return;
+    const room = next.classrooms.find((c) => c.id === classroom.id);
+    if (room) await updateGrades((f) => stripLevelsForDescriptive(f, room, next.students), { year });
   }
 
   const toggleCompetency = (id: string, enabled: boolean) =>
@@ -222,7 +234,7 @@ function EditClassroom({
                 type="radio"
                 name={`grading-${classroom.id}`}
                 checked={classroom.cycleIGrading === value}
-                onChange={() => void run((d) => updateClassroom(d, classroom.id, { cycleIGrading: value }))}
+                onChange={() => void setGrading(value)}
               />
               {label}
             </label>
