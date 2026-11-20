@@ -94,6 +94,12 @@ export const MOMENTS = [
   "Fuera del aula / visita",
 ] as const;
 export const LEVELS = ["AD", "A", "B", "C"] as const;
+export const LEVEL_LABELS: Record<(typeof LEVELS)[number], string> = {
+  AD: "Logro destacado",
+  A: "Logro esperado",
+  B: "En proceso",
+  C: "En inicio",
+};
 
 const selectedPerformanceShape = z.object({
   competencyId: z.string(),
@@ -126,6 +132,36 @@ const notesFileShape = z.object({
   schoolYear: z.number().int().min(1000).max(9999),
   notes: z.array(fieldNoteShape),
 });
+
+const gradeEntryShape = z.object({
+  studentId: z.string().min(1),
+  competencyId: z.string().min(1),
+  periodId: periodShape.shape.id,
+  level: z.enum(LEVELS).optional(),
+  conclusion: z.string(),
+  updatedAt: z.string(),
+});
+
+const finalOverrideShape = z.object({
+  studentId: z.string().min(1),
+  competencyId: z.string().min(1),
+  level: z.enum(LEVELS).optional(),
+  conclusion: z.string(),
+  updatedAt: z.string(),
+});
+
+const gradesFileShape = z.object({
+  version: z.literal(SCHEMA_VERSION),
+  schoolYear: z.number().int().min(1000).max(9999),
+  entries: z.array(gradeEntryShape),
+  finals: z.array(finalOverrideShape),
+});
+
+export const gradeEntrySchema = gradeEntryShape.loose();
+export const finalOverrideSchema = finalOverrideShape.loose();
+export const gradesFileSchema = gradesFileShape
+  .extend({ entries: z.array(gradeEntrySchema), finals: z.array(finalOverrideSchema) })
+  .loose();
 
 export const fieldNoteSchema = fieldNoteShape.loose();
 export const notesFileSchema = notesFileShape.extend({ notes: z.array(fieldNoteSchema) }).loose();
@@ -168,3 +204,6 @@ export type Level = (typeof LEVELS)[number];
 export type SelectedPerformance = z.infer<typeof selectedPerformanceShape>;
 export type FieldNote = z.infer<typeof fieldNoteShape>;
 export type NotesFile = z.infer<typeof notesFileShape>;
+export type GradeEntry = z.infer<typeof gradeEntryShape>;
+export type FinalOverride = z.infer<typeof finalOverrideShape>;
+export type GradesFile = z.infer<typeof gradesFileShape>;

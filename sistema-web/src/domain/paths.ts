@@ -14,6 +14,7 @@ export function safeName(s: string): string {
 export const profilePath = () => "datos/perfil.json";
 export const yearDataPath = (y: number) => `${y}/datos/anio.json`;
 export const notesPath = (y: number) => `${y}/datos/cuaderno.json`;
+export const gradesPath = (y: number) => `${y}/datos/notas.json`;
 
 function bandsLabel(bands: Classroom["bands"]): string {
   if (bands.length !== 1) return "multiedad";
