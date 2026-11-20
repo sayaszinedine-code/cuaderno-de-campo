@@ -1,4 +1,4 @@
-import type { Storage, StorageEntry } from "./types";
+import type { FileWriter, Storage, StorageEntry } from "./types";
 import { blobToText, splitPath } from "./path";
 
 /** In-memory backend for tests and as a last-resort fallback. Keys are normalized paths. */
@@ -26,6 +26,27 @@ export class MemoryStorage implements Storage {
 
   async writeTextAtomic(path: string, text: string): Promise<void> {
     await this.writeFile(path, new Blob([text], { type: "application/json" }));
+  }
+
+  async createWriter(path: string): Promise<FileWriter> {
+    const key = this.key(path);
+    const chunks: BlobPart[] = [];
+    let open = true;
+    return {
+      write: async (chunk) => {
+        if (!open) throw new Error("Writer closed");
+        chunks.push(chunk.slice());
+      },
+      close: async () => {
+        if (!open) throw new Error("Writer closed");
+        open = false;
+        this.files.set(key, new Blob(chunks));
+      },
+      abort: async () => {
+        open = false;
+        chunks.length = 0;
+      },
+    };
   }
 
   async list(dir: string): Promise<StorageEntry[]> {
