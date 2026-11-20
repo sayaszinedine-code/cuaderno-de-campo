@@ -12,6 +12,9 @@ const pick = vi.hoisted(() => ({
   openFallbackStorage: vi.fn(),
 }));
 vi.mock("@/storage/pick", () => pick);
+vi.mock("@/components/AccountGate", () => ({
+  useAccount: () => ({ refresh: vi.fn(), profile: { id: "u1" } }),
+}));
 
 import { WorkspaceProvider } from "@/workspace/WorkspaceProvider";
 import NotasPage from "./page";
@@ -95,6 +98,16 @@ describe("Notas page", () => {
     await seed({ data: { ...base(), classrooms: [], students: [] } });
     renderIn();
     expect(await screen.findByText("Primero crea un aula en «Aulas».")).toBeInTheDocument();
+  });
+
+  it("links each child to the yearly summary", async () => {
+    await seed();
+    renderIn();
+    await screen.findByText("Luz Rojas");
+    expect(screen.getByRole("link", { name: "Ver año de Luz Rojas" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/notas/anual?aula=c1&nino=s1"),
+    );
   });
 
   it("lists active children and active competencies", async () => {

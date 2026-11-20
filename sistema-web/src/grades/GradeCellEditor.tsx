@@ -19,6 +19,7 @@ export function GradeCellEditor({
   mobile,
   evidence,
   onSave,
+  onReset,
   onClose,
   opener,
   children,
@@ -32,6 +33,8 @@ export function GradeCellEditor({
   evidence: ReactNode;
   /** Resolves true when the grade was saved. */
   onSave: (values: GradeFormValues) => Promise<boolean>;
+  /** When given, shows «Volver al automático»; resolves true when the override was removed. */
+  onReset?: () => Promise<boolean>;
   onClose: () => void;
   /** Element that opened the editor; gets focus back on close. */
   opener?: HTMLElement | null;
@@ -75,6 +78,19 @@ export function GradeCellEditor({
     setSaving(true);
     setFailed(false);
     const ok = await onSave({ level: scale ? level : undefined, conclusion });
+    if (!ok) {
+      busy.current = false;
+      setFailed(true);
+      setSaving(false);
+    }
+  };
+
+  const reset = async () => {
+    if (!onReset || busy.current) return;
+    busy.current = true;
+    setSaving(true);
+    setFailed(false);
+    const ok = await onReset();
     if (!ok) {
       busy.current = false;
       setFailed(true);
@@ -134,13 +150,18 @@ export function GradeCellEditor({
             No se pudo guardar la nota. Tus datos siguen aquí; inténtalo de nuevo.
           </p>
         )}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button type="button" className="btn-primary" disabled={saving} onClick={() => void save()}>
             Guardar
           </button>
           <button type="button" className="btn-secondary" onClick={onClose}>
             Cancelar
           </button>
+          {onReset && (
+            <button type="button" className="btn-secondary" disabled={saving} onClick={() => void reset()}>
+              Volver al automático
+            </button>
+          )}
         </div>
       </div>
     </>

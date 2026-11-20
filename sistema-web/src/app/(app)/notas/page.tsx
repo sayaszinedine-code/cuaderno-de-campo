@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { DEFAULT_AI_SETTINGS, loadAiSettings, type AiSettings } from "@/ai/settings";
+import { useAccount } from "@/components/AccountGate";
 import { areaIdFor } from "@/curriculum";
 import { areaName } from "@/domain/areas";
 import { classroomLabel, todayISO } from "@/domain/classrooms";
@@ -8,7 +11,9 @@ import { evidenceFor, gradeTable, progress, setGrade, usesScale } from "@/domain
 import { periodOf } from "@/domain/notes";
 import { LEVELS, type GradeEntry, type Period, type Student } from "@/domain/schema";
 import { EvidenceList } from "@/grades/EvidenceList";
+import { AiConclusion } from "@/grades/AiConclusion";
 import { GradeCellEditor, type GradeFormValues } from "@/grades/GradeCellEditor";
+import { useIsMobile } from "@/grades/useIsMobile";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 const PERIOD_IDS: Period["id"][] = ["B1", "B2", "B3", "B4"];
@@ -21,24 +26,6 @@ const BADGE: Record<(typeof LEVELS)[number], string> = {
 };
 
 const fullName = (s: Student) => `${s.firstNames} ${s.lastNames}`.trim();
-
-const QUERY = "(max-width: 767px)";
-
-/** True on phone-width screens; updates when the viewport crosses the breakpoint. */
-function useIsMobile(): boolean {
-  const [mobile, setMobile] = useState(
-    () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(QUERY).matches,
-  );
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia(QUERY);
-    setMobile(mq.matches);
-    const on = (e: MediaQueryListEvent) => setMobile(e.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  return mobile;
-}
 
 function cellText(e: GradeEntry | undefined, scale: boolean): string {
   if (scale) return e?.level ?? "sin nota";
@@ -68,6 +55,11 @@ function CellContent({ entry, scale }: { entry: GradeEntry | undefined; scale: b
 export default function NotasPage() {
   const { storage, yearData, notes, grades, updateGrades, year } = useWorkspace();
   const mobile = useIsMobile();
+  const { profile } = useAccount();
+  const [aiSettings, setAiSettings] = useState<AiSettings>(DEFAULT_AI_SETTINGS);
+  useEffect(() => {
+    setAiSettings(loadAiSettings(profile.id));
+  }, [profile.id]);
   const [classroomPick, setClassroomPick] = useState("");
   const [periodPick, setPeriodPick] = useState<Period["id"] | null>(null);
   const [open, setOpen] = useState<{ studentId: string; competencyId: string; opener: HTMLElement | null } | null>(null);
@@ -107,6 +99,17 @@ export default function NotasPage() {
   const openStudent = open ? table.students.find((s) => s.id === open.studentId) : undefined;
   const openComp = open ? table.competencies.find((c) => c.id === open.competencyId) : undefined;
   const openEntry = open ? table.cell(open.studentId, open.competencyId) : undefined;
+
+  const openNotes = open
+    ? evidenceFor(notes, {
+        studentId: open.studentId,
+        competencyId: open.competencyId,
+        periodId,
+        periods: yearData.periods,
+        students: yearData.students,
+      })
+    : [];
+  const yearLink = (s: Student) => `/notas/anual/?aula=${encodeURIComponent(classroom.id)}&nino=${encodeURIComponent(s.id)}`;
 
   const label = (s: Student, compName: string, e: GradeEntry | undefined) =>
     `${fullName(s)} — ${compName}: ${cellText(e, scale)}`;
@@ -173,6 +176,11 @@ export default function NotasPage() {
               </button>
               {expanded === s.id && (
                 <ul className="mt-2 space-y-2">
+                  <li>
+                    <Link className="underline" href={yearLink(s)} aria-label={`Ver año de ${fullName(s)}`}>
+                      Ver año
+                    </Link>
+                  </li>
                   {table.competencies.map((c) => {
                     const e = table.cell(s.id, c.id);
                     return (
@@ -202,6 +210,9 @@ export default function NotasPage() {
                 <th className="sticky left-0 z-10 bg-background" rowSpan={2} scope="col">
                   Niño o niña
                 </th>
+                <th rowSpan={2} scope="col" className="px-2 py-1 font-medium">
+                  Año
+                </th>
                 {groups.map((g) => (
                   <th key={g.area} colSpan={g.count} scope="colgroup" className="border-b border-border px-2 py-1">
                     {g.area}
@@ -222,6 +233,11 @@ export default function NotasPage() {
                   <th scope="row" className="sticky left-0 z-10 whitespace-nowrap bg-background px-2 py-1 text-left font-medium">
                     {fullName(s)}
                   </th>
+                  <td className="border-b border-border px-2 text-center">
+                    <Link className="underline" href={yearLink(s)} aria-label={`Ver año de ${fullName(s)}`}>
+                      Ver año
+                    </Link>
+                  </td>
                   {table.competencies.map((c) => {
                     const e = table.cell(s.id, c.id);
                     return (
@@ -254,13 +270,7 @@ export default function NotasPage() {
           initial={{ level: openEntry?.level, conclusion: openEntry?.conclusion ?? "" }}
           evidence={
             <EvidenceList
-              notes={evidenceFor(notes, {
-                studentId: open.studentId,
-                competencyId: open.competencyId,
-                periodId,
-                periods: yearData.periods,
-                students: yearData.students,
-              })}
+              notes={openNotes}
               students={yearData.students}
               storage={storage}
             />
@@ -268,7 +278,20 @@ export default function NotasPage() {
           opener={open.opener}
           onSave={save}
           onClose={() => setOpen(null)}
-        />
+        >
+          {({ values, setConclusion }) => (
+            <AiConclusion
+              settings={aiSettings}
+              competencyId={openComp.id}
+              competencyName={openComp.name}
+              level={values.level}
+              notes={openNotes}
+              yearStudents={yearData.students}
+              current={values.conclusion}
+              onUse={setConclusion}
+            />
+          )}
+        </GradeCellEditor>
       )}
     </div>
   );

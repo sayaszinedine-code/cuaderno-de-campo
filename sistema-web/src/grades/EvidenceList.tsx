@@ -9,18 +9,22 @@ export function EvidenceList({
   notes,
   students,
   storage,
+  title = "Evidencias del bimestre",
+  emptyHint = "Aún no hay registros del cuaderno para esta competencia en este bimestre.",
 }: {
   notes: FieldNote[];
   students: Student[];
   storage: Storage;
+  title?: string;
+  emptyHint?: string;
 }) {
   return (
     <section aria-labelledby="evidence-title" className="space-y-2">
       <h3 id="evidence-title" className="font-semibold">
-        {`Evidencias del bimestre (${notes.length})`}
+        {`${title} (${notes.length})`}
       </h3>
       {notes.length === 0 ? (
-        <p className="text-sm text-muted">Aún no hay registros del cuaderno para esta competencia en este bimestre.</p>
+        <p className="text-sm text-muted">{emptyHint}</p>
       ) : (
         <ul className="space-y-2">
           {notes.map((n) => (
