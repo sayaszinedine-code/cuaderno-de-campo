@@ -30,12 +30,13 @@ export function objectiveEvidence(rawNote: string): BuiltPrompt {
 export function suggestCompetency(
   note: string,
   competencies: { id: string; name: string }[],
-  performances: { index: number; text: string }[],
+  /** Desempeños of every competency, numbered globally. */
+  performances: { index: number; competency: string; text: string }[],
 ): BuiltPrompt {
   const comps = competencies.map((c, i) => `${i + 1}. [${c.id}] ${c.name}`).join("\n");
-  const perfs = performances.map((p) => `${p.index}. ${p.text}`).join("\n");
+  const perfs = performances.map((p) => `[${p.index}] ${p.competency} — ${p.text}`).join("\n");
   return build(
-    'Elige la competencia y los desempeños que mejor corresponden a la observación, SOLO de las listas dadas. Responde únicamente con JSON, sin texto adicional, con la forma {"competencyId": string, "performanceIndexes": number[], "reason": string}. "reason" va en español, breve. No inventes datos.',
+    'Elige la competencia y los desempeños que mejor corresponden a la observación, SOLO de las listas dadas. Los desempeños elegidos deben ser de la competencia elegida. Responde únicamente con JSON, sin texto adicional, con la forma {"competencyId": string, "performanceIndexes": number[], "reason": string}. "competencyId" es el código entre corchetes de la competencia; "performanceIndexes" son los números entre corchetes de los desempeños. "reason" va en español, breve. No inventes datos.',
     `Observación:\n${note}\n\nCompetencias:\n${comps}\n\nDesempeños (usa los números):\n${perfs}`,
   );
 }

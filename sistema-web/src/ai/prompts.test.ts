@@ -15,7 +15,7 @@ describe("prompts", () => {
   it("builders include system, Spanish and no-invent instructions", () => {
     const all = [
       objectiveEvidence("n"),
-      suggestCompetency("n", [{ id: "c1", name: "Juega" }], [{ index: 1, text: "d" }]),
+      suggestCompetency("n", [{ id: "c1", name: "Juega" }], [{ index: 1, competency: "Juega", text: "d" }]),
       interpretation("e", "c", ["d"]),
       describePhoto(),
     ];
@@ -26,5 +26,6 @@ describe("prompts", () => {
     }
     expect(all[1].prompt).toMatch(/JSON/);
     expect(all[1].prompt).toContain("1. [c1] Juega");
+    expect(all[1].prompt).toContain("[1] Juega — d");
   });
 });

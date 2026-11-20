@@ -22,6 +22,8 @@ vi.mock("@/components/AccountGate", () => ({
 }));
 const compress = vi.hoisted(() => ({ compressPhoto: vi.fn() }));
 vi.mock("@/domain/photo", async (orig) => ({ ...(await orig<typeof import("@/domain/photo")>()), ...compress }));
+const ai = vi.hoisted(() => ({ generateWithSettings: vi.fn() }));
+vi.mock("@/ai", () => ai);
 
 import { WorkspaceProvider } from "@/workspace/WorkspaceProvider";
 import RegistroPage from "./page";
@@ -63,6 +65,7 @@ beforeEach(() => {
   pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
   push.mockReset();
   compress.compressPhoto.mockReset();
+  ai.generateWithSettings.mockReset();
   compress.compressPhoto.mockImplementation(async (f: Blob) => f);
   window.history.pushState({}, "", "/cuaderno/registro/");
   window.localStorage.clear();
@@ -226,6 +229,39 @@ describe("Registro page", () => {
     expect(await savedNotes()).toHaveLength(0);
   });
 
+  it("same-day notes sharing a photo folder never overwrite or delete each other's photos", async () => {
+    const c = build().classrooms[0];
+    const date = `${year}-06-10`;
+    const a = existing({ id: "abcd1234-aaaa", date });
+    const b = existing({ id: "abcd1234-bbbb", date, evidenceText: "Pintó" });
+    const dir = noteDir(year, c, a);
+    expect(noteDir(year, c, b)).toBe(dir);
+    const aPhoto = `${dir}evidencia-1.jpg`;
+    await seed({ notes: [{ ...a, evidence: [aPhoto] }, b] });
+    await storage.writeFile(aPhoto, new Blob(["A"]));
+    window.history.pushState({}, "", `/cuaderno/registro/?id=${b.id}`);
+    const { unmount } = renderPage();
+    fireEvent.change(await screen.findByLabelText("Agregar fotos"), {
+      target: { files: [new File(["B"], "b.jpg", { type: "image/jpeg" })] },
+    });
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Quitar foto/ })).toHaveLength(1));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/cuaderno/"));
+    const savedB = (await savedNotes()).find((n) => n.id === b.id) as FieldNote;
+    expect(savedB.evidence).toHaveLength(1);
+    expect(savedB.evidence[0]).not.toBe(aPhoto);
+    expect(await (await storage.readFile(aPhoto))?.text()).toBe("A");
+    unmount();
+    push.mockReset();
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Eliminar registro" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, eliminar" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/cuaderno/"));
+    expect(await storage.readFile(savedB.evidence[0])).toBeNull();
+    expect(await (await storage.readFile(aPhoto))?.text()).toBe("A");
+    expect((await savedNotes()).map((n) => n.id)).toEqual([a.id]);
+  });
+
   it("hides the level for descriptive cycle I", async () => {
     const d = build((x) => {
       let y = createClassroom({ ...x, classrooms: [] }, { name: "Gateadores", cycle: "I", bands: ["18m"] }, () => "c1");
@@ -371,5 +407,28 @@ describe("Registro page", () => {
     expect(await screen.findByRole("button", { name: "Redactar de forma objetiva" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sugerir competencia y desempeños" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Redactar interpretación" })).toBeInTheDocument();
+  });
+
+  it("anonymizes every student of the year, including other classrooms and archived ones", async () => {
+    const d = build((x) => {
+      let y = createClassroom(x, { name: "Tulipanes", cycle: "II", bands: ["5y"] }, () => "c2");
+      y = addStudent(y, { classroomId: "c2", firstNames: "Pedro", lastNames: "Mamani" }, () => "s3");
+      y = addStudent(y, { classroomId: "c2", firstNames: "Rosa", lastNames: "Ccori" }, () => "s4");
+      return { ...y, students: y.students.map((s) => (s.id === "s4" ? { ...s, active: false } : s)) };
+    });
+    await seed({ data: d });
+    window.localStorage.setItem(
+      "ai-settings:u1",
+      JSON.stringify({ enabled: true, provider: "deepseek", apiKeys: { deepseek: "k" }, consentAt: "2026-01-01T00:00:00Z" }),
+    );
+    ai.generateWithSettings.mockResolvedValue("Texto");
+    renderPage();
+    fireEvent.change(await screen.findByLabelText("¿Qué hizo o dijo? Describe los hechos"), {
+      target: { value: "Luz jugó con Pedro Mamani y con Rosa." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Redactar de forma objetiva" }));
+    await waitFor(() => expect(ai.generateWithSettings).toHaveBeenCalled());
+    const sent = JSON.stringify(ai.generateWithSettings.mock.calls[0][1]);
+    expect(sent).not.toMatch(/Luz|Pedro|Mamani|Rosa/);
   });
 });

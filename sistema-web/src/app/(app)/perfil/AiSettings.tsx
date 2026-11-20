@@ -2,9 +2,14 @@
 
 import { useState } from "react";
 import { generateWithSettings } from "@/ai";
-import { loadAiSettings, saveAiSettings, type AiSettings as Settings } from "@/ai/settings";
+import { currentApiKey, loadAiSettings, saveAiSettings, type AiSettings as Settings } from "@/ai/settings";
 import { prompts, SYSTEM_PROMPT } from "@/ai/prompts";
 import { AI_ERROR_MESSAGES, AI_PROVIDERS, AiError, type AiProviderId } from "@/ai/types";
+
+const PROVIDER_CHANGED = "Cambiaste de proveedor: vuelve a aceptar el consentimiento.";
+const BAD_KEY = "La clave tiene caracteres no válidos. Cópiala de nuevo.";
+/** Printable ASCII without spaces: rejects invisible characters picked up when copying. */
+const KEY_CHARS = /^[\x21-\x7e]+$/;
 
 export function AiSettings({ userId }: { userId: string }) {
   const [settings, setSettings] = useState<Settings>(() => loadAiSettings(userId));
@@ -13,8 +18,11 @@ export function AiSettings({ userId }: { userId: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
+  const [providerChanged, setProviderChanged] = useState(false);
+  const [keyError, setKeyError] = useState("");
 
   const provider = AI_PROVIDERS[settings.provider];
+  const apiKey = currentApiKey(settings);
 
   function persist(next: Settings) {
     try {
@@ -39,25 +47,34 @@ export function AiSettings({ userId }: { userId: string }) {
 
   function accept() {
     setAsking(false);
+    setProviderChanged(false);
     persist({ ...settings, enabled: true, consentAt: new Date().toISOString() });
   }
 
   function onProvider(id: AiProviderId) {
-    // A different provider is a new recipient: ask for consent again.
-    persist({ enabled: false, provider: id, apiKey: settings.apiKey });
+    // A different provider is a new recipient: ask for consent again. Keys stay with their own provider.
+    persist({ enabled: false, provider: id, apiKeys: settings.apiKeys });
+    setProviderChanged(true);
     setAsking(false);
     setTestResult(null);
   }
 
   function saveKey() {
-    const apiKey = keyInput.trim();
-    if (!apiKey) return;
-    persist({ ...settings, apiKey });
+    const value = keyInput.trim();
+    if (!value) return;
+    if (!KEY_CHARS.test(value)) {
+      setKeyError(BAD_KEY);
+      return;
+    }
+    setKeyError("");
+    persist({ ...settings, apiKeys: { ...settings.apiKeys, [settings.provider]: value } });
     setKeyInput("");
   }
 
   function clearKey() {
-    persist({ ...settings, enabled: false, apiKey: "" });
+    const apiKeys = { ...settings.apiKeys };
+    delete apiKeys[settings.provider];
+    persist({ ...settings, enabled: false, apiKeys });
     setTestResult(null);
   }
 
@@ -113,6 +130,11 @@ export function AiSettings({ userId }: { userId: string }) {
           <option value="claude">Claude</option>
         </select>
       </label>
+      {providerChanged && (
+        <p role="status" className="rounded-xl bg-accent-soft p-3">
+          {PROVIDER_CHANGED}
+        </p>
+      )}
       <div className="space-y-1">
         <label className="block space-y-1">
           <span>Clave de IA</span>
@@ -121,16 +143,24 @@ export function AiSettings({ userId }: { userId: string }) {
             type="password"
             autoComplete="off"
             value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
-            placeholder={settings.apiKey ? `Guardada: …${settings.apiKey.slice(-4)}` : "Pega tu clave"}
+            onChange={(e) => {
+              setKeyInput(e.target.value);
+              setKeyError("");
+            }}
+            placeholder={apiKey ? `Guardada: …${apiKey.slice(-4)}` : "Pega tu clave"}
           />
         </label>
         <button type="button" className="btn" onClick={saveKey} disabled={!keyInput.trim()}>
           Guardar clave
         </button>
-        {settings.apiKey && (
+        {keyError && (
+          <p role="alert" className="rounded-xl bg-danger-soft p-3">
+            {keyError}
+          </p>
+        )}
+        {apiKey && (
           <>
-            <p className="text-sm">Clave guardada: …{settings.apiKey.slice(-4)}</p>
+            <p className="text-sm">Clave guardada: …{apiKey.slice(-4)}</p>
             <button type="button" className="btn" onClick={clearKey}>Borrar clave</button>
           </>
         )}

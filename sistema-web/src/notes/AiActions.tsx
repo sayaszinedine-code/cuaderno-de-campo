@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { generateWithSettings } from "@/ai";
 import type { AiSettings } from "@/ai/settings";
 import { AI_ERROR_MESSAGES, AiError } from "@/ai/types";
-import { anonymize } from "@/ai/anonymize";
+import { anonymize, deanonymize } from "@/ai/anonymize";
 import {
   describePhoto,
   interpretation,
@@ -55,15 +55,18 @@ export function AiAction<S>({
   isStale?: (snap: S) => boolean;
   /** Error message when the final text cannot be used; the box is not shown. */
   check?: (text: string, snap: S) => string | null;
-  /** Text shown in the box for the raw model output (default: as is). */
+  /** Text shown in the box for the raw model output, also while streaming (default: as is). */
   show?: (text: string, snap: S) => string;
   /** Show «Generando…» instead of partial output while streaming. */
   hideStream?: boolean;
 }) {
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<{ text: string; snap: S | null } | null>(
-    null,
-  );
+  /** `final` is false while streaming: only a final result can be used. */
+  const [result, setResult] = useState<{
+    text: string;
+    snap: S;
+    final: boolean;
+  } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
@@ -92,7 +95,7 @@ export function AiAction<S>({
         ...request,
         signal: ctrl.signal,
         onText: (t) => {
-          if (!ctrl.signal.aborted) setResult({ text: t, snap: null });
+          if (!ctrl.signal.aborted) setResult({ text: t, snap, final: false });
         },
       });
       if (ctrl.signal.aborted) return;
@@ -101,7 +104,7 @@ export function AiAction<S>({
         setResult(null);
         setError(problem);
       } else {
-        setResult({ text: full, snap });
+        setResult({ text: full, snap, final: true });
       }
     } catch (e) {
       if (ctrl.signal.aborted) return;
@@ -130,7 +133,7 @@ export function AiAction<S>({
   }
 
   function use(force: boolean) {
-    if (!result || result.snap === null) return;
+    if (!result || !result.final) return;
     if (!force && isStale?.(result.snap)) {
       setConfirming(true);
       return;
@@ -166,7 +169,7 @@ export function AiAction<S>({
           <p className="whitespace-pre-wrap" data-testid="ai-result">
             {running && hideStream
               ? "Generando…"
-              : show && result.snap !== null
+              : show
                 ? show(result.text, result.snap)
                 : result.text}
           </p>
@@ -220,11 +223,14 @@ const NO_PHOTO = "No se pudo leer la foto.";
 const BAD_SUGGESTION =
   "La IA no devolvió una sugerencia válida. Intenta de nuevo.";
 
-/** What was sent: the target field's value and, for suggestions, the exact lists the indexes refer to. */
+/**
+ * What was sent: the target field's value, the exact list suggestion indexes refer to, and the
+ * legend to restore the children's names locally (the legend itself is never sent).
+ */
 interface Snap {
   field: string;
-  competencyId?: string;
   items: SelectedPerformance[];
+  legend: Record<string, string>;
 }
 
 /** AI action bound to one field of the note. Writes to the note only through `onPatch`, after «Usar». */
@@ -233,7 +239,7 @@ export function AiNoteAction({
   settings,
   note,
   classroom,
-  classroomStudents,
+  yearStudents,
   noteStudents,
   schoolYear,
   storage,
@@ -243,8 +249,8 @@ export function AiNoteAction({
   settings: AiSettings;
   note: FieldNote;
   classroom: Classroom;
-  /** Every student of the classroom (active and archived): all of them are anonymized. */
-  classroomStudents: Student[];
+  /** Every student of the school year (all classrooms, active and archived): all of them are anonymized. */
+  yearStudents: Student[];
   /** Students selected in the note (used to pick the default age band). */
   noteStudents: Student[];
   schoolYear: number;
@@ -257,37 +263,38 @@ export function AiNoteAction({
   )
     return null;
 
-  const clean = (t: string) => anonymize(t, classroomStudents).text;
   const competencies = activeCompetencies(classroom);
   const selected = competencies.find((c) => c.id === note.competencyId);
   const currentField =
     kind === "interpretation" ? note.interpretation : note.evidenceText;
 
-  /** Desempeños of the default band for the selected competency, in the order shown to the model. */
-  const bandItems = (): SelectedPerformance[] => {
-    if (!selected) return [];
-    const band = performanceOptions({
-      classroom,
-      students: noteStudents,
-      competencyId: selected.id,
-      date: note.date,
-      schoolYear,
-    }).defaultBand;
-    if (!band) return [];
-    return getPerformances(selected.id, band).map((p) => ({
-      competencyId: selected.id,
-      band,
-      text: p.text,
-    }));
-  };
+  /** Default-band desempeños of every active competency, in the order (and numbering) shown to the model. */
+  const bandItems = (): SelectedPerformance[] =>
+    competencies.flatMap((c) => {
+      const band = performanceOptions({
+        classroom,
+        students: noteStudents,
+        competencyId: c.id,
+        date: note.date,
+        schoolYear,
+      }).defaultBand;
+      return band
+        ? getPerformances(c.id, band).map((p) => ({
+            competencyId: c.id,
+            band,
+            text: p.text,
+          }))
+        : [];
+    });
 
   const build = async (): Promise<
     { request: AiInput; snap: Snap } | string
   > => {
-    const snap: Snap = {
-      field: currentField,
-      competencyId: selected?.id,
-      items: [],
+    const snap: Snap = { field: currentField, items: [], legend: {} };
+    const clean = (t: string) => {
+      const r = anonymize(t, yearStudents);
+      Object.assign(snap.legend, r.legend);
+      return r.text;
     };
     if (kind === "photo") {
       const blob = await storage.readFile(note.evidence[0]);
@@ -310,7 +317,12 @@ export function AiNoteAction({
       return { request: prompt, snap };
     }
     snap.items = bandItems();
-    const list = snap.items.map((p, i) => ({ index: i + 1, text: p.text }));
+    const names = new Map(competencies.map((c) => [c.id, c.name]));
+    const list = snap.items.map((p, i) => ({
+      index: i + 1,
+      competency: names.get(p.competencyId) ?? p.competencyId,
+      text: p.text,
+    }));
     const prompt = suggestCompetency(
       evidence,
       competencies.map((c) => ({ id: c.id, name: c.name })),
@@ -325,7 +337,8 @@ export function AiNoteAction({
     return s && comp ? { s, comp } : null;
   };
 
-  const onUse = (text: string, snap: Snap) => {
+  const onUse = (raw: string, snap: Snap) => {
+    const text = deanonymize(raw, snap.legend);
     if (kind === "objective") return onPatch({ evidenceText: text });
     if (kind === "interpretation") return onPatch({ interpretation: text });
     if (kind === "photo") {
@@ -334,15 +347,15 @@ export function AiNoteAction({
         evidenceText: current ? `${current}\n\n${text}` : text,
       });
     }
-    const parsed = parse(text);
+    const parsed = parse(raw);
     if (!parsed) return;
-    // Indexes refer to the list sent, which belongs to the competency selected when the request started.
-    const performances =
-      snap.competencyId === parsed.comp.id
-        ? [...new Set(parsed.s.performanceIndexes)].flatMap((i) =>
-            snap.items[i - 1] ? [snap.items[i - 1]] : [],
-          )
-        : [];
+    // Indexes refer to the list sent; only desempeños of the suggested competency are kept.
+    const performances = [...new Set(parsed.s.performanceIndexes)].flatMap(
+      (i) => {
+        const item = i >= 1 ? snap.items[i - 1] : undefined;
+        return item && item.competencyId === parsed.comp.id ? [item] : [];
+      },
+    );
     onPatch({
       areaId: areaIdFor(parsed.comp, classroom.cycle),
       competencyId: parsed.comp.id,
@@ -364,16 +377,13 @@ export function AiNoteAction({
           ? (text) => (parse(text) ? null : BAD_SUGGESTION)
           : undefined
       }
-      show={
-        kind === "suggest"
-          ? (text) => {
-              const parsed = parse(text);
-              return parsed
-                ? `${parsed.comp.name}${parsed.s.reason ? `\n${parsed.s.reason}` : ""}`
-                : BAD_SUGGESTION;
-            }
-          : undefined
-      }
+      show={(text, snap) => {
+        if (kind !== "suggest") return deanonymize(text, snap.legend);
+        const parsed = parse(text);
+        return parsed
+          ? `${parsed.comp.name}${parsed.s.reason ? `\n${deanonymize(parsed.s.reason, snap.legend)}` : ""}`
+          : BAD_SUGGESTION;
+      }}
       hideStream={kind === "suggest"}
     />
   );

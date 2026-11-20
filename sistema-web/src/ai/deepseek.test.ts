@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { generate, generateWithSettings } from "./index";
+import { generate } from "./generate";
+import { generateWithSettings } from "./index";
 import { AiError } from "./types";
 
 const enc = new TextEncoder();
@@ -94,14 +95,14 @@ describe("generateWithSettings", () => {
   it("blocks without enabled and consent before any request", async () => {
     const f = vi.fn();
     vi.stubGlobal("fetch", f);
-    const base = { provider: "deepseek" as const, apiKey: "k" };
+    const base = { provider: "deepseek" as const, apiKeys: { deepseek: "k" } };
     await expect(generateWithSettings({ ...base, enabled: false, consentAt: "2026-01-01T00:00:00Z" }, { system: "s", prompt: "p" })).rejects.toMatchObject({ code: "disabled" });
     await expect(generateWithSettings({ ...base, enabled: true }, { system: "s", prompt: "p" })).rejects.toMatchObject({ code: "disabled" });
     expect(f).not.toHaveBeenCalled();
   });
   it("runs when enabled with consent", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(sse([line("ok"), "data: [DONE]\n\n"])));
-    const out = await generateWithSettings({ enabled: true, provider: "deepseek", apiKey: "k", consentAt: "2026-01-01T00:00:00Z" }, { system: "s", prompt: "p" });
+    const out = await generateWithSettings({ enabled: true, provider: "deepseek", apiKeys: { deepseek: "k" }, consentAt: "2026-01-01T00:00:00Z" }, { system: "s", prompt: "p" });
     expect(out).toBe("ok");
   });
 });

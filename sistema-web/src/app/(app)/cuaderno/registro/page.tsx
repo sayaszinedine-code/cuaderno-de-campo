@@ -107,6 +107,8 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   const removedRef = useRef<string[]>([]);
   /** Basenames in use: the note's photos, pending removals and in-flight writes. */
   const usedRef = useRef(new Set((existing?.evidence ?? []).map(basename)));
+  /** Names already on disk per photo folder (listed once per folder): other same-day notes may share it. */
+  const diskRef = useRef(new Map<string, Promise<Set<string>>>());
   const evidenceRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     evidenceRef.current?.focus();
@@ -132,15 +134,26 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   const areas = areasForCycles([classroom.cycle]).filter((a) => competencies.some((c) => areaIdFor(c, classroom.cycle) === a.id));
   const areaCompetencies = competencies.filter((c) => areaIdFor(c, classroom.cycle) === note.areaId);
   const noteStudents = validStudents(note, yearData, existing?.studentIds);
-  const classroomStudents = yearData.students.filter((s) => s.classroomId === classroom.id);
   const archivedChips = yearData.students.filter(
     (s) => !s.active && s.classroomId === classroom.id && note.studentIds.includes(s.id),
   );
   const hideLevel = classroom.cycle === "I" && classroom.cycleIGrading === "descriptive";
 
-  const nameFor = (): string => {
+  const namesOnDisk = (dir: string): Promise<Set<string>> => {
+    let names = diskRef.current.get(dir);
+    if (!names) {
+      names = storage
+        .list(dir)
+        .then((entries) => new Set(entries.map((e) => e.name)))
+        .catch(() => new Set<string>());
+      diskRef.current.set(dir, names);
+    }
+    return names;
+  };
+
+  const nameFor = (onDisk: Set<string>): string => {
     let n = 1;
-    while (usedRef.current.has(`evidencia-${n}.jpg`)) n++;
+    while (usedRef.current.has(`evidencia-${n}.jpg`) || onDisk.has(`evidencia-${n}.jpg`)) n++;
     const name = `evidencia-${n}.jpg`;
     usedRef.current.add(name);
     return name;
@@ -159,8 +172,9 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   async function uploadPhotos(files: File[]) {
     if (!classroom) return;
     for (const file of files) {
-      const name = nameFor();
-      const path = `${noteDir(year, classroom, noteRef.current)}${name}`;
+      const dir = noteDir(year, classroom, noteRef.current);
+      const name = nameFor(await namesOnDisk(dir));
+      const path = `${dir}${name}`;
       try {
         const blob = await compressPhoto(file, EVIDENCE_MAX_SIZE);
         await storage.writeFile(path, blob);
@@ -350,7 +364,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
           settings={aiSettings}
           note={note}
           classroom={classroom}
-          classroomStudents={classroomStudents}
+          yearStudents={yearData.students}
           noteStudents={noteStudents}
           schoolYear={year}
           storage={storage}
@@ -362,7 +376,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
           settings={aiSettings}
           note={note}
           classroom={classroom}
-          classroomStudents={classroomStudents}
+          yearStudents={yearData.students}
           noteStudents={noteStudents}
           schoolYear={year}
           storage={storage}
@@ -389,7 +403,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
         settings={aiSettings}
         note={note}
         classroom={classroom}
-        classroomStudents={classroomStudents}
+        yearStudents={yearData.students}
         noteStudents={noteStudents}
         schoolYear={year}
         storage={storage}
@@ -454,7 +468,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
         settings={aiSettings}
         note={note}
         classroom={classroom}
-        classroomStudents={classroomStudents}
+        yearStudents={yearData.students}
         noteStudents={noteStudents}
         schoolYear={year}
         storage={storage}
