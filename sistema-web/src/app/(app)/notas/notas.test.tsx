@@ -16,7 +16,7 @@ vi.mock("@/components/AccountGate", () => ({
   useAccount: () => ({ refresh: vi.fn(), profile: { id: "u1" } }),
 }));
 
-import { WorkspaceProvider } from "@/workspace/WorkspaceProvider";
+import { WorkspaceProvider, useWorkspace } from "@/workspace/WorkspaceProvider";
 import NotasPage from "./page";
 
 const year = new Date().getFullYear();
@@ -195,6 +195,39 @@ describe("Notas page", () => {
     expect(await within(panel).findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByText("Nota guardada.")).toBeNull();
     expect(within(panel).getByLabelText("Conclusión descriptiva")).toHaveValue("Texto");
+  });
+
+  it("does not write into another year when the year changes with the editor open", async () => {
+    await seed();
+    const prev = year - 1;
+    await storage.writeTextAtomic(yearDataPath(prev), JSON.stringify({ ...base(), schoolYear: prev }));
+    await storage.writeTextAtomic(notesPath(prev), JSON.stringify({ version: SCHEMA_VERSION, schoolYear: prev, notes: [] }));
+    await storage.writeTextAtomic(
+      gradesPath(prev),
+      JSON.stringify({ version: SCHEMA_VERSION, schoolYear: prev, entries: [], finals: [] }),
+    );
+    function Switch() {
+      const ws = useWorkspace();
+      return <button onClick={() => void ws.setYear(prev)}>cambiar año</button>;
+    }
+    render(
+      <WorkspaceProvider userId="u1">
+        <Switch />
+        <NotasPage />
+      </WorkspaceProvider>,
+    );
+    await screen.findByText("Luz Rojas");
+    fireEvent.change(screen.getByLabelText("Bimestre"), { target: { value: "B1" } });
+    fireEvent.click(cellBtn("Luz Rojas"));
+    const panel = await screen.findByRole("dialog");
+    fireEvent.change(within(panel).getByLabelText("Conclusión descriptiva"), { target: { value: "Texto" } });
+    fireEvent.click(screen.getByRole("button", { name: "cambiar año" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    // let the year switch be applied before saving
+    await new Promise((r) => setTimeout(r, 50));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Guardar" }));
+    expect(await within(screen.getByRole("dialog")).findByRole("alert")).toBeInTheDocument();
+    expect(JSON.parse((await storage.readText(gradesPath(prev))) ?? "{}").entries).toEqual([]);
   });
 
   it("changing the bimester changes the cells", async () => {

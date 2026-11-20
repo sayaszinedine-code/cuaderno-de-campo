@@ -9,6 +9,7 @@ import {
   setFinalOverride,
   setGrade,
   stripLevelsForDescriptive,
+  countStoredLevels,
   usesScale,
 } from "./grades";
 import { activeCompetencies } from "./classrooms";
@@ -68,6 +69,27 @@ describe("setGrade / gradeOf", () => {
   it("removes the entry in a descriptive classroom with an empty conclusion", () => {
     const f = setGrade(empty, { studentId: "s1", competencyId: comp, periodId: "B1", level: "A", conclusion: "" }, descRoom, NOW);
     expect(f.entries).toHaveLength(0);
+  });
+});
+
+describe("setGrade whitespace", () => {
+  it("treats a whitespace-only conclusion as empty", () => {
+    const f = setGrade(empty, { studentId: "s1", competencyId: comp, periodId: "B1", conclusion: "   " }, scaleRoom, NOW);
+    expect(f.entries).toHaveLength(0);
+  });
+});
+
+describe("setFinalOverride edge cases", () => {
+  const g = { studentId: "s1", competencyId: comp, periodId: "B1" as const, level: "B" as const, conclusion: "uno", updatedAt: "t" };
+  it("does not create an override equal to the automatic value", () => {
+    const f = { ...empty, entries: [g] };
+    const next = setFinalOverride(f, { studentId: "s1", competencyId: comp, level: "B", conclusion: "uno" }, scaleRoom, NOW);
+    expect(next.finals).toEqual([]);
+  });
+  it("clears an existing override when saved empty", () => {
+    let f = setFinalOverride(empty, { studentId: "s1", competencyId: comp, level: "C", conclusion: "x" }, scaleRoom, NOW);
+    f = setFinalOverride(f, { studentId: "s1", competencyId: comp, conclusion: "  " }, scaleRoom, NOW);
+    expect(f.finals).toEqual([]);
   });
 });
 
@@ -184,5 +206,20 @@ describe("stripLevelsForDescriptive", () => {
   });
   it("is a no-op when the classroom uses scale", () => {
     expect(stripLevelsForDescriptive(f, scaleI, students)).toBe(f);
+  });
+});
+
+describe("countStoredLevels", () => {
+  it("counts entry and final levels of that classroom's children only", () => {
+    const f: GradesFile = {
+      ...empty,
+      entries: [
+        { studentId: "s1", competencyId: comp, periodId: "B1", level: "A", conclusion: "", updatedAt: "t" },
+        { studentId: "s1", competencyId: comp2, periodId: "B1", conclusion: "x", updatedAt: "t" },
+        { studentId: "s9", competencyId: comp, periodId: "B1", level: "B", conclusion: "", updatedAt: "t" },
+      ],
+      finals: [{ studentId: "s1", competencyId: comp, level: "AD", conclusion: "", updatedAt: "t" }],
+    };
+    expect(countStoredLevels(f, "c1", [stu("s1", "c1"), stu("s9", "c2")])).toBe(2);
   });
 });

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_AI_SETTINGS, loadAiSettings, type AiSettings } from "@/ai/settings";
 import { useAccount } from "@/components/AccountGate";
 import { activeCompetencies, classroomLabel } from "@/domain/classrooms";
-import { clearFinalOverride, finalOf, gradeOf, setFinalOverride, usesScale } from "@/domain/grades";
+import { clearFinalOverride, finalOf, gradeOf, isAutomaticFinal, setFinalOverride, usesScale } from "@/domain/grades";
 import { filterNotes } from "@/domain/notes";
 import { type Level, type Period, type Student } from "@/domain/schema";
 import { AiConclusion } from "@/grades/AiConclusion";
@@ -54,7 +54,7 @@ export default function AnualPage() {
     const q = new URLSearchParams(window.location.search);
     setParams({ aula: q.get("aula"), nino: q.get("nino") });
   }, []);
-  const [open, setOpen] = useState<{ competencyId: string; opener: HTMLElement | null } | null>(null);
+  const [open, setOpen] = useState<{ competencyId: string; opener: HTMLElement | null; year: number } | null>(null);
   const [message, setMessage] = useState("");
 
   const classroom = params
@@ -138,8 +138,14 @@ export default function AnualPage() {
 
   const saveFinal = async (values: GradeFormValues): Promise<boolean> => {
     if (!openComp) return false;
+    if (!open) return false;
     const input = { studentId: student.id, competencyId: openComp.id, ...values };
-    const ok = await updateGrades((f) => setFinalOverride(f, input, classroom), { year });
+    if (openFinal?.source === "auto" && isAutomaticFinal(grades, input, classroom)) {
+      // Same as the automatic value: nothing to override, nothing to write.
+      setOpen(null);
+      return true;
+    }
+    const ok = await updateGrades((f) => setFinalOverride(f, input, classroom), { year: open.year });
     if (ok) {
       setOpen(null);
       setMessage("Nota final guardada.");
@@ -147,8 +153,8 @@ export default function AnualPage() {
     return ok;
   };
   const resetFinal = async (): Promise<boolean> => {
-    if (!openComp) return false;
-    const ok = await updateGrades((f) => clearFinalOverride(f, student.id, openComp.id), { year });
+    if (!openComp || !open) return false;
+    const ok = await updateGrades((f) => clearFinalOverride(f, student.id, openComp.id), { year: open.year });
     if (ok) {
       setOpen(null);
       setMessage("Volvió al automático.");
@@ -243,7 +249,7 @@ export default function AnualPage() {
                       className="min-h-11 w-full min-w-28 px-2 hover:bg-accent-soft"
                       onClick={(e) => {
                         setMessage("");
-                        setOpen({ competencyId: c.id, opener: e.currentTarget });
+                        setOpen({ competencyId: c.id, opener: e.currentTarget, year });
                       }}
                     >
                       <span className="flex flex-col items-center gap-0.5">

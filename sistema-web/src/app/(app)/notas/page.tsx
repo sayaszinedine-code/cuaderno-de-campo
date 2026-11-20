@@ -62,7 +62,7 @@ export default function NotasPage() {
   }, [profile.id]);
   const [classroomPick, setClassroomPick] = useState("");
   const [periodPick, setPeriodPick] = useState<Period["id"] | null>(null);
-  const [open, setOpen] = useState<{ studentId: string; competencyId: string; opener: HTMLElement | null } | null>(null);
+  const [open, setOpen] = useState<{ studentId: string; competencyId: string; opener: HTMLElement | null; year: number } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
@@ -85,6 +85,11 @@ export default function NotasPage() {
     return out;
   }, [table, classroom]);
 
+  const prog = useMemo(
+    () => (classroom ? progress(grades, { classroom, students: yearData.students, periodId }) : { graded: 0, total: 0 }),
+    [grades, classroom, yearData.students, periodId],
+  );
+
   if (!classroom || !table) {
     return (
       <div className="max-w-3xl space-y-4">
@@ -95,7 +100,6 @@ export default function NotasPage() {
   }
 
   const scale = usesScale(classroom);
-  const prog = progress(grades, { classroom, students: yearData.students, periodId });
   const openStudent = open ? table.students.find((s) => s.id === open.studentId) : undefined;
   const openComp = open ? table.competencies.find((c) => c.id === open.competencyId) : undefined;
   const openEntry = open ? table.cell(open.studentId, open.competencyId) : undefined;
@@ -117,7 +121,7 @@ export default function NotasPage() {
   const save = async (values: GradeFormValues): Promise<boolean> => {
     if (!open) return false;
     const input = { studentId: open.studentId, competencyId: open.competencyId, periodId, ...values };
-    const ok = await updateGrades((f) => setGrade(f, input, classroom), { year });
+    const ok = await updateGrades((f) => setGrade(f, input, classroom), { year: open.year });
     if (ok) {
       setOpen(null);
       setMessage("Nota guardada.");
@@ -127,7 +131,7 @@ export default function NotasPage() {
 
   const choose = (studentId: string, competencyId: string, opener: HTMLElement) => {
     setMessage("");
-    setOpen({ studentId, competencyId, opener });
+    setOpen({ studentId, competencyId, opener, year });
   };
 
   return (
@@ -213,8 +217,8 @@ export default function NotasPage() {
                 <th rowSpan={2} scope="col" className="px-2 py-1 font-medium">
                   Año
                 </th>
-                {groups.map((g) => (
-                  <th key={g.area} colSpan={g.count} scope="colgroup" className="border-b border-border px-2 py-1">
+                {groups.map((g, i) => (
+                  <th key={`${g.area}-${i}`} colSpan={g.count} scope="colgroup" className="border-b border-border px-2 py-1">
                     {g.area}
                   </th>
                 ))}

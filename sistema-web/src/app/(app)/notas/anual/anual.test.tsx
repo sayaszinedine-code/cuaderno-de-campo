@@ -16,7 +16,7 @@ vi.mock("@/components/AccountGate", () => ({
   useAccount: () => ({ refresh: vi.fn(), profile: { id: "u1" } }),
 }));
 
-import { WorkspaceProvider } from "@/workspace/WorkspaceProvider";
+import { WorkspaceProvider, useWorkspace } from "@/workspace/WorkspaceProvider";
 import AnualPage from "./page";
 
 const year = new Date().getFullYear();
@@ -100,6 +100,64 @@ describe("Anual page", () => {
     const saved = await savedGrades();
     expect(saved.finals).toHaveLength(1);
     expect(saved.finals[0]).toMatchObject({ studentId: "s1", competencyId: "comunica-oralmente", level: "AD", conclusion: "Logra mucho." });
+  });
+
+  it("does not create an override when saving the automatic values unchanged", async () => {
+    await seed({ entries: [entry({ level: "B", conclusion: "ok" })] });
+    renderIn();
+    await screen.findByRole("heading", { name: /Luz Rojas/ });
+    const before = await storage.readText(gradesPath(year));
+    fireEvent.click(finalBtn());
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(finalBtn()).toHaveTextContent("auto (de B1)");
+    expect(await storage.readText(gradesPath(year))).toBe(before);
+  });
+
+  it("clears the override when saved empty", async () => {
+    await seed({
+      entries: [entry({ level: "B" })],
+      finals: [{ studentId: "s1", competencyId: "comunica-oralmente", level: "AD", conclusion: "x", updatedAt: "2026-01-01T00:00:00.000Z" }],
+    });
+    renderIn();
+    await screen.findByRole("heading", { name: /Luz Rojas/ });
+    fireEvent.click(finalBtn());
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByLabelText("Sin nivel"));
+    fireEvent.change(within(dialog).getByLabelText("Conclusión descriptiva"), { target: { value: "   " } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar" }));
+    await waitFor(async () => expect((await savedGrades()).finals).toEqual([]));
+  });
+
+  it("does not write into another year when the year changes with the editor open", async () => {
+    await seed({ entries: [entry({ level: "B" })] });
+    const prev = year - 1;
+    await storage.writeTextAtomic(yearDataPath(prev), JSON.stringify({ ...base(), schoolYear: prev }));
+    await storage.writeTextAtomic(notesPath(prev), JSON.stringify({ version: SCHEMA_VERSION, schoolYear: prev, notes: [] }));
+    await storage.writeTextAtomic(
+      gradesPath(prev),
+      JSON.stringify({ version: SCHEMA_VERSION, schoolYear: prev, entries: [], finals: [] }),
+    );
+    function Switch() {
+      const ws = useWorkspace();
+      return <button onClick={() => void ws.setYear(prev)}>cambiar año</button>;
+    }
+    render(
+      <WorkspaceProvider userId="u1">
+        <Switch />
+        <AnualPage />
+      </WorkspaceProvider>,
+    );
+    await screen.findByRole("heading", { name: /Luz Rojas/ });
+    fireEvent.click(finalBtn());
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByLabelText(/^AD/));
+    fireEvent.click(screen.getByRole("button", { name: "cambiar año" }));
+    await new Promise((r) => setTimeout(r, 100));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Guardar" }));
+    expect(await within(screen.getByRole("dialog")).findByRole("alert")).toBeInTheDocument();
+    expect(JSON.parse((await storage.readText(gradesPath(prev))) ?? "{}").finals).toEqual([]);
   });
 
   it("«Volver al automático» removes the override", async () => {

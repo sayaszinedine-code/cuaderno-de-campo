@@ -28,7 +28,7 @@ export function setGrade(
   const rest = f.entries.filter(
     (e) => !(e.studentId === input.studentId && e.competencyId === input.competencyId && e.periodId === input.periodId),
   );
-  if (level === undefined && input.conclusion === "") return { ...f, entries: rest };
+  if (level === undefined && input.conclusion.trim() === "") return { ...f, entries: rest };
   const entry: GradeEntry = {
     studentId: input.studentId,
     competencyId: input.competencyId,
@@ -80,14 +80,30 @@ export function setFinalOverride(
   classroom: Classroom,
   now: Date = new Date(),
 ): GradesFile {
+  const level = usesScale(classroom) ? input.level : undefined;
+  if (level === undefined && input.conclusion.trim() === "") {
+    return clearFinalOverride(f, input.studentId, input.competencyId);
+  }
+  if (!f.finals.some((x) => sameFinal(x, input)) && isAutomaticFinal(f, { ...input, level }, classroom)) return f;
   const entry: FinalOverride = {
     studentId: input.studentId,
     competencyId: input.competencyId,
-    level: usesScale(classroom) ? input.level : undefined,
+    level,
     conclusion: input.conclusion,
     updatedAt: now.toISOString(),
   };
   return { ...f, finals: [...f.finals.filter((x) => !sameFinal(x, input)), entry] };
+}
+
+/** Whether the values equal what `finalOf` would compute without an override. */
+export function isAutomaticFinal(
+  f: GradesFile,
+  v: { studentId: string; competencyId: string; level?: Level; conclusion: string },
+  classroom: Classroom,
+): boolean {
+  const auto = finalOf({ ...f, finals: f.finals.filter((x) => !sameFinal(x, v)) }, v.studentId, v.competencyId, classroom);
+  const level = usesScale(classroom) ? v.level : undefined;
+  return auto.level === level && auto.conclusion.trim() === v.conclusion.trim();
 }
 
 export function clearFinalOverride(f: GradesFile, studentId: string, competencyId: string): GradesFile {
@@ -112,10 +128,16 @@ export function gradeTable(params: {
   competencies: Competency[];
   cell: (studentId: string, competencyId: string) => GradeEntry | undefined;
 } {
+  const index = new Map<string, GradeEntry>();
+  for (const e of params.file.entries) {
+    if (e.periodId !== params.periodId) continue;
+    const key = `${e.studentId}|${e.competencyId}|${e.periodId}`;
+    if (!index.has(key)) index.set(key, e);
+  }
   return {
     students: activeStudents(params.classroom, params.students),
     competencies: activeCompetencies(params.classroom),
-    cell: (studentId, competencyId) => gradeOf(params.file, studentId, competencyId, params.periodId),
+    cell: (studentId, competencyId) => index.get(`${studentId}|${competencyId}|${params.periodId}`),
   };
 }
 
@@ -156,4 +178,11 @@ export function stripLevelsForDescriptive(f: GradesFile, classroom: Classroom, s
   const strip = <T extends { studentId: string; level?: Level }>(x: T): T =>
     ids.has(x.studentId) && x.level !== undefined ? { ...x, level: undefined } : x;
   return { ...f, entries: f.entries.map(strip), finals: f.finals.map(strip) };
+}
+
+/** How many AD/A/B/C levels (entries and finals) are stored for the children of a classroom. */
+export function countStoredLevels(f: GradesFile, classroomId: string, students: Student[]): number {
+  const ids = new Set(students.filter((s) => s.classroomId === classroomId).map((s) => s.id));
+  const has = (x: { studentId: string; level?: Level }) => ids.has(x.studentId) && x.level !== undefined;
+  return f.entries.filter(has).length + f.finals.filter(has).length;
 }

@@ -44,6 +44,8 @@ export function GradeCellEditor({
   const [conclusion, setConclusion] = useState(initial.conclusion);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const dirty = level !== initial.level || conclusion !== initial.conclusion;
   const busy = useRef(false);
   const panel = useRef<HTMLDivElement>(null);
 
@@ -52,10 +54,16 @@ export function GradeCellEditor({
     return () => opener?.focus?.();
   }, [opener]);
 
+  /** Backdrop click / Escape: closes, unless there are unsaved changes (then asks first). */
+  const requestClose = () => {
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
+  };
+
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Escape") {
       e.stopPropagation();
-      onClose();
+      requestClose();
       return;
     }
     if (e.key !== "Tab" || !panel.current) return;
@@ -104,7 +112,7 @@ export function GradeCellEditor({
 
   return (
     <>
-      <div className="fixed inset-0 z-30 bg-foreground/30" aria-hidden="true" onClick={onClose} />
+      <div className="fixed inset-0 z-30 bg-foreground/30" aria-hidden="true" onClick={requestClose} />
       <div
         ref={panel}
         role="dialog"
@@ -145,6 +153,19 @@ export function GradeCellEditor({
         </label>
         {children?.({ values: { level, conclusion }, setConclusion })}
         {evidence}
+        {confirmDiscard && (
+          <div role="alertdialog" aria-label="Descartar los cambios" className="space-y-2 rounded-xl bg-danger-soft p-3">
+            <p className="font-medium">¿Descartar los cambios?</p>
+            <div className="flex flex-wrap gap-3">
+              <button type="button" className="btn-secondary" onClick={onClose}>
+                Descartar
+              </button>
+              <button type="button" className="btn-primary" onClick={() => setConfirmDiscard(false)}>
+                Seguir editando
+              </button>
+            </div>
+          </div>
+        )}
         {failed && (
           <p role="alert" className="rounded-xl bg-danger-soft p-3 text-sm">
             No se pudo guardar la nota. Tus datos siguen aquí; inténtalo de nuevo.
