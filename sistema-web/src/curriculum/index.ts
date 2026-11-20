@@ -17,7 +17,7 @@ import tic from "./performances/tic.json";
 import gestionaAprendizaje from "./performances/gestiona-aprendizaje.json";
 
 export type { AgeBand, Area, Competency, Cycle, Performance } from "./types";
-export { COMPETENCIES, AREAS, areaIdFor } from "./catalog";
+export { COMPETENCIES, AREAS, areaIdFor, TRANSVERSAL_AREA_ID } from "./catalog";
 
 export const CYCLE_BANDS: Record<Cycle, AgeBand[]> = {
   I: ["9m", "18m", "24m", "36m"],

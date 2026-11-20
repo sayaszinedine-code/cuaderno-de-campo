@@ -12,6 +12,24 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
+    // Provider calls skip the consent check: only src/ai may reach them.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/ai/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/ai/generate", "@/ai/claude", "@/ai/deepseek"],
+              message: "Use generateWithSettings from @/ai.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     ignores: [
       "node_modules/**",
       ".next/**",

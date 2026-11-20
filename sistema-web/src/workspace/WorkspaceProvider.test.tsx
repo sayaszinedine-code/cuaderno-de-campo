@@ -3,8 +3,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
 import type { Storage } from "@/storage/types";
-import { yearDataPath } from "@/domain/paths";
-import type { YearData } from "@/domain/schema";
+import { notesPath, yearDataPath } from "@/domain/paths";
+import type { FieldNote, NotesFile, YearData } from "@/domain/schema";
 
 const pick = vi.hoisted(() => ({
   restoreStorage: vi.fn(),
@@ -331,5 +331,158 @@ describe("WorkspaceProvider", () => {
     release();
     expect(await results[0]).toBe(false);
     expect(await results[1]).toBe(false);
+  });
+  describe("field notes", () => {
+    const emptyNotes = (y: number): NotesFile => ({ version: 1, schoolYear: y, notes: [] });
+    const mkNote = (id: string): FieldNote => ({
+      id,
+      date: `${YEAR}-03-01`,
+      classroomId: "c1",
+      studentIds: [],
+      wholeGroup: true,
+      moment: "",
+      kind: "obs",
+      performances: [],
+      evidenceText: "",
+      evidence: [],
+      interpretation: "",
+      reflection: "",
+      createdAt: "",
+      updatedAt: "",
+    });
+    const seedNotes = (y: number, ids: string[]) =>
+      JSON.stringify({ ...emptyNotes(y), notes: ids.map(mkNote) });
+    let results: Promise<boolean>[] = [];
+
+    function NotesProbe() {
+      const ws = useWorkspace();
+      return (
+        <div>
+          <p>year:{ws.year}</p>
+          <p>notes:{ws.notes.map((n) => n.id).join(",")}</p>
+          <button onClick={() => results.push(ws.updateNotes((f) => ({ ...f, notes: [...f.notes, mkNote("n1")] })))}>
+            add
+          </button>
+          <button
+            onClick={() => {
+              results.push(ws.update((d) => ({ ...d, classrooms: [...d.classrooms, mkRoom("a")] })));
+              results.push(ws.updateNotes((f) => ({ ...f, notes: [...f.notes, mkNote("n2")] })));
+            }}
+          >
+            both
+          </button>
+          <button
+            onClick={() =>
+              results.push(ws.updateNotes((f) => ({ ...f, notes: [...f.notes, mkNote("guarded")] }), { year: YEAR }))
+            }
+          >
+            add-current
+          </button>
+          <button onClick={() => void ws.setYear(YEAR - 1)}>prev</button>
+          <button onClick={() => void ws.reload()}>reload</button>
+        </div>
+      );
+    }
+    function renderNotes(storage: Storage) {
+      results = [];
+      pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+      render(
+        <WorkspaceProvider userId="u1">
+          <NotesProbe />
+        </WorkspaceProvider>,
+      );
+    }
+
+    it("updateNotes saves to cuaderno.json and resolves true", async () => {
+      const storage = new MemoryStorage();
+      renderNotes(storage);
+      fireEvent.click(await screen.findByRole("button", { name: "add" }));
+      expect(await screen.findByText("notes:n1")).toBeInTheDocument();
+      expect(await results[0]).toBe(true);
+      const saved = JSON.parse((await storage.readText(notesPath(YEAR))) ?? "{}");
+      expect(saved.notes.map((n: { id: string }) => n.id)).toEqual(["n1"]);
+    });
+
+    it("serializes update and updateNotes fired together", async () => {
+      const storage = new MemoryStorage();
+      const real = storage.writeTextAtomic.bind(storage);
+      let inFlight = 0;
+      let maxInFlight = 0;
+      vi.spyOn(storage, "writeTextAtomic").mockImplementation(async (p, t) => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((r) => setTimeout(r, 10));
+        await real(p, t);
+        inFlight--;
+      });
+      renderNotes(storage);
+      fireEvent.click(await screen.findByRole("button", { name: "both" }));
+      expect(await Promise.all(results)).toEqual([true, true]);
+      expect(maxInFlight).toBe(1);
+      expect(await storage.readText(yearDataPath(YEAR))).not.toBeNull();
+      expect(await storage.readText(notesPath(YEAR))).not.toBeNull();
+    });
+
+    it("returns false, shows the banner and reverts to disk when saveNotes fails", async () => {
+      const storage = new MemoryStorage();
+      vi.spyOn(storage, "writeTextAtomic").mockRejectedValue(new Error("disk gone"));
+      renderNotes(storage);
+      fireEvent.click(await screen.findByRole("button", { name: "add" }));
+      expect(await screen.findByText("No se pudo guardar. Revisa que la carpeta siga disponible.")).toBeInTheDocument();
+      expect(await results[0]).toBe(false);
+      expect(screen.getByText("notes:")).toBeInTheDocument();
+    });
+
+    it("updateNotes with a year writes nothing when another year is loaded", async () => {
+      const storage = new MemoryStorage();
+      await storage.writeTextAtomic(notesPath(YEAR - 1), seedNotes(YEAR - 1, ["old"]));
+      renderNotes(storage);
+      await screen.findByText(`year:${YEAR}`);
+      fireEvent.click(screen.getByRole("button", { name: "add-current" }));
+      expect(await results[0]).toBe(true);
+      fireEvent.click(screen.getByRole("button", { name: "prev" }));
+      expect(await screen.findByText("notes:old")).toBeInTheDocument();
+      const before = await storage.readText(notesPath(YEAR - 1));
+      const write = vi.spyOn(storage, "writeTextAtomic");
+      fireEvent.click(screen.getByRole("button", { name: "add-current" }));
+      expect(await results[1]).toBe(false);
+      expect(write).not.toHaveBeenCalled();
+      expect(await storage.readText(notesPath(YEAR - 1))).toBe(before);
+      expect(screen.getByText("notes:old")).toBeInTheDocument();
+    });
+
+    it("loads the notes of the chosen year on setYear and on reload", async () => {
+      const storage = new MemoryStorage();
+      await storage.writeTextAtomic(notesPath(YEAR), seedNotes(YEAR, ["cur"]));
+      await storage.writeTextAtomic(notesPath(YEAR - 1), seedNotes(YEAR - 1, ["old"]));
+      renderNotes(storage);
+      expect(await screen.findByText("notes:cur")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "prev" }));
+      expect(await screen.findByText("notes:old")).toBeInTheDocument();
+      await storage.writeTextAtomic(notesPath(YEAR - 1), seedNotes(YEAR - 1, ["old", "newer"]));
+      fireEvent.click(screen.getByRole("button", { name: "reload" }));
+      expect(await screen.findByText("notes:old,newer")).toBeInTheDocument();
+    });
+
+    it("keeps the previous year and shows a notice when the other year's notes are corrupt", async () => {
+      const storage = new MemoryStorage();
+      await storage.writeTextAtomic(notesPath(YEAR - 1), "{no json");
+      renderNotes(storage);
+      await screen.findByText(`year:${YEAR}`);
+      fireEvent.click(screen.getByRole("button", { name: "prev" }));
+      expect(await screen.findByText("No se pudo abrir ese año.")).toBeInTheDocument();
+      expect(screen.getByText(`year:${YEAR}`)).toBeInTheDocument();
+    });
+
+    it("shows the data error and writes nothing when cuaderno.json is corrupt", async () => {
+      const storage = new MemoryStorage();
+      await storage.writeTextAtomic(notesPath(YEAR), "{no json");
+      const write = vi.spyOn(storage, "writeTextAtomic");
+      renderNotes(storage);
+      expect(
+        await screen.findByText("No se pudo leer tus datos (archivo dañado o de una versión más nueva). No se modificó nada."),
+      ).toBeInTheDocument();
+      expect(write).not.toHaveBeenCalled();
+    });
   });
 });

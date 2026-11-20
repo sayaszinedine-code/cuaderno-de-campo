@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classroomDir, profilePath, safeName, studentDir, yearDataPath } from "./paths";
+import { classroomDir, noteDir, notesPath, profilePath, safeName, studentDir, yearDataPath } from "./paths";
 import type { Classroom } from "./schema";
 
 const room = (bands: Classroom["bands"], name = "Girasoles", id = "c1a2b3c4"): Classroom => ({
@@ -39,6 +39,18 @@ describe("paths", () => {
   it("studentDir", () => {
     expect(studentDir(2026, room(["4y"]), { id: "s9f8e7d6", lastNames: "Pérez Ruiz", firstNames: "Ana" })).toBe(
       "2026/Aula Girasoles (4 años) - c1a2/Niños/Pérez Ruiz, Ana - s9f8/",
+    );
+  });
+  it("notesPath and noteDir", () => {
+    expect(notesPath(2026)).toBe("2026/datos/cuaderno.json");
+    expect(noteDir(2026, room(["4y"]), { id: "abcd1234efgh", date: "2026-04-10" })).toBe(
+      "2026/Aula Girasoles (4 años) - c1a2/Cuaderno de campo/2026-04-10 - abcd1234/",
+    );
+  });
+  it("same-day notes whose ids share 4 chars get distinct folders", () => {
+    const c = room(["4y"]);
+    expect(noteDir(2026, c, { id: "abcd1111", date: "2026-04-10" })).not.toBe(
+      noteDir(2026, c, { id: "abcd2222", date: "2026-04-10" }),
     );
   });
   it("homonyms get distinct folders", () => {

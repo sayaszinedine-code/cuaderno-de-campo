@@ -13,6 +13,15 @@ const ALL_BANDS: readonly string[] = [...CYCLE_BANDS.I, ...CYCLE_BANDS.II];
 const ageBand = z.custom<AgeBand>((v) => typeof v === "string" && ALL_BANDS.includes(v));
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
+/** Workspace-relative path: no absolute/drive/backslash forms and no `.`, `..` or empty segments. */
+const relPath = z
+  .string()
+  .min(1)
+  .refine((v) => !v.startsWith("/") && !/^[A-Za-z]:/.test(v) && !v.includes("\\"), { message: "must be relative" })
+  .refine((v) => v.split("/").every((seg) => seg !== "" && seg !== "." && seg !== ".."), {
+    message: "invalid path segment",
+  });
+
 // Strict shapes define the TypeScript types (no index signature); the exported schemas are their loose
 // counterparts used for parsing and saving.
 const teacherProfileShape = z.object({
@@ -54,7 +63,7 @@ const studentShape = z.object({
   guardianPhone: z.string().optional(),
   motherTongue: z.string().optional(),
   healthNotes: z.string().optional(),
-  photo: z.string().optional(),
+  photo: relPath.optional(),
   active: z.boolean(),
 });
 
@@ -65,6 +74,61 @@ const yearDataShape = z.object({
   classrooms: z.array(classroomShape),
   students: z.array(studentShape),
 });
+
+export const NOTE_KINDS = ["obs", "anec", "logro", "fam", "otro"] as const;
+export const NOTE_KIND_LABELS: Record<(typeof NOTE_KINDS)[number], string> = {
+  obs: "Observación",
+  anec: "Anécdota / incidencia",
+  logro: "Logro",
+  fam: "Reunión con familia",
+  otro: "Otro",
+};
+export const MOMENTS = [
+  "Recepción y rutinas",
+  "Juego libre en sectores",
+  "Experiencia de aprendizaje",
+  "Taller",
+  "Alimentación y recreo",
+  "Aseo y descanso",
+  "Salida",
+  "Fuera del aula / visita",
+] as const;
+export const LEVELS = ["AD", "A", "B", "C"] as const;
+
+const selectedPerformanceShape = z.object({
+  competencyId: z.string(),
+  band: ageBand,
+  text: z.string(),
+});
+
+const fieldNoteShape = z.object({
+  id: z.string().min(1),
+  date: isoDate,
+  classroomId: z.string().min(1),
+  studentIds: z.array(z.string()),
+  wholeGroup: z.boolean(),
+  moment: z.string(),
+  kind: z.enum(NOTE_KINDS),
+  areaId: z.string().optional(),
+  competencyId: z.string().optional(),
+  performances: z.array(selectedPerformanceShape.loose()),
+  evidenceText: z.string(),
+  evidence: z.array(relPath),
+  interpretation: z.string(),
+  reflection: z.string(),
+  level: z.enum(LEVELS).optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const notesFileShape = z.object({
+  version: z.literal(SCHEMA_VERSION),
+  schoolYear: z.number().int().min(1000).max(9999),
+  notes: z.array(fieldNoteShape),
+});
+
+export const fieldNoteSchema = fieldNoteShape.loose();
+export const notesFileSchema = notesFileShape.extend({ notes: z.array(fieldNoteSchema) }).loose();
 
 export const teacherProfileSchema = teacherProfileShape.loose();
 
@@ -99,3 +163,8 @@ export type Period = z.infer<typeof periodShape>;
 export type Classroom = z.infer<typeof classroomShape>;
 export type Student = z.infer<typeof studentShape>;
 export type YearData = z.infer<typeof yearDataShape>;
+export type NoteKind = (typeof NOTE_KINDS)[number];
+export type Level = (typeof LEVELS)[number];
+export type SelectedPerformance = z.infer<typeof selectedPerformanceShape>;
+export type FieldNote = z.infer<typeof fieldNoteShape>;
+export type NotesFile = z.infer<typeof notesFileShape>;

@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createWorkspaceRepo, WorkspaceDataError, type WorkspaceRepo } from "@/domain/workspace-repo";
-import type { TeacherProfile, YearData } from "@/domain/schema";
+import type { FieldNote, NotesFile, TeacherProfile, YearData } from "@/domain/schema";
 import {
   chooseFolder,
   grantPermission,
@@ -36,6 +36,13 @@ export type WorkspaceValue = {
    * false when `fn` threw, the save failed (the save banner is shown) or the write was skipped as stale.
    */
   update(fn: (d: YearData) => YearData): Promise<boolean>;
+  /** Field notes of the open year (`cuaderno.json`). */
+  notes: FieldNote[];
+  /**
+   * Same semantics as `update`, for the notes file; shares the write queue. With `opts.year`, resolves
+   * false without writing when the loaded year is a different one (e.g. changed while a form was open).
+   */
+  updateNotes(fn: (f: NotesFile) => NotesFile, opts?: { year?: number }): Promise<boolean>;
   reload(): Promise<void>;
   /** Opens the folder picker and switches to the chosen folder. */
   changeFolder(): Promise<void>;
@@ -59,7 +66,13 @@ type Phase =
   | { status: "error"; message: string }
   | { status: "ready"; storage: Storage; repo: WorkspaceRepo; fallback: boolean };
 
-type Loaded = { years: number[]; year: number; yearData: YearData; profile: TeacherProfile | null };
+type Loaded = {
+  years: number[];
+  year: number;
+  yearData: YearData;
+  notesFile: NotesFile;
+  profile: TeacherProfile | null;
+};
 
 const currentYear = () => new Date().getFullYear();
 
@@ -124,9 +137,9 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         const repo = createWorkspaceRepo(storage);
         const [list, profile] = await Promise.all([repo.listYears(), repo.loadProfile()]);
         const year = initialYear(list);
-        const yearData = await repo.loadYear(year);
+        const [yearData, notesFile] = await Promise.all([repo.loadYear(year), repo.loadNotes(year)]);
         if (gen !== generation.current) return;
-        commit({ years: withYear(withYear(list, currentYear()), year), year, yearData, profile });
+        commit({ years: withYear(withYear(list, currentYear()), year), year, yearData, notesFile, profile });
         setPhase({ status: "ready", storage, repo, fallback });
       } catch (e) {
         if (gen !== generation.current) return;
@@ -179,13 +192,14 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     await enqueue(async (live) => {
       const year = latest.current?.year ?? currentYear();
       try {
-        const [list, yearData, profile] = await Promise.all([
+        const [list, yearData, notesFile, profile] = await Promise.all([
           readyPhase.repo.listYears(),
           readyPhase.repo.loadYear(year),
+          readyPhase.repo.loadNotes(year),
           readyPhase.repo.loadProfile(),
         ]);
         if (!live()) return;
-        commit({ years: withYear(list, year), year, yearData, profile });
+        commit({ years: withYear(list, year), year, yearData, notesFile, profile });
       } catch (e) {
         if (!live()) return;
         setPhase({
@@ -202,12 +216,50 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
     const refreshFromDisk = async (year: number, live: () => boolean) => {
       try {
-        const [list, yearData] = await Promise.all([repo.listYears(), repo.loadYear(year)]);
+        const [list, yearData, notesFile] = await Promise.all([
+          repo.listYears(),
+          repo.loadYear(year),
+          repo.loadNotes(year),
+        ]);
         const cur = latest.current;
-        if (cur && live()) commit({ ...cur, years: withYear(list, year), year, yearData });
+        if (cur && live()) commit({ ...cur, years: withYear(list, year), year, yearData, notesFile });
       } catch {
         // Keep the last known in-memory state.
       }
+    };
+
+    /** Queued read-modify-write of one document; shared by `update` and `updateNotes`. */
+    const mutate = async <D,>(
+      select: (l: Loaded) => D,
+      store: (l: Loaded, d: D) => Loaded,
+      save: (d: D) => Promise<void>,
+      fn: (d: D) => D,
+      year?: number,
+    ): Promise<boolean> => {
+      const saved = await enqueue(async (live): Promise<boolean> => {
+        const cur = latest.current;
+        if (!cur) return false;
+        if (year !== undefined && cur.year !== year) return false;
+        let next: D;
+        try {
+          next = fn(select(cur));
+        } catch {
+          return false;
+        }
+        try {
+          await save(next);
+          if (!live()) return false;
+          commit(store(cur, next));
+          setSaveError(false);
+          return true;
+        } catch {
+          if (!live()) return false;
+          setSaveError(true);
+          await refreshFromDisk(cur.year, live);
+          return false;
+        }
+      });
+      return saved === true;
     };
 
     return {
@@ -216,6 +268,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       year: loaded.year,
       years: loaded.years,
       yearData: loaded.yearData,
+      notes: loaded.notesFile.notes,
       profile: loaded.profile,
       canChooseFolder: supportsFolderAccess(),
       reload,
@@ -225,38 +278,28 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           const cur = latest.current;
           if (!cur) return;
           try {
-            const yearData = await repo.loadYear(y);
+            const [yearData, notesFile] = await Promise.all([repo.loadYear(y), repo.loadNotes(y)]);
             if (!live()) return;
-            commit({ ...cur, year: y, years: withYear(cur.years, y), yearData });
+            commit({ ...cur, year: y, years: withYear(cur.years, y), yearData, notesFile });
           } catch {
             if (live()) setNotice("No se pudo abrir ese año.");
           }
         }),
-      update: async (fn) => {
-        const saved = await enqueue(async (live): Promise<boolean> => {
-          const cur = latest.current;
-          if (!cur) return false;
-          let next: YearData;
-          try {
-            next = fn(cur.yearData);
-          } catch {
-            return false;
-          }
-          try {
-            await repo.saveYear(next);
-            if (!live()) return false;
-            commit({ ...cur, yearData: next, years: withYear(cur.years, next.schoolYear) });
-            setSaveError(false);
-            return true;
-          } catch {
-            if (!live()) return false;
-            setSaveError(true);
-            await refreshFromDisk(cur.year, live);
-            return false;
-          }
-        });
-        return saved === true;
-      },
+      update: (fn) =>
+        mutate(
+          (l) => l.yearData,
+          (l, yearData) => ({ ...l, yearData, years: withYear(l.years, yearData.schoolYear) }),
+          (d) => repo.saveYear(d),
+          fn,
+        ),
+      updateNotes: (fn, opts) =>
+        mutate(
+          (l) => l.notesFile,
+          (l, notesFile) => ({ ...l, notesFile }),
+          (f) => repo.saveNotes(f),
+          fn,
+          opts?.year,
+        ),
       saveProfile: (p): Promise<void> =>
         enqueue(async (live) => {
           await repo.saveProfile(p);
