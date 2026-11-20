@@ -58,11 +58,12 @@ export interface WorkspaceRepo {
   saveGrades(f: GradesFile, opts?: SaveOptions): Promise<void>;
 }
 
-function parseFile<T>(
-  path: string,
-  text: string,
-  schema: { safeParse(v: unknown): { success: true; data: T } | { success: false; error: { message: string } } },
-): T {
+interface DocSchema<T> {
+  parse(v: unknown): T;
+  safeParse(v: unknown): { success: true; data: T } | { success: false; error: { message: string } };
+}
+
+function parseFile<T>(path: string, text: string, schema: Pick<DocSchema<T>, "safeParse">): T {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -85,6 +86,19 @@ export function createWorkspaceRepo(storage: Storage): WorkspaceRepo {
     if (opts?.overwriteInvalid) return;
     const existing = await storage.readText(path);
     if (existing !== null) parseFile(path, existing, schema);
+  }
+
+  /** Loads a validated document, or `empty()` (unsaved) when the file does not exist. */
+  async function loadDoc<T>(path: string, schema: DocSchema<T>, empty: () => T): Promise<T> {
+    const text = await storage.readText(path);
+    return text === null ? empty() : parseFile(path, text, schema);
+  }
+
+  /** Validates, refuses to clobber an invalid existing file (unless overwriteInvalid), then writes atomically. */
+  async function saveDoc<T>(path: string, schema: DocSchema<T>, data: T, opts?: SaveOptions): Promise<void> {
+    const valid = schema.parse(data);
+    await guardExisting(path, schema, opts);
+    await storage.writeTextAtomic(path, JSON.stringify(valid, null, 2));
   }
 
   return {
@@ -130,29 +144,24 @@ export function createWorkspaceRepo(storage: Storage): WorkspaceRepo {
     },
 
     async loadNotes(y) {
-      const path = notesPath(y);
-      const text = await storage.readText(path);
-      if (text === null) return { version: SCHEMA_VERSION, schoolYear: y, notes: [] };
-      return parseFile(path, text, notesFileSchema);
+      return loadDoc(notesPath(y), notesFileSchema, () => ({ version: SCHEMA_VERSION, schoolYear: y, notes: [] }));
     },
 
     async saveNotes(f, opts) {
-      const data = notesFileSchema.parse(f);
-      await guardExisting(notesPath(data.schoolYear), notesFileSchema, opts);
-      await storage.writeTextAtomic(notesPath(data.schoolYear), JSON.stringify(data, null, 2));
+      await saveDoc(notesPath(f.schoolYear), notesFileSchema, f, opts);
     },
 
     async loadGrades(y) {
-      const path = gradesPath(y);
-      const text = await storage.readText(path);
-      if (text === null) return { version: SCHEMA_VERSION, schoolYear: y, entries: [], finals: [] };
-      return parseFile(path, text, gradesFileSchema);
+      return loadDoc(gradesPath(y), gradesFileSchema, () => ({
+        version: SCHEMA_VERSION,
+        schoolYear: y,
+        entries: [],
+        finals: [],
+      }));
     },
 
     async saveGrades(f, opts) {
-      const data = gradesFileSchema.parse(f);
-      await guardExisting(gradesPath(data.schoolYear), gradesFileSchema, opts);
-      await storage.writeTextAtomic(gradesPath(data.schoolYear), JSON.stringify(data, null, 2));
+      await saveDoc(gradesPath(f.schoolYear), gradesFileSchema, f, opts);
     },
   };
 }
