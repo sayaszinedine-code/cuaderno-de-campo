@@ -1,14 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { classroomDir, noteDir, notesPath, profilePath, safeName, studentDir, yearDataPath } from "./paths";
+import {
+  classroomDir,
+  noteDir,
+  notesPath,
+  profilePath,
+  safeName,
+  studentDir,
+  yearDataPath,
+} from "./paths";
 import type { Classroom } from "./schema";
 
-const room = (bands: Classroom["bands"], name = "Girasoles", id = "c1a2b3c4"): Classroom => ({
+const room = (
+  bands: Classroom["bands"],
+  name = "Girasoles",
+  id = "c1a2b3c4",
+): Classroom => ({
   id,
   name,
-  cycle: bands[0] === "3y" || bands[0] === "4y" || bands[0] === "5y" ? "II" : "I",
+  cycle:
+    bands[0] === "3y" || bands[0] === "4y" || bands[0] === "5y" ? "II" : "I",
   bands,
   disabledCompetencyIds: [],
   cycleIGrading: "descriptive",
+});
+
+describe("safeName restorable names", () => {
+  it("avoids trailing dots/spaces, reserved Windows names and control characters", () => {
+    expect(safeName("Aula 1.")).toBe("Aula 1");
+    expect(safeName("Con")).toBe("Con_");
+    expect(safeName("nul.txt")).toBe("nul_.txt");
+    expect(safeName("a\u0001b")).toBe("a b");
+    expect(
+      new TextEncoder().encode(safeName("😀".repeat(80))).length,
+    ).toBeLessThanOrEqual(240);
+  });
 });
 
 describe("safeName", () => {
@@ -32,18 +57,30 @@ describe("paths", () => {
     expect(yearDataPath(2026)).toBe("2026/datos/anio.json");
   });
   it("classroomDir labels", () => {
-    expect(classroomDir(2026, room(["4y"]))).toBe("2026/Aula Girasoles (4 años) - c1a2/");
-    expect(classroomDir(2026, room(["18m"]))).toBe("2026/Aula Girasoles (18 meses) - c1a2/");
-    expect(classroomDir(2026, room(["3y", "4y"]))).toBe("2026/Aula Girasoles (multiedad) - c1a2/");
+    expect(classroomDir(2026, room(["4y"]))).toBe(
+      "2026/Aula Girasoles (4 años) - c1a2/",
+    );
+    expect(classroomDir(2026, room(["18m"]))).toBe(
+      "2026/Aula Girasoles (18 meses) - c1a2/",
+    );
+    expect(classroomDir(2026, room(["3y", "4y"]))).toBe(
+      "2026/Aula Girasoles (multiedad) - c1a2/",
+    );
   });
   it("studentDir", () => {
-    expect(studentDir(2026, room(["4y"]), { id: "s9f8e7d6", lastNames: "Pérez Ruiz", firstNames: "Ana" })).toBe(
-      "2026/Aula Girasoles (4 años) - c1a2/Niños/Pérez Ruiz, Ana - s9f8/",
-    );
+    expect(
+      studentDir(2026, room(["4y"]), {
+        id: "s9f8e7d6",
+        lastNames: "Pérez Ruiz",
+        firstNames: "Ana",
+      }),
+    ).toBe("2026/Aula Girasoles (4 años) - c1a2/Niños/Pérez Ruiz, Ana - s9f8/");
   });
   it("notesPath and noteDir", () => {
     expect(notesPath(2026)).toBe("2026/datos/cuaderno.json");
-    expect(noteDir(2026, room(["4y"]), { id: "abcd1234efgh", date: "2026-04-10" })).toBe(
+    expect(
+      noteDir(2026, room(["4y"]), { id: "abcd1234efgh", date: "2026-04-10" }),
+    ).toBe(
       "2026/Aula Girasoles (4 años) - c1a2/Cuaderno de campo/2026-04-10 - abcd1234/",
     );
   });
@@ -55,19 +92,37 @@ describe("paths", () => {
   });
   it("homonyms get distinct folders", () => {
     const c = room(["4y"]);
-    const a = studentDir(2026, c, { id: "aaaa1111", lastNames: "Quispe", firstNames: "Luis" });
-    const b = studentDir(2026, c, { id: "bbbb2222", lastNames: "Quispe", firstNames: "Luis" });
+    const a = studentDir(2026, c, {
+      id: "aaaa1111",
+      lastNames: "Quispe",
+      firstNames: "Luis",
+    });
+    const b = studentDir(2026, c, {
+      id: "bbbb2222",
+      lastNames: "Quispe",
+      firstNames: "Luis",
+    });
     expect(a).not.toBe(b);
-    expect(classroomDir(2026, room(["4y"], "Sol", "x1"))).not.toBe(classroomDir(2026, room(["4y"], "Sol", "y1")));
+    expect(classroomDir(2026, room(["4y"], "Sol", "x1"))).not.toBe(
+      classroomDir(2026, room(["4y"], "Sol", "y1")),
+    );
   });
   it("keeps the id suffix even for very long names", () => {
-    const p = studentDir(2026, room(["4y"], "A".repeat(200)), { id: "s9f8e7d6", lastNames: "B".repeat(200), firstNames: "C" });
+    const p = studentDir(2026, room(["4y"], "A".repeat(200)), {
+      id: "s9f8e7d6",
+      lastNames: "B".repeat(200),
+      firstNames: "C",
+    });
     const [, roomDir, , kidDir] = p.split("/");
     expect(roomDir.endsWith(" - c1a2")).toBe(true);
     expect(kidDir.endsWith(" - s9f8")).toBe(true);
   });
   it("hostile names and ids cannot traverse", () => {
-    const p = studentDir(2026, room(["4y"], "..", "../x"), { id: "..//", lastNames: "..", firstNames: ".." });
+    const p = studentDir(2026, room(["4y"], "..", "../x"), {
+      id: "..//",
+      lastNames: "..",
+      firstNames: "..",
+    });
     expect(p.split("/")).not.toContain("..");
     expect(p.split("/").filter(Boolean)).toHaveLength(4);
   });

@@ -1,13 +1,36 @@
-import type { Classroom, FieldNote, Period, Session, Student, Unit } from "./schema";
+import type {
+  Classroom,
+  FieldNote,
+  Period,
+  Session,
+  Student,
+  Unit,
+} from "./schema";
 
 /** Strips path-hostile characters, collapses spaces, caps at 80 chars; never empty or dot-only. */
 export function safeName(s: string): string {
-  const cleaned = s
-    .replace(/[\\/:*?"<>|]/g, " ")
+  let cleaned = s
+    .replace(/[\\/:*?"<>|\x00-\x1f\x7f]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80)
     .trim();
+  // Keep names within 240 UTF-8 bytes so every file system accepts them.
+  while (new TextEncoder().encode(cleaned).length > 240)
+    cleaned = Array.from(cleaned).slice(0, -1).join("");
+  cleaned = cleaned.replace(/[. ]+$/, "");
+  // Windows reserved device names (with or without extension) cannot be created or restored.
+  if (
+    /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(
+      cleaned.split(".")[0].trimEnd(),
+    )
+  ) {
+    const dot = cleaned.indexOf(".");
+    cleaned =
+      dot < 0
+        ? `${cleaned}_`
+        : `${cleaned.slice(0, dot)}_${cleaned.slice(dot)}`;
+  }
   return cleaned === "" || /^\.+$/.test(cleaned) ? "_" : cleaned;
 }
 
@@ -31,10 +54,17 @@ function bandsLabel(bands: Classroom["bands"]): string {
 /** `<base> - <first n chars of id>`: the id fragment keeps homonyms apart and survives truncation. */
 function withIdSuffix(base: string, id: string, n = 4): string {
   const suffix = ` - ${safeName(id.slice(0, n))}`;
-  return safeName(`${safeName(base).slice(0, 80 - suffix.length).trim()}${suffix}`);
+  return safeName(
+    `${safeName(base)
+      .slice(0, 80 - suffix.length)
+      .trim()}${suffix}`,
+  );
 }
 
-export function classroomDir(y: number, c: Pick<Classroom, "id" | "name" | "bands">): string {
+export function classroomDir(
+  y: number,
+  c: Pick<Classroom, "id" | "name" | "bands">,
+): string {
   return `${y}/${withIdSuffix(`Aula ${safeName(c.name)} (${bandsLabel(c.bands)})`, c.id)}/`;
 }
 

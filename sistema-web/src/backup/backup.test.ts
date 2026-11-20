@@ -1,32 +1,30 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "../storage/memory";
+import type { Storage } from "../storage/types";
 import {
-  buildBackup,
   hasData,
   inspectBackup,
   lastBackupDate,
   listAllFiles,
   saveBackup,
 } from "./backup";
+import { bytesOf, enc, makeZip, seed, wrap } from "./helpers.test-util";
 
-const enc = (s: string) => new Blob([s]);
 const at = (y: number, mo: number, d: number, h = 9, mi = 5) =>
   new Date(y, mo - 1, d, h, mi, 0);
+const INVALID = "Este archivo no es un respaldo válido del Cuaderno de Campo.";
 
-async function seed(s: MemoryStorage) {
-  await s.writeFile("datos/perfil.json", enc('{"a":1}'));
-  await s.writeFile("2026/datos/anio.json", enc('{"year":2026}'));
-  await s.writeFile(
-    "2026/fotos/a.jpg",
-    new Blob([new Uint8Array([0, 255, 1, 2, 3])]),
-  );
-  await s.writeFile("Respaldos/respaldo-2026-01-01-0000.zip", enc("old"));
+async function backupBlob(s: MemoryStorage, name: string): Promise<Blob> {
+  return (await s.readFile(`Respaldos/${name}`)) as Blob;
 }
 
 describe("listAllFiles", () => {
-  it("is recursive and excludes Respaldos/", async () => {
+  it("is recursive and excludes Respaldos/ (any case) and temp files", async () => {
     const s = new MemoryStorage();
     await seed(s);
+    await s.writeFile("Respaldos/respaldo-2026-01-01-0000.zip", enc("old"));
+    await s.writeFile("respaldos/x.zip", enc("old"));
+    await s.writeFile("2026/datos/anio.json.tmp", enc("half"));
     expect((await listAllFiles(s)).sort()).toEqual([
       "2026/datos/anio.json",
       "2026/fotos/a.jpg",
@@ -35,133 +33,236 @@ describe("listAllFiles", () => {
   });
 });
 
-describe("buildBackup / inspectBackup", () => {
-  it("builds a manifest and round-trips through inspect", async () => {
+describe("saveBackup + inspectBackup", () => {
+  it("writes a verifiable zip whose manifest lists every file with a crc32", async () => {
     const s = new MemoryStorage();
     await seed(s);
-    const { blob, manifest } = await buildBackup(s, at(2026, 11, 21));
-    expect(manifest.app).toBe("cuaderno-de-campo");
-    expect(manifest.schemaVersion).toBe(1);
-    expect(manifest.files.map((f) => f.path).sort()).toEqual([
-      "2026/datos/anio.json",
-      "2026/fotos/a.jpg",
-      "datos/perfil.json",
-    ]);
-    const r = await inspectBackup(blob);
+    const name = await saveBackup(s, "manual", at(2026, 11, 21));
+    const r = await inspectBackup(await backupBlob(s, name));
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect([...r.entries.keys()].sort()).toEqual(
-        manifest.files.map((f) => f.path).sort(),
-      );
-      expect([...(r.entries.get("2026/fotos/a.jpg") ?? [])]).toEqual([
-        0, 255, 1, 2, 3,
+      expect(r.manifest.app).toBe("cuaderno-de-campo");
+      expect(r.manifest.files.map((f) => f.path).sort()).toEqual([
+        "2026/datos/anio.json",
+        "2026/fotos/a.jpg",
+        "datos/perfil.json",
       ]);
+      expect(r.manifest.files.every((f) => Number.isInteger(f.crc32))).toBe(
+        true,
+      );
     }
+  });
+
+  it("does not put Respaldos/ or temp files into the backup", async () => {
+    const s = new MemoryStorage();
+    await seed(s);
+    await s.writeFile("respaldos/x.zip", enc("old"));
+    await s.writeFile("datos/perfil.json.tmp", enc("half"));
+    const name = await saveBackup(s, "manual", at(2026, 11, 21));
+    const r = await inspectBackup(await backupBlob(s, name));
+    expect(
+      r.ok && r.manifest.files.some((f) => /respaldos|\.tmp$/i.test(f.path)),
+    ).toBe(false);
+  });
+
+  it("detects a flipped byte in a stored entry (crc)", async () => {
+    const s = new MemoryStorage();
+    await s.writeFile("datos/perfil.json", enc("{}"));
+    await s.writeFile("2026/datos/anio.json", enc("{}"));
+    await s.writeFile(
+      "2026/fotos/a.jpg",
+      new Blob([new Uint8Array(100).fill(0xab)]),
+    );
+    const name = await saveBackup(s, "manual", at(2026, 11, 21));
+    const zip = new Uint8Array(await bytesOf(await backupBlob(s, name)));
+    const at0 = zip.findIndex((_, i) =>
+      zip.subarray(i, i + 20).every((b) => b === 0xab),
+    );
+    expect(at0).toBeGreaterThan(0);
+    zip[at0 + 50] = 0xac;
+    expect(await inspectBackup(new Blob([zip]))).toEqual({
+      ok: false,
+      error: INVALID,
+    });
+  });
+
+  it("accepts big folders (200 files x 64 KB) reading only small slices", async () => {
+    const s = new MemoryStorage();
+    await seed(s);
+    for (let i = 0; i < 200; i++) {
+      const b = new Uint8Array(64 * 1024);
+      for (let j = 0; j < b.length; j++)
+        b[j] = (i * 31 + j * 7 + (j >> 8)) & 255;
+      await s.writeFile(
+        `2026/fotos/p${i}.${i % 2 ? "jpg" : "txt"}`,
+        new Blob([b]),
+      );
+    }
+    const sizes: number[] = [];
+    const orig = FileReader.prototype.readAsArrayBuffer;
+    const spy = vi
+      .spyOn(FileReader.prototype, "readAsArrayBuffer")
+      .mockImplementation(function (this: FileReader, b: Blob) {
+        sizes.push(b.size);
+        return orig.call(this, b);
+      });
+    const chunks: number[] = [];
+    const name = await saveBackup(
+      wrap(s, { onChunk: (_p, n) => chunks.push(n) }),
+      "manual",
+      at(2026, 11, 21),
+    );
+    const r = await inspectBackup(await backupBlob(s, name));
+    spy.mockRestore();
+    expect(r.ok).toBe(true);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(1024 * 1024 + 1);
+    expect(Math.max(...chunks)).toBeLessThanOrEqual(2 * 1024 * 1024);
+    expect(chunks.length).toBeGreaterThan(1);
   });
 });
 
-const INVALID = "Este archivo no es un respaldo válido del Cuaderno de Campo.";
-
-async function makeZip(files: Record<string, string>): Promise<Blob> {
-  const { zip, strToU8 } = await import("fflate");
-  const data: Record<string, Uint8Array> = {};
-  for (const [k, v] of Object.entries(files)) data[k] = strToU8(v);
-  const out = await new Promise<Uint8Array>((res, rej) =>
-    zip(data, (e, d) => (e ? rej(e) : res(d))),
-  );
-  return new Blob([out.slice()]);
-}
-const manifest = (
-  over: Record<string, unknown> = {},
-  files = [{ path: "datos/perfil.json", size: 2 }],
-) =>
-  JSON.stringify({
-    app: "cuaderno-de-campo",
-    schemaVersion: 1,
-    createdAt: "2026-11-21T00:00:00.000Z",
-    files,
-    ...over,
+describe("limits", () => {
+  const fake = (count: number, size: number, onWriter: () => void): Storage => {
+    const base = new MemoryStorage();
+    return {
+      ...wrap(base),
+      list: async (d) =>
+        d === ""
+          ? Array.from({ length: count }, (_, i) => ({
+              name: `f${i}.bin`,
+              kind: "file" as const,
+            }))
+          : [],
+      readFile: async () => ({ size }) as Blob,
+      createWriter: async (p) => {
+        onWriter();
+        return base.createWriter(p);
+      },
+    };
+  };
+  it("refuses more than 3.5 GB before writing anything", async () => {
+    const created = vi.fn();
+    await expect(
+      saveBackup(fake(3, 1_300_000_000, created), "manual"),
+    ).rejects.toThrow(
+      "Tus datos pesan más de 3,5 GB. Pide ayuda para hacer un respaldo por partes.",
+    );
+    expect(created).not.toHaveBeenCalled();
   });
+  it("refuses too many files before writing anything", async () => {
+    const created = vi.fn();
+    await expect(
+      saveBackup(fake(50_001, 1, created), "manual"),
+    ).rejects.toThrow("Tienes demasiados archivos para un solo respaldo.");
+    expect(created).not.toHaveBeenCalled();
+  });
+  it("refuses files whose names cannot be restored", async () => {
+    const s = new MemoryStorage();
+    await s.writeFile("datos/perfil.json", enc("{}"));
+    await s.writeFile("2026/Con/x.json", enc("{}"));
+    await expect(saveBackup(s, "manual")).rejects.toThrow(
+      /nombre que no se puede respaldar/,
+    );
+    expect(await s.list("Respaldos")).toEqual([]);
+  });
+});
 
 describe("inspectBackup validation", () => {
-  const bad = async (blob: Blob) => {
+  const bad = async (blob: Blob) =>
     expect(await inspectBackup(blob)).toEqual({ ok: false, error: INVALID });
-  };
-  it("accepts a well-formed zip", async () => {
+  it("accepts a well-formed zip, manifest first or last", async () => {
+    expect((await inspectBackup(await makeZip({}))).ok).toBe(true);
+    expect(
+      (await inspectBackup(await makeZip({ manifestFirst: true }))).ok,
+    ).toBe(true);
+  });
+  it("rejects a corrupt zip", async () =>
+    bad(new Blob(["not a zip at all, definitely longer than 22 bytes"])));
+  it("rejects an empty blob", async () => bad(new Blob([])));
+  it("rejects a missing manifest", async () =>
+    bad(await makeZip({ noManifest: true })));
+  it("rejects another app", async () =>
+    bad(await makeZip({ manifest: { app: "otra" } })));
+  it("rejects schemaVersion 2", async () =>
+    bad(await makeZip({ manifest: { schemaVersion: 2 } })));
+  it("rejects traversal paths", async () =>
+    bad(await makeZip({ files: { "../x": "{}" } })));
+  it("rejects a size mismatch", async () =>
+    bad(
+      await makeZip({
+        manifestFiles: [{ path: "datos/perfil.json", size: 9, crc32: 0 }],
+      }),
+    ));
+  it("rejects a crc mismatch in the manifest", async () =>
+    bad(
+      await makeZip({
+        manifestFiles: [{ path: "datos/perfil.json", size: 2, crc32: 12345 }],
+      }),
+    ));
+  it("rejects a manifest file missing from the zip", async () =>
+    bad(
+      await makeZip({
+        files: {},
+        manifestFiles: [{ path: "datos/perfil.json", size: 2, crc32: 0 }],
+      }),
+    ));
+  it("rejects an extra file not in the manifest", async () =>
+    bad(
+      await makeZip({
+        files: { "datos/perfil.json": "{}", "extra.txt": "x" },
+        manifestFiles: [
+          { path: "datos/perfil.json", size: 2, crc32: 0x4e1e9c2b },
+        ],
+      }),
+    ));
+  it("rejects entries outside files/", async () =>
+    bad(await makeZip({ extra: { "otro.txt": "x" } })));
+
+  it("rejects Respaldos paths in any case", async () => {
+    for (const p of ["Respaldos/x.zip", "respaldos/x.zip", "RESPALDOS/a"])
+      await bad(await makeZip({ files: { [p]: "x" } }));
+  });
+  it("rejects paths that collide case-insensitively", async () =>
+    bad(await makeZip({ files: { "a.json": "1", "A.json": "2" } })));
+
+  it("rejects unsafe segments", async () => {
+    const long = `${"a".repeat(256)}.json`;
+    const names = [
+      "a<b.json",
+      "a:b",
+      'a"b',
+      "a|b",
+      "a?b",
+      "a*b",
+      "tab\there",
+      "ctl\u0001x",
+      "dir./x.json",
+      "dir /x.json",
+      "con",
+      "CON.txt",
+      "x/nul.json",
+      "Com1",
+      "lpt9.x",
+      "aux",
+      "prn",
+      long,
+    ];
+    for (const n of names) await bad(await makeZip({ files: { [n]: "x" } }));
+  });
+  it("accepts ordinary Spanish names", async () => {
     const r = await inspectBackup(
       await makeZip({
-        "manifest.json": manifest(),
-        "files/datos/perfil.json": "{}",
+        files: {
+          "2026/Niños/Ángel Pérez/foto 1.jpg": "x",
+          "datos/console.json": "{}",
+        },
       }),
     );
     expect(r.ok).toBe(true);
   });
-  it("rejects a corrupt zip", async () => bad(new Blob(["not a zip at all"])));
-  it("rejects a missing manifest", async () =>
-    bad(await makeZip({ "files/datos/perfil.json": "{}" })));
-  it("rejects a malformed manifest", async () =>
-    bad(
-      await makeZip({
-        "manifest.json": "nope",
-        "files/datos/perfil.json": "{}",
-      }),
-    ));
-  it("rejects another app", async () =>
-    bad(
-      await makeZip({
-        "manifest.json": manifest({ app: "otra" }),
-        "files/datos/perfil.json": "{}",
-      }),
-    ));
-  it("rejects schemaVersion 2", async () =>
-    bad(
-      await makeZip({
-        "manifest.json": manifest({ schemaVersion: 2 }),
-        "files/datos/perfil.json": "{}",
-      }),
-    ));
-  it("rejects traversal paths", async () =>
-    bad(
-      await makeZip({
-        "manifest.json": manifest({}, [{ path: "../x", size: 2 }]),
-        "files/../x": "{}",
-      }),
-    ));
-  it("rejects Respaldos/ paths", async () =>
-    bad(
-      await makeZip({
-        "manifest.json": manifest({}, [{ path: "Respaldos/a.zip", size: 2 }]),
-        "files/Respaldos/a.zip": "{}",
-      }),
-    ));
-  it("rejects a size mismatch", async () =>
-    bad(
-      await makeZip({
-        "manifest.json": manifest({}, [{ path: "datos/perfil.json", size: 9 }]),
-        "files/datos/perfil.json": "{}",
-      }),
-    ));
-  it("rejects a manifest file missing from the zip", async () =>
-    bad(await makeZip({ "manifest.json": manifest() })));
-  it("rejects an extra file not in the manifest", async () =>
-    bad(
-      await makeZip({
-        "manifest.json": manifest(),
-        "files/datos/perfil.json": "{}",
-        "files/extra.txt": "x",
-      }),
-    ));
-  it("rejects entries outside files/", async () =>
-    bad(
-      await makeZip({
-        "manifest.json": manifest(),
-        "files/datos/perfil.json": "{}",
-        "otro.txt": "x",
-      }),
-    ));
 });
 
-describe("saveBackup", () => {
+describe("saveBackup naming and retention", () => {
   it("names backups by kind and local time", async () => {
     const s = new MemoryStorage();
     await seed(s);
@@ -174,9 +275,6 @@ describe("saveBackup", () => {
     expect(await saveBackup(s, "safety", at(2026, 11, 21, 14, 30))).toBe(
       "respaldo-2026-11-21-1430-seguridad.zip",
     );
-    expect(
-      await s.readFile("Respaldos/respaldo-2026-11-21-1430-auto.zip"),
-    ).not.toBeNull();
   });
   it("adds (2) when the name exists", async () => {
     const s = new MemoryStorage();
@@ -192,6 +290,7 @@ describe("saveBackup", () => {
   it("keeps only the 8 most recent auto backups and never deletes manual or safety", async () => {
     const s = new MemoryStorage();
     await seed(s);
+    await s.writeFile("Respaldos/respaldo-2026-01-01-0000.zip", enc("old"));
     await saveBackup(s, "manual", at(2026, 1, 1));
     await saveBackup(s, "safety", at(2026, 1, 2));
     for (let d = 1; d <= 12; d++) await saveBackup(s, "auto", at(2026, 2, d));
@@ -203,15 +302,23 @@ describe("saveBackup", () => {
     expect(names).toContain("respaldo-2026-01-02-0905-seguridad.zip");
     expect(names).toContain("respaldo-2026-01-01-0000.zip");
   });
-  it("does not write the backup folder into the backup", async () => {
+  it("never deletes the backup it just wrote, even when it is the oldest auto", async () => {
     const s = new MemoryStorage();
     await seed(s);
-    await saveBackup(s, "manual", at(2026, 11, 21));
-    const blob = await s.readFile("Respaldos/respaldo-2026-11-21-0905.zip");
-    const r = await inspectBackup(blob as Blob);
-    expect(
-      r.ok && [...r.entries.keys()].some((k) => k.startsWith("Respaldos/")),
-    ).toBe(false);
+    for (let d = 10; d <= 17; d++) await saveBackup(s, "auto", at(2026, 2, d));
+    const name = await saveBackup(s, "auto", at(2026, 1, 1)); // older than all existing autos
+    expect(await s.readFile(`Respaldos/${name}`)).not.toBeNull();
+  });
+  it("leaves nothing behind when writing fails", async () => {
+    const s = new MemoryStorage();
+    await seed(s);
+    await expect(
+      saveBackup(
+        wrap(s, { failWrite: (p) => p.startsWith("Respaldos/") }),
+        "manual",
+      ),
+    ).rejects.toThrow();
+    expect(await s.list("Respaldos")).toEqual([]);
   });
 });
 
