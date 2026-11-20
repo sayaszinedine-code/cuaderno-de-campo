@@ -23,7 +23,7 @@ describe("AppShell mobile nav", () => {
     expect(within(menu).getByRole("link", { name: "Perfil" })).toBeInTheDocument();
     expect(within(menu).getByRole("link", { name: "Mi cuenta" })).toHaveAttribute("href", expect.stringMatching(/^\/cuenta\/?$/));
     expect(within(menu).getByRole("link", { name: "Unidades" })).toHaveAttribute("href", expect.stringMatching(/^\/unidades\/?$/));
-    expect(within(menu).getByText("Asistencia")).toHaveAttribute("aria-disabled", "true");
+    expect(within(menu).getByRole("link", { name: "Asistencia" })).toHaveAttribute("href", expect.stringMatching(/^\/asistencia\/?$/));
   });
 
   it("keeps the full list on desktop and hides admin for teachers", () => {
