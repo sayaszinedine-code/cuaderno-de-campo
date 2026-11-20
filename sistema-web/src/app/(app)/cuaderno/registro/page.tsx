@@ -10,6 +10,7 @@ import { areasForCycles } from "@/domain/areas";
 import { activeCompetencies, classroomLabel } from "@/domain/classrooms";
 import { newNote, removeNote, upsertNote, validateNote, validStudents } from "@/domain/notes";
 import { noteDir } from "@/domain/paths";
+import { linkedSessionsOfNote } from "@/domain/units";
 import { compressPhoto, EVIDENCE_MAX_SIZE } from "@/domain/photo";
 import { LEVELS, MOMENTS, NOTE_KIND_LABELS, type FieldNote, type Level, type NoteKind } from "@/domain/schema";
 import { AiNoteAction } from "@/notes/AiActions";
@@ -81,7 +82,7 @@ const basename = (p: string) => p.slice(p.lastIndexOf("/") + 1);
 function Form({ existing }: { existing: FieldNote | undefined }) {
   const router = useRouter();
   const { profile } = useAccount();
-  const { storage, year: currentYear, yearData, updateNotes } = useWorkspace();
+  const { storage, year: currentYear, yearData, units, updateNotes } = useWorkspace();
   /** The year this form was opened with: every write targets it, never a year chosen later. */
   const [year] = useState(currentYear);
 
@@ -295,6 +296,14 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
         Volver al cuaderno
       </Link>
       <h1 className="text-2xl font-semibold">{existing ? "Editar registro" : "Nuevo registro"}</h1>
+      {existing &&
+        linkedSessionsOfNote(units, existing.id).map((s) => (
+          <p key={s.id}>
+            <Link href={`/unidades/sesion/?id=${encodeURIComponent(s.id)}`} className="underline">
+              {`Sesión vinculada: ${s.title || "Sin título"} (${s.date})`}
+            </Link>
+          </p>
+        ))}
 
       <label className="block space-y-1">
         <span>Fecha</span>
