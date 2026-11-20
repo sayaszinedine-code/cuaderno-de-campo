@@ -131,6 +131,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
   const competencies = activeCompetencies(classroom);
   const areas = areasForCycles([classroom.cycle]).filter((a) => competencies.some((c) => areaIdFor(c, classroom.cycle) === a.id));
   const areaCompetencies = competencies.filter((c) => areaIdFor(c, classroom.cycle) === note.areaId);
+  const noteStudents = validStudents(note, yearData, existing?.studentIds);
   const classroomStudents = yearData.students.filter((s) => s.classroomId === classroom.id);
   const archivedChips = yearData.students.filter(
     (s) => !s.active && s.classroomId === classroom.id && note.studentIds.includes(s.id),
@@ -350,7 +351,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
           note={note}
           classroom={classroom}
           classroomStudents={classroomStudents}
-          noteStudents={validStudents(note, yearData, existing?.studentIds)}
+          noteStudents={noteStudents}
           schoolYear={year}
           storage={storage}
           onPatch={patch}
@@ -362,7 +363,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
           note={note}
           classroom={classroom}
           classroomStudents={classroomStudents}
-          noteStudents={validStudents(note, yearData, existing?.studentIds)}
+          noteStudents={noteStudents}
           schoolYear={year}
           storage={storage}
           onPatch={patch}
@@ -384,16 +385,16 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
       </section>
 
       <AiNoteAction
-          kind="suggest"
-          settings={aiSettings}
-          note={note}
-          classroom={classroom}
-          classroomStudents={classroomStudents}
-          noteStudents={validStudents(note, yearData, existing?.studentIds)}
-          schoolYear={year}
-          storage={storage}
-          onPatch={patch}
-        />
+        kind="suggest"
+        settings={aiSettings}
+        note={note}
+        classroom={classroom}
+        classroomStudents={classroomStudents}
+        noteStudents={noteStudents}
+        schoolYear={year}
+        storage={storage}
+        onPatch={patch}
+      />
 
       <label className="block space-y-1">
         <span>Área</span>
@@ -434,7 +435,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
           <PerformancePicker
             key={note.competencyId}
             classroom={classroom}
-            students={validStudents(note, yearData, existing?.studentIds)}
+            students={noteStudents}
             competencyId={note.competencyId}
             date={note.date}
             schoolYear={year}
@@ -449,16 +450,16 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
         <textarea className="field" rows={3} value={note.interpretation} onChange={(e) => patch({ interpretation: e.target.value })} />
       </label>
       <AiNoteAction
-          kind="interpretation"
-          settings={aiSettings}
-          note={note}
-          classroom={classroom}
-          classroomStudents={classroomStudents}
-          noteStudents={validStudents(note, yearData, existing?.studentIds)}
-          schoolYear={year}
-          storage={storage}
-          onPatch={patch}
-        />
+        kind="interpretation"
+        settings={aiSettings}
+        note={note}
+        classroom={classroom}
+        classroomStudents={classroomStudents}
+        noteStudents={noteStudents}
+        schoolYear={year}
+        storage={storage}
+        onPatch={patch}
+      />
 
       <label className="block space-y-1">
         <span>Reflexión docente en relación a la actividad</span>

@@ -356,4 +356,20 @@ describe("Registro page", () => {
     await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
     expect(push).toHaveBeenCalledWith("/cuaderno/");
   });
+
+  it("shows the AI actions only when the assistant is enabled with consent", async () => {
+    await seed();
+    const { unmount } = renderPage();
+    await screen.findByLabelText("Área");
+    expect(screen.queryByRole("button", { name: "Redactar de forma objetiva" })).toBeNull();
+    unmount();
+    window.localStorage.setItem(
+      "ai-settings:u1",
+      JSON.stringify({ enabled: true, provider: "deepseek", apiKey: "k", consentAt: "2026-01-01T00:00:00Z" }),
+    );
+    renderPage();
+    expect(await screen.findByRole("button", { name: "Redactar de forma objetiva" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sugerir competencia y desempeños" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Redactar interpretación" })).toBeInTheDocument();
+  });
 });

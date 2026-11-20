@@ -33,25 +33,38 @@ export type AiInput = BuiltPrompt & { images?: Blob[] };
 /**
  * One AI button with its result box. The text only reaches the form when the
  * teacher clicks «Usar este texto»; nothing is written otherwise.
- * `build` returns the request (already anonymized) or a message to show when
- * there is nothing to send.
+ * `build` returns the request (already anonymized) plus a snapshot of what was
+ * sent, or a message to show when there is nothing to send. The snapshot comes
+ * back in `onUse`/`isStale`, so a late answer is never applied to newer data.
  */
-export function AiAction({
+export function AiAction<S>({
   label,
   settings,
   build,
   onUse,
+  isStale,
+  check,
   show,
+  hideStream,
 }: {
   label: string;
   settings: AiSettings;
-  build: () => Promise<AiInput | string> | AiInput | string;
-  onUse: (text: string) => void;
+  build: () => Promise<{ request: AiInput; snap: S } | string>;
+  onUse: (text: string, snap: S) => void;
+  /** True when the target field changed since the request started. */
+  isStale?: (snap: S) => boolean;
+  /** Error message when the final text cannot be used; the box is not shown. */
+  check?: (text: string, snap: S) => string | null;
   /** Text shown in the box for the raw model output (default: as is). */
-  show?: (text: string) => string;
+  show?: (text: string, snap: S) => string;
+  /** Show «Generando…» instead of partial output while streaming. */
+  hideStream?: boolean;
 }) {
   const [running, setRunning] = useState(false);
-  const [text, setText] = useState<string | null>(null);
+  const [result, setResult] = useState<{ text: string; snap: S | null } | null>(
+    null,
+  );
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
 
@@ -62,27 +75,37 @@ export function AiAction({
   async function run() {
     if (running) return;
     setError("");
-    setText(null);
+    setResult(null);
+    setConfirming(false);
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setRunning(true);
     try {
       const built = await build();
+      if (ctrl.signal.aborted) return;
       if (typeof built === "string") {
         setError(built);
         return;
       }
+      const { request, snap } = built;
       const full = await generateWithSettings(settings, {
-        ...built,
+        ...request,
         signal: ctrl.signal,
         onText: (t) => {
-          if (!ctrl.signal.aborted) setText(t);
+          if (!ctrl.signal.aborted) setResult({ text: t, snap: null });
         },
       });
-      if (!ctrl.signal.aborted) setText(full);
+      if (ctrl.signal.aborted) return;
+      const problem = check?.(full, snap) ?? null;
+      if (problem) {
+        setResult(null);
+        setError(problem);
+      } else {
+        setResult({ text: full, snap });
+      }
     } catch (e) {
       if (ctrl.signal.aborted) return;
-      setText(null);
+      setResult(null);
       setError(
         e instanceof AiError
           ? AI_ERROR_MESSAGES[e.code]
@@ -97,8 +120,23 @@ export function AiAction({
   function cancel() {
     abortRef.current?.abort();
     abortRef.current = null;
-    setText(null);
+    setResult(null);
     setRunning(false);
+  }
+
+  function close() {
+    setResult(null);
+    setConfirming(false);
+  }
+
+  function use(force: boolean) {
+    if (!result || result.snap === null) return;
+    if (!force && isStale?.(result.snap)) {
+      setConfirming(true);
+      return;
+    }
+    onUse(result.text, result.snap);
+    close();
   }
 
   return (
@@ -123,28 +161,42 @@ export function AiAction({
           {error}
         </p>
       )}
-      {text !== null && (
+      {result !== null && (
         <div className="card space-y-2 p-3" aria-live="polite">
           <p className="whitespace-pre-wrap" data-testid="ai-result">
-            {show ? show(text) : text}
+            {running && hideStream
+              ? "Generando…"
+              : show && result.snap !== null
+                ? show(result.text, result.snap)
+                : result.text}
           </p>
-          {!running && (
+          {!running && confirming && (
+            <>
+              <p role="alert">El texto cambió mientras la IA respondía.</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => use(true)}
+                >
+                  Reemplazar de todos modos
+                </button>
+                <button type="button" className="btn-secondary" onClick={close}>
+                  Descartar
+                </button>
+              </div>
+            </>
+          )}
+          {!running && !confirming && (
             <div className="flex gap-2">
               <button
                 type="button"
                 className="btn-primary"
-                onClick={() => {
-                  onUse(text);
-                  setText(null);
-                }}
+                onClick={() => use(false)}
               >
                 Usar este texto
               </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setText(null)}
-              >
+              <button type="button" className="btn-secondary" onClick={close}>
                 Descartar
               </button>
             </div>
@@ -167,6 +219,13 @@ const NO_EVIDENCE = "Escribe primero la evidencia.";
 const NO_PHOTO = "No se pudo leer la foto.";
 const BAD_SUGGESTION =
   "La IA no devolvió una sugerencia válida. Intenta de nuevo.";
+
+/** What was sent: the target field's value and, for suggestions, the exact lists the indexes refer to. */
+interface Snap {
+  field: string;
+  competencyId?: string;
+  items: SelectedPerformance[];
+}
 
 /** AI action bound to one field of the note. Writes to the note only through `onPatch`, after «Usar». */
 export function AiNoteAction({
@@ -201,6 +260,8 @@ export function AiNoteAction({
   const clean = (t: string) => anonymize(t, classroomStudents).text;
   const competencies = activeCompetencies(classroom);
   const selected = competencies.find((c) => c.id === note.competencyId);
+  const currentField =
+    kind === "interpretation" ? note.interpretation : note.evidenceText;
 
   /** Desempeños of the default band for the selected competency, in the order shown to the model. */
   const bandItems = (): SelectedPerformance[] => {
@@ -220,34 +281,51 @@ export function AiNoteAction({
     }));
   };
 
-  const build = async (): Promise<AiInput | string> => {
+  const build = async (): Promise<
+    { request: AiInput; snap: Snap } | string
+  > => {
+    const snap: Snap = {
+      field: currentField,
+      competencyId: selected?.id,
+      items: [],
+    };
     if (kind === "photo") {
       const blob = await storage.readFile(note.evidence[0]);
       if (!blob) return NO_PHOTO;
       const context = note.evidenceText.trim()
         ? clean(note.evidenceText)
         : undefined;
-      return { ...describePhoto(context), images: [blob] };
+      return { request: { ...describePhoto(context), images: [blob] }, snap };
     }
     if (!note.evidenceText.trim()) return NO_EVIDENCE;
     const evidence = clean(note.evidenceText);
-    if (kind === "objective") return objectiveEvidence(evidence);
+    if (kind === "objective")
+      return { request: objectiveEvidence(evidence), snap };
     if (kind === "interpretation") {
-      return interpretation(
+      const prompt = interpretation(
         evidence,
         selected?.name ?? "Sin competencia",
         note.performances.map((p) => p.text),
       );
+      return { request: prompt, snap };
     }
-    const list = bandItems().map((p, i) => ({ index: i + 1, text: p.text }));
-    return suggestCompetency(
+    snap.items = bandItems();
+    const list = snap.items.map((p, i) => ({ index: i + 1, text: p.text }));
+    const prompt = suggestCompetency(
       evidence,
       competencies.map((c) => ({ id: c.id, name: c.name })),
       list,
     );
+    return { request: prompt, snap };
   };
 
-  const onUse = (text: string) => {
+  const parse = (text: string) => {
+    const s = parseSuggestion(text);
+    const comp = s && competencies.find((c) => c.id === s.competencyId);
+    return s && comp ? { s, comp } : null;
+  };
+
+  const onUse = (text: string, snap: Snap) => {
     if (kind === "objective") return onPatch({ evidenceText: text });
     if (kind === "interpretation") return onPatch({ interpretation: text });
     if (kind === "photo") {
@@ -256,40 +334,47 @@ export function AiNoteAction({
         evidenceText: current ? `${current}\n\n${text}` : text,
       });
     }
-    const s = parseSuggestion(text);
-    const comp = s && competencies.find((c) => c.id === s.competencyId);
-    if (!s || !comp) return;
-    // Indexes refer to the list sent, which belongs to the competency selected at that moment.
-    const items = bandItems();
-    const performances: SelectedPerformance[] =
-      selected && comp.id === selected.id
-        ? [...new Set(s.performanceIndexes)].flatMap((i) =>
-            Number.isInteger(i) && items[i - 1] ? [items[i - 1]] : [],
+    const parsed = parse(text);
+    if (!parsed) return;
+    // Indexes refer to the list sent, which belongs to the competency selected when the request started.
+    const performances =
+      snap.competencyId === parsed.comp.id
+        ? [...new Set(parsed.s.performanceIndexes)].flatMap((i) =>
+            snap.items[i - 1] ? [snap.items[i - 1]] : [],
           )
         : [];
     onPatch({
-      areaId: areaIdFor(comp, classroom.cycle),
-      competencyId: comp.id,
+      areaId: areaIdFor(parsed.comp, classroom.cycle),
+      competencyId: parsed.comp.id,
       performances,
     });
   };
 
-  const show = (text: string): string => {
-    if (kind !== "suggest") return text;
-    const s = parseSuggestion(text);
-    const comp = s && competencies.find((c) => c.id === s.competencyId);
-    return comp
-      ? `${comp.name}${s.reason ? `\n${s.reason}` : ""}`
-      : BAD_SUGGESTION;
-  };
+  const replaces = kind === "objective" || kind === "interpretation";
 
   return (
-    <AiAction
+    <AiAction<Snap>
       label={LABELS[kind]}
       settings={settings}
       build={build}
       onUse={onUse}
-      show={show}
+      isStale={replaces ? (snap) => snap.field !== currentField : undefined}
+      check={
+        kind === "suggest"
+          ? (text) => (parse(text) ? null : BAD_SUGGESTION)
+          : undefined
+      }
+      show={
+        kind === "suggest"
+          ? (text) => {
+              const parsed = parse(text);
+              return parsed
+                ? `${parsed.comp.name}${parsed.s.reason ? `\n${parsed.s.reason}` : ""}`
+                : BAD_SUGGESTION;
+            }
+          : undefined
+      }
+      hideStream={kind === "suggest"}
     />
   );
 }
