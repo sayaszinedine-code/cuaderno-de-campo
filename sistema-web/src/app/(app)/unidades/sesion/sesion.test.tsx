@@ -19,7 +19,8 @@ vi.mock("@/components/AccountGate", () => ({
   useAccount: () => ({ refresh: vi.fn(), profile: { id: "u1" } }),
 }));
 
-import { WorkspaceProvider } from "@/workspace/WorkspaceProvider";
+import { WorkspaceProvider, useWorkspace } from "@/workspace/WorkspaceProvider";
+import { removeUnit } from "@/domain/units";
 import RegistroPage from "../../cuaderno/registro/page";
 import SesionPage from "./page";
 
@@ -91,6 +92,41 @@ const renderForm = (search: string) => {
 };
 
 describe("Sesión form", () => {
+  it("does not save an orphan session when the unit was deleted meanwhile", async () => {
+    await seed();
+    let removeUnitNow: () => Promise<boolean> = async () => false;
+    function Probe() {
+      const ws = useWorkspace();
+      removeUnitNow = () => ws.updateUnits((f) => removeUnit(f, "u-1234567890"));
+      return null;
+    }
+    window.history.pushState({}, "", "/unidades/sesion/?unidad=u-1234567890");
+    render(
+      <WorkspaceProvider userId="u1">
+        <Probe />
+        <SesionPage />
+      </WorkspaceProvider>,
+    );
+    await screen.findByRole("heading", { name: "Nueva sesión" });
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Cuentos" } });
+    const orig = storage.writeTextAtomic.bind(storage);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    vi.spyOn(storage, "writeTextAtomic").mockImplementation(async (path, text) => {
+      if (path === unitsPath(year)) await gate;
+      return orig(path, text);
+    });
+    const removed = removeUnitNow();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await new Promise((r) => setTimeout(r, 20));
+    release();
+    await removed;
+    await new Promise((r) => setTimeout(r, 50));
+    const f = await saved();
+    expect(f.units).toHaveLength(0);
+    expect(f.sessions).toHaveLength(0);
+  });
+
   it("validates title and date", async () => {
     await seed();
     renderForm("?unidad=u-1234567890");

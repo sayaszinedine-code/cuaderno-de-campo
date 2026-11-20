@@ -15,6 +15,7 @@ import { useAttachments } from "@/units/useAttachments";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 const YEAR_CHANGED = "El año escolar cambió mientras editabas. Vuelve a Unidades y abre la sesión de nuevo.";
+const UNIT_GONE = "La unidad de esta sesión ya no existe.";
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const unitUrl = (unitId: string) => `/unidades/unidad/?id=${encodeURIComponent(unitId)}`;
 
@@ -135,9 +136,20 @@ function Form({ existing, unit }: { existing: Session | undefined; unit: Unit })
     if (invalid) return;
     setSaving(true);
     try {
-      const ok = await updateUnits((f) => upsertSession(f, clean), { year });
+      const state = { unitMissing: false };
+      const ok = await updateUnits(
+        (f) => {
+          if (!f.units.some((u) => u.id === clean.unitId)) {
+            state.unitMissing = true;
+            throw new Error(UNIT_GONE);
+          }
+          return upsertSession(f, clean);
+        },
+        { year },
+      );
       if (!ok) {
         if (currentYearRef.current !== year) setError(YEAR_CHANGED);
+        else if (state.unitMissing) setError(UNIT_GONE);
         return;
       }
       await files.commit(clean.attachments);
