@@ -34,6 +34,9 @@ beforeEach(() => {
   // Large chunk a page needs on first paint: always precached.
   put("_next/static/chunks/big-initial.js", Buffer.alloc(400 * 1024, 2));
   put("sw.js", "old worker");
+  // Netlify config files are not served, so they must never be precached.
+  put("_headers", "/sw.js\n  Cache-Control: no-cache\n");
+  put("_redirects", "");
 });
 
 afterEach(() => rmSync(outDir, { recursive: true, force: true }));
