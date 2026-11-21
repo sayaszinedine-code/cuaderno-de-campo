@@ -429,6 +429,8 @@ export function WorkspaceProvider({
           if (!stillLive()) return;
           // A manual backup, restore or legacy import holds the slot: try again later instead of giving up.
           if (busyRef.current) {
+            // Count the busy slot as activity so the retry waits a full idle window, not 50 ms.
+            lastActivity.current = Date.now();
             if (!cancelled && live()) schedule();
             return;
           }
