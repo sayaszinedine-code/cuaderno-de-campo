@@ -66,8 +66,8 @@ export type WorkspaceValue = {
   backupWarning: boolean;
   /** Last automatic backup failure (Spanish), shown only in the backups panel. Empty when none. */
   backupError: string;
-  /** What the write queue is busy with for the backups panel; null when idle. */
-  backupBusy: "backup" | "restore" | null;
+  /** What exclusive task is running (backup, restore or legacy import); null when idle. */
+  backupBusy: BusyKind | null;
   /** Makes a manual backup through the write queue; resolves with the file name. Rejects with a Spanish message. */
   runBackup(): Promise<string>;
   /**
@@ -75,11 +75,18 @@ export type WorkspaceValue = {
    * inside the same queue slot. Rejects with a Spanish message; the workspace is reloaded either way.
    */
   restoreBackupFile(file: Blob, replace: boolean): Promise<void>;
+  /**
+   * Runs `fn` while backups, restores and folder changes are blocked, without holding the write queue (so `fn` can
+   * still save through `update*`). Rejects with the busy message when another exclusive task is running.
+   */
+  runExclusive<T>(kind: "import", fn: () => Promise<T>): Promise<T>;
   /** Opens the folder picker and switches to the chosen folder. */
   changeFolder(): Promise<void>;
   /** True when the browser can pick a real folder (false = browser-internal storage). */
   canChooseFolder: boolean;
 };
+
+export type BusyKind = "backup" | "restore" | "import";
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
 
@@ -131,7 +138,7 @@ const AUTO_BACKUP_AFTER_DAYS = 7;
 const BACKUP_WARNING_AFTER_DAYS = 14;
 const AUTO_BACKUP_IDLE_MS = 60_000;
 const FOLDER_CHANGED_MESSAGE = "La carpeta cambió. Inténtalo de nuevo.";
-const BUSY_MESSAGE = "Espera a que termine el respaldo o la restauración en curso.";
+export const BUSY_MESSAGE = "Espera a que termine el respaldo o la restauración en curso.";
 
 /** Whole days since a local `YYYY-MM-DD` date (Infinity when unparsable). */
 function daysSince(date: string, now: Date = new Date()): number {
@@ -178,11 +185,11 @@ export function WorkspaceProvider({
   const [saveError, setSaveError] = useState(false);
   const [backupDate, setBackupDate] = useState<string | null | undefined>(undefined);
   const [backupError, setBackupError] = useState("");
-  const [backupBusy, setBackupBusy] = useState<"backup" | "restore" | null>(null);
+  const [backupBusy, setBackupBusy] = useState<BusyKind | null>(null);
   const [folderHasData, setFolderHasData] = useState(false);
   const pending = useRef(0);
   const lastActivity = useRef(Date.now());
-  const busyRef = useRef<"backup" | "restore" | null>(null);
+  const busyRef = useRef<BusyKind | null>(null);
 
   const generation = useRef(0);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -307,13 +314,28 @@ export function WorkspaceProvider({
 
   const readyStorage = readyPhase?.storage ?? null;
 
+  /** Takes the exclusive slot (`busyRef` + `backupBusy`) or rejects; always releases it when `fn` settles. */
+  const withBusy = useCallback(async <T,>(kind: BusyKind, fn: () => Promise<T>): Promise<T> => {
+    if (busyRef.current) throw new Error(BUSY_MESSAGE);
+    busyRef.current = kind;
+    setBackupBusy(kind);
+    try {
+      return await fn();
+    } finally {
+      busyRef.current = null;
+      setBackupBusy(null);
+    }
+  }, []);
+
+  const runExclusive = useCallback(
+    <T,>(kind: "import", fn: () => Promise<T>): Promise<T> => withBusy(kind, fn),
+    [withBusy],
+  );
+
   /** Runs `task` as the only thing in the queue; `busyRef` makes a second call fail fast (double click, navigation). */
   const runBackupTask = useCallback(
-    async <T,>(kind: "backup" | "restore", task: (live: () => boolean) => Promise<T>): Promise<T> => {
-      if (busyRef.current) throw new Error(BUSY_MESSAGE);
-      busyRef.current = kind;
-      setBackupBusy(kind);
-      try {
+    async <T,>(kind: "backup" | "restore", task: (live: () => boolean) => Promise<T>): Promise<T> =>
+      withBusy(kind, async () => {
         const out = await enqueue(async (live) => {
           const r = await task(live);
           // The folder was switched while this ran: never report success for a folder that is no longer open.
@@ -322,12 +344,8 @@ export function WorkspaceProvider({
         });
         if (out === undefined) throw new Error(FOLDER_CHANGED_MESSAGE);
         return out;
-      } finally {
-        busyRef.current = null;
-        setBackupBusy(null);
-      }
-    },
-    [enqueue],
+      }),
+    [enqueue, withBusy],
   );
 
   const runBackup = useCallback(async (): Promise<string> => {
@@ -396,7 +414,12 @@ export function WorkspaceProvider({
       if (!idle()) return schedule();
       void enqueue(async (stillLive) => {
         try {
-          if (!stillLive() || busyRef.current) return;
+          if (!stillLive()) return;
+          // A manual backup, restore or legacy import holds the slot: try again later instead of giving up.
+          if (busyRef.current) {
+            if (!cancelled && live()) schedule();
+            return;
+          }
           const { saveBackup, lastBackupDate } = await import("@/backup/backup");
           busyRef.current = "backup";
           setBackupBusy("backup");
@@ -521,6 +544,7 @@ export function WorkspaceProvider({
       backupBusy,
       runBackup,
       restoreBackupFile,
+      runExclusive,
       changeFolder: pickFolder,
       setYear: (y) =>
         enqueue(async (live) => {
@@ -591,7 +615,7 @@ export function WorkspaceProvider({
           if (cur && live()) commit({ ...cur, profile: p });
         }),
     };
-  }, [readyPhase, loaded, reload, backupDate, folderHasData, backupError, backupBusy, runBackup, restoreBackupFile, pickFolder, enqueue, commit]);
+  }, [readyPhase, loaded, reload, backupDate, folderHasData, backupError, backupBusy, runBackup, restoreBackupFile, runExclusive, pickFolder, enqueue, commit]);
 
   if (value && readyPhase) {
     return (

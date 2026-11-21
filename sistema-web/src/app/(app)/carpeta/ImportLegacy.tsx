@@ -96,48 +96,53 @@ export function ImportLegacy() {
     setError("");
     setBusy(true);
     try {
-      let into = classroom;
-      let created: Classroom | undefined;
-      if (destination === NEW) {
-        const id = crypto.randomUUID();
-        let next;
-        try {
-          next = createClassroom(yearData, { name, cycle, bands: [band] }, () => id);
-        } catch (e) {
-          setError(e instanceof Error ? e.message : "No se pudo crear el aula.");
-          return;
-        }
-        created = next.classrooms.find((c) => c.id === id);
-        if (!created) return;
-        const ok = await ws.update((d) => {
-          if (d.schoolYear !== year) throw new Error("year changed");
-          return createClassroom(d, { name, cycle, bands: [band] }, () => id);
-        });
-        if (!ok) {
-          setError("No se pudo crear el aula. Inténtalo de nuevo.");
-          return;
-        }
-        into = created;
-        setDest(id);
-      }
-      const done = await applyLegacyImport(data, target(into, created), {
-        storage: ws.storage,
-        update: ws.update,
-        updateNotes: ws.updateNotes,
-        updateAttendance: ws.updateAttendance,
-        updateAgenda: ws.updateAgenda,
-        saveProfile: ws.saveProfile,
-        onPhoto: (i, n) => setProgress({ i, n }),
-      });
-      setResult(done);
-      setData(null);
-      if (input.current) input.current.value = "";
+      // Exclusive: no backup, restore or folder change may start until the whole import is over.
+      await ws.runExclusive("import", () => importInto(data, classroom));
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo completar la importación.");
     } finally {
       setBusy(false);
       setProgress(null);
     }
+  }
+
+  async function importInto(source: LegacyData, room: Classroom) {
+    let into = room;
+    let created: Classroom | undefined;
+    if (destination === NEW) {
+      const id = crypto.randomUUID();
+      let next;
+      try {
+        next = createClassroom(yearData, { name, cycle, bands: [band] }, () => id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo crear el aula.");
+        return;
+      }
+      created = next.classrooms.find((c) => c.id === id);
+      if (!created) return;
+      const ok = await ws.update((d) => {
+        if (d.schoolYear !== year) throw new Error("year changed");
+        return createClassroom(d, { name, cycle, bands: [band] }, () => id);
+      });
+      if (!ok) {
+        setError("No se pudo crear el aula. Inténtalo de nuevo.");
+        return;
+      }
+      into = created;
+      setDest(id);
+    }
+    const done = await applyLegacyImport(source, target(into, created), {
+      storage: ws.storage,
+      update: ws.update,
+      updateNotes: ws.updateNotes,
+      updateAttendance: ws.updateAttendance,
+      updateAgenda: ws.updateAgenda,
+      saveProfile: ws.saveProfile,
+      onPhoto: (i, n) => setProgress({ i, n }),
+    });
+    setResult(done);
+    setData(null);
+    if (input.current) input.current.value = "";
   }
 
   const disabled = busy || backupBusy !== null;

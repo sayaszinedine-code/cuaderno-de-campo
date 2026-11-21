@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
 import type { Storage } from "@/storage/types";
@@ -21,6 +22,7 @@ vi.mock("@/backup/restore", () => restoreMock);
 import { WorkspaceProvider, useWorkspace } from "./WorkspaceProvider";
 
 const YEAR = new Date().getFullYear();
+const BUSY = "Espera a que termine el respaldo o la restauración en curso.";
 
 function Probe() {
   const ws = useWorkspace();
@@ -779,14 +781,33 @@ describe("WorkspaceProvider backups", () => {
   const seedData = (s: MemoryStorage) => s.writeTextAtomic("datos/perfil.json", profileJson);
   const autos = async (s: MemoryStorage) => (await s.list("Respaldos")).filter((e) => e.name.endsWith("-auto.zip"));
 
+  const importGate: { release: () => void } = { release: () => undefined };
   function BackupProbe() {
     const ws = useWorkspace();
+    const [err, setErr] = useState("");
     return (
       <div>
         <p>warning:{String(ws.backupWarning)}</p>
         <p>busy:{String(ws.backupBusy)}</p>
-        <button onClick={() => void ws.restoreBackupFile(new Blob(["z"]), true).catch(() => undefined)}>restore</button>
+        <p>error:{err}</p>
+        <button
+          onClick={() =>
+            void ws.restoreBackupFile(new Blob(["z"]), true).catch((e: unknown) => setErr(e instanceof Error ? e.message : "?"))
+          }
+        >
+          restore
+        </button>
+        <button onClick={() => void ws.runBackup().catch((e: unknown) => setErr(e instanceof Error ? e.message : "?"))}>backup</button>
         <button onClick={() => void ws.update((d) => ({ ...d, classrooms: [mkRoom("a")] }))}>write</button>
+        <button
+          onClick={() =>
+            void ws
+              .runExclusive("import", () => new Promise<void>((r) => (importGate.release = r)))
+              .catch((e: unknown) => setErr(e instanceof Error ? e.message : "?"))
+          }
+        >
+          import
+        </button>
       </div>
     );
   }
@@ -957,5 +978,46 @@ describe("WorkspaceProvider backups", () => {
     renderBackup(storage, 100_000);
     fireEvent.click(await screen.findByRole("button", { name: "write" }));
     await waitFor(() => expect(screen.getByText("warning:true")).toBeInTheDocument());
+  });
+  it("blocks backup and restore while a legacy import runs, then frees them", async () => {
+    const storage = new MemoryStorage();
+    renderBackup(storage, 100_000);
+    fireEvent.click(await screen.findByRole("button", { name: "import" }));
+    expect(await screen.findByText("busy:import")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "restore" }));
+    expect(await screen.findByText(`error:${BUSY}`)).toBeInTheDocument();
+    expect(restoreMock.restoreBackup).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "backup" }));
+    await new Promise((r) => setTimeout(r, 30));
+    expect((await storage.list("Respaldos").catch(() => [])).length).toBe(0);
+    act(() => importGate.release());
+    await waitFor(() => expect(screen.getByText("busy:null")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "restore" }));
+    await waitFor(() => expect(restoreMock.restoreBackup).toHaveBeenCalledTimes(1));
+  });
+
+  it("rejects a legacy import while a restore runs", async () => {
+    const storage = new MemoryStorage();
+    let release: () => void = () => undefined;
+    restoreMock.restoreBackup.mockImplementation(() => new Promise<void>((r) => (release = r)));
+    renderBackup(storage, 100_000);
+    fireEvent.click(await screen.findByRole("button", { name: "restore" }));
+    await waitFor(() => expect(restoreMock.restoreBackup).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "import" }));
+    expect(await screen.findByText(`error:${BUSY}`)).toBeInTheDocument();
+    expect(screen.getByText("busy:restore")).toBeInTheDocument();
+    release();
+    await waitFor(() => expect(screen.getByText("busy:null")).toBeInTheDocument());
+  });
+
+  it("re-arms the automatic backup when a legacy import holds it, and runs it after the import", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    renderBackup(storage, 0);
+    fireEvent.click(await screen.findByRole("button", { name: "import" }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(await autos(storage)).toHaveLength(0);
+    act(() => importGate.release());
+    await waitFor(async () => expect(await autos(storage)).toHaveLength(1), { timeout: 2000 });
   });
 });

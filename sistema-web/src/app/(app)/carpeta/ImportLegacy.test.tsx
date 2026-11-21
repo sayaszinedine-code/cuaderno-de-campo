@@ -14,6 +14,7 @@ vi.mock("@/storage/pick", () => pick);
 
 import { WorkspaceProvider } from "@/workspace/WorkspaceProvider";
 import { ImportLegacy } from "./ImportLegacy";
+import CarpetaPage from "./page";
 
 const Y = new Date().getFullYear();
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
@@ -171,5 +172,40 @@ describe("ImportLegacy", () => {
     expect(await screen.findByText(/Importación terminada/)).toBeInTheDocument();
     expect((await repo.loadYear(Y)).students.filter((s) => s.classroomId === "c1")).toHaveLength(2);
   });
+  it("blocks backups, restores and folder changes while the import runs", async () => {
+    const repo = createWorkspaceRepo(storage);
+    await repo.saveYear({
+      version: 1,
+      schoolYear: Y,
+      periods: defaultPeriods(Y),
+      classrooms: [{ id: "c1", name: "Pollitos", cycle: "II", bands: ["3y"], disabledCompetencyIds: [], cycleIGrading: "descriptive" }],
+      students: [],
+    });
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    let photoStarted = false;
+    const write = storage.writeFile.bind(storage);
+    storage.writeFile = async (path, data) => {
+      if (path.includes("evidencia-")) {
+        photoStarted = true;
+        await gate;
+      }
+      return write(path, data);
+    };
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+    render(
+      <WorkspaceProvider userId="u1" autoBackupDelayMs={100_000}>
+        <CarpetaPage />
+      </WorkspaceProvider>,
+    );
+    await choose(JSON.stringify(legacy));
+    expect(await screen.findByLabelText("Aula de destino")).toHaveValue("c1");
+    fireEvent.click(screen.getByRole("button", { name: "Importar" }));
+    await waitFor(() => expect(photoStarted).toBe(true));
+    const locked = ["Hacer respaldo ahora", "Restaurar desde un respaldo…", "Cambiar carpeta"];
+    for (const name of locked) expect(screen.getByRole("button", { name })).toBeDisabled();
+    release();
+    expect(await screen.findByText(/Importación terminada/)).toBeInTheDocument();
+    for (const name of locked) expect(screen.getByRole("button", { name })).toBeEnabled();
+  });
 });
-
