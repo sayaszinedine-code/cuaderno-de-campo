@@ -25,6 +25,7 @@ describe("AppShell mobile nav", () => {
     expect(within(menu).getByRole("link", { name: "Unidades" })).toHaveAttribute("href", expect.stringMatching(/^\/unidades\/?$/));
     expect(within(menu).getByRole("link", { name: "Agenda" })).toHaveAttribute("href", expect.stringMatching(/^\/agenda\/?$/));
     expect(within(menu).getByRole("link", { name: "Asistencia" })).toHaveAttribute("href", expect.stringMatching(/^\/asistencia\/?$/));
+    expect(within(menu).getByRole("link", { name: "Reportes" })).toHaveAttribute("href", expect.stringMatching(/^\/reportes\/?$/));
   });
 
   it("keeps the full list on desktop and hides admin for teachers", () => {
@@ -32,6 +33,7 @@ describe("AppShell mobile nav", () => {
     render(<AppShell>x</AppShell>);
     const side = screen.getByRole("navigation", { name: "Principal" });
     expect(within(side).getByText("Unidades")).toBeInTheDocument();
+    expect(within(side).getByRole("link", { name: "Reportes" })).toHaveAttribute("href", expect.stringMatching(/^\/reportes\/?$/));
     expect(within(side).queryByText("Administración")).toBeNull();
     expect(within(side).getByRole("link", { name: "Perfil" })).toHaveAttribute("href", expect.stringMatching(/^\/perfil\/?$/));
     expect(within(side).getByRole("link", { name: "Carpeta" })).toHaveAttribute("href", expect.stringMatching(/^\/carpeta\/?$/));

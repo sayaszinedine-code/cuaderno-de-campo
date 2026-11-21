@@ -17,6 +17,7 @@ const NAV: NavItem[] = [
   { label: "Unidades", href: "/unidades/" },
   { label: "Asistencia", href: "/asistencia/" },
   { label: "Agenda", href: "/agenda/" },
+  { label: "Reportes", href: "/reportes/" },
 ];
 
 /** Personal pages: on desktop after the main list, on mobile inside «Más». */
@@ -35,7 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const desktopItems: NavItem[] = [...NAV, ...PERSONAL, ...admin];
   const mobileItems = NAV.filter((i) => ["Inicio", "Cuaderno", "Niños", "Notas"].includes(i.label));
   const moreItems: NavItem[] = [
-    ...NAV.filter((i) => ["Aulas", "Unidades", "Asistencia", "Agenda"].includes(i.label)),
+    ...NAV.filter((i) => ["Aulas", "Unidades", "Asistencia", "Agenda", "Reportes"].includes(i.label)),
     ...PERSONAL,
     ...admin,
   ];
