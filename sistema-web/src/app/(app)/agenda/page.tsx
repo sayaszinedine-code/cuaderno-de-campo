@@ -112,6 +112,8 @@ export default function AgendaPage() {
     setBusy(false);
     if (!ok) return setDeleteError(true);
     setConfirmId(null);
+    // An open edit form of the deleted event would bring it back on «Guardar».
+    setDraft((d) => (d?.id === id ? null : d));
   };
 
   const dayEvents = eventsOn(agenda, day);

@@ -151,6 +151,29 @@ describe("Agenda page", () => {
     await waitFor(async () => expect((await saved()).events).toEqual([]));
   });
 
+  it("closes the edit form of an event once it is deleted, so it cannot be saved back", async () => {
+    await seed([ev("a", D, "Reunión"), ev("b", D, "Taller")]);
+    await open(D);
+    fireEvent.click(screen.getByRole("button", { name: "Editar Reunión" }));
+    expect(screen.getByLabelText("Título")).toHaveValue("Reunión");
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Reunión" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, eliminar" }));
+    await waitFor(async () => expect((await saved()).events.map((e) => e.id)).toEqual(["b"]));
+    await waitFor(() => expect(screen.queryByLabelText("Título")).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Guardar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar Reunión" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the edit form of another event open when deleting a different one", async () => {
+    await seed([ev("a", D, "Reunión"), ev("b", D, "Taller")]);
+    await open(D);
+    fireEvent.click(screen.getByRole("button", { name: "Editar Taller" }));
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Reunión" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, eliminar" }));
+    await waitFor(async () => expect((await saved()).events.map((e) => e.id)).toEqual(["b"]));
+    expect(screen.getByLabelText("Título")).toHaveValue("Taller");
+  });
+
   it("keeps the form open and warns when the save fails", async () => {
     await seed();
     await open(D);
