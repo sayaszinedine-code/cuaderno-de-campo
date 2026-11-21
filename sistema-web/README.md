@@ -18,10 +18,10 @@ Navegador recomendado: **Chrome o Edge en computadora**. En otros navegadores lo
 En **Authentication**:
 
 - **Providers → Email**: deja activado «Confirm email» (las docentes confirman su correo).
-- **URL Configuration → Site URL**: la URL pública de la app, por ejemplo `https://tu-app.vercel.app`.
+- **URL Configuration → Site URL**: la URL pública de la app, por ejemplo `https://tu-app.netlify.app`.
 - **URL Configuration → Redirect URLs**: agrega
-  - `https://tu-app.vercel.app/login/`
-  - `https://tu-app.vercel.app/recuperar/`
+  - `https://tu-app.netlify.app/login/`
+  - `https://tu-app.netlify.app/recuperar/`
   - (opcional, para desarrollo) `http://localhost:3000/login/` y `http://localhost:3000/recuperar/`
 
 ### Nombrar a la primera administradora
@@ -47,28 +47,17 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<clave anon public>
 
 Son valores públicos (se incluyen en el sitio), pero no subas `.env.local` al repositorio. Nunca uses la clave `service_role`.
 
-## 3. Desplegar (Vercel o Netlify, gratis)
+## 3. Publicar en Netlify (gratis)
 
-```bash
-npm install
-npm run build
-```
+El repositorio ya trae `netlify.toml` en la raíz: compila `sistema-web/` con `npm run build`, publica `out/` y fija las cabeceras que necesita la app instalable.
 
-Se genera la carpeta `out/` (sitio estático). Opciones:
+**Opción A — conectado al repositorio (recomendada; cada cambio se publica solo):**
 
-- **Vercel / Netlify conectados al repositorio**: Build command `npm run build`, Output directory `out`, y define las dos variables de entorno en el panel del servicio.
-- **Subida manual**: arrastra la carpeta `out/` a Netlify Drop (<https://app.netlify.com/drop>), o desde la terminal usa `vercel deploy out` (sube la carpeta estática tal cual) o `netlify deploy --dir=out`.
+1. Sube el repositorio a GitHub (privado está bien).
+2. En <https://app.netlify.com> → **Add new site → Import an existing project** → elige el repositorio. Netlify lee `netlify.toml`; no cambies los campos de compilación.
+3. En **Site configuration → Environment variables** agrega `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`, y vuelve a desplegar.
 
-Después del primer despliegue, actualiza la *Site URL* y las *Redirect URLs* de Supabase con la URL real.
-
-### Uso sin conexión (app instalable): cabeceras del hosting
-
-`npm run build` genera además `out/sw.js` (service worker que guarda la app para abrirla sin internet). El hosting debe servir:
-
-- `/sw.js` con `Cache-Control: no-cache`, para que el navegador detecte cada versión nueva y la docente vea «Hay una nueva versión. Recargar.».
-- `/manifest.webmanifest` con `Content-Type: application/manifest+json`, para que Chrome y Edge ofrezcan instalar la app.
-
-Netlify (`out/_headers`, copiado desde `public/_headers` si lo creas):
+**Opción B — subida manual:** con `.env.local` completo, ejecuta `npm install && npm run build` en `sistema-web/`. Las cabeceras de `netlify.toml` solo se aplican en la Opción A, así que antes de subir crea `out/_headers` con:
 
 ```
 /sw.js
@@ -77,7 +66,28 @@ Netlify (`out/_headers`, copiado desde `public/_headers` si lo creas):
   Content-Type: application/manifest+json
 ```
 
-Vercel (`vercel.json`): agrega en `headers` las mismas dos reglas para `source: "/sw.js"` y `source: "/manifest.webmanifest"`.
+y arrastra la carpeta `out/` a <https://app.netlify.com/drop> (o usa `netlify deploy --prod --dir=out`).
+
+Después del primer despliegue, cambia el nombre del sitio si quieres (**Site configuration → Change site name**) y actualiza en Supabase la *Site URL* y las *Redirect URLs* con la URL real (`https://<nombre>.netlify.app`).
+
+### Por qué esas cabeceras
+
+`npm run build` genera `out/sw.js`, el service worker que guarda la app para abrirla sin internet:
+
+- `/sw.js` con `Cache-Control: no-cache`: el navegador detecta cada versión nueva y la docente ve «Hay una nueva versión. Recargar.».
+- `/manifest.webmanifest` con `Content-Type: application/manifest+json`: Chrome y Edge ofrecen instalar la app.
+
+## Asistente de IA (opcional, lo paga cada docente)
+
+La app no incluye ninguna clave. Cada docente, en **Perfil → Asistente de IA**, elige el proveedor, pega su propia clave y acepta el consentimiento:
+
+| Proveedor | Dónde se saca la clave | Describe fotos |
+| --- | --- | --- |
+| DeepSeek | <https://platform.deepseek.com> (de pago, muy barato) | No |
+| Claude (Anthropic) | <https://console.anthropic.com> (de pago) | Sí |
+| Gemini (Google) | <https://aistudio.google.com> (tiene nivel gratuito) | Sí |
+
+La clave se guarda solo en el navegador de la docente y los nombres de los niños se reemplazan por iniciales antes de enviar el texto. En el nivel gratuito de Gemini, Google puede usar lo enviado para mejorar sus productos; la app lo indica en el consentimiento.
 
 ## 4. Supabase gratis: pausa por inactividad
 
