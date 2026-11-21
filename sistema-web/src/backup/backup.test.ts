@@ -25,10 +25,24 @@ describe("listAllFiles", () => {
     await s.writeFile("Respaldos/respaldo-2026-01-01-0000.zip", enc("old"));
     await s.writeFile("respaldos/x.zip", enc("old"));
     await s.writeFile("2026/datos/anio.json.tmp", enc("half"));
+    await s.writeFile("Respaldos/respaldo-2026-01-02-0000.zip.tmp", enc("half"));
     expect((await listAllFiles(s)).sort()).toEqual([
       "2026/datos/anio.json",
       "2026/fotos/a.jpg",
       "datos/perfil.json",
+    ]);
+  });
+
+  it("keeps the teacher's own .tmp files: only the app's `name.ext.tmp` temps are skipped", async () => {
+    const s = new MemoryStorage();
+    await seed(s);
+    await s.writeFile("notas.tmp", enc("mis notas"));
+    await s.writeFile("2026/datos/anio.json.TMP", enc("half"));
+    expect((await listAllFiles(s)).sort()).toEqual([
+      "2026/datos/anio.json",
+      "2026/fotos/a.jpg",
+      "datos/perfil.json",
+      "notas.tmp",
     ]);
   });
 });

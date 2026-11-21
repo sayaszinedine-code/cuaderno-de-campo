@@ -26,9 +26,11 @@ export function isBackupPath(path: string): boolean {
   return path.split("/")[0].toLowerCase() === BACKUP_DIR.toLowerCase();
 }
 
-/** Temp files left by atomic writes; never part of a backup. */
-export const isTempFile = (name: string): boolean =>
-  name.toLowerCase().endsWith(".tmp");
+/**
+ * Temp files left by the app's atomic writes and writers (`writeTextAtomic`/`createWriter` write `<name>.<ext>.tmp`
+ * next to the target); never part of a backup. A teacher's own `notas.tmp` does not match and is backed up.
+ */
+export const isTempFile = (name: string): boolean => /\.[^./]+\.tmp$/i.test(name);
 
 const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 const FORBIDDEN = /[\x00-\x1f\x7f<>:"|?*]/;

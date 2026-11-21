@@ -112,6 +112,17 @@ describe("restoreBackup", () => {
     expect(await back.readText("2025/datos/anio.json")).toBe("OLD25");
   });
 
+  it("backs up and restores a user file named notas.tmp", async () => {
+    const src = new MemoryStorage();
+    await seed(src);
+    await src.writeFile("notas.tmp", enc("mis notas"));
+    const blob = await backupOf(src);
+    const dst = new MemoryStorage();
+    await dst.writeFile("datos/perfil.json", enc("OLD"));
+    await restoreBackup(dst, blob, { replace: true });
+    expect(await dst.readText("notas.tmp")).toBe("mis notas");
+  });
+
   it("leaves the folder intact when the safety backup fails", async () => {
     const src = new MemoryStorage();
     await seed(src);
