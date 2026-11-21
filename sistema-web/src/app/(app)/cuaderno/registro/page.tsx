@@ -7,7 +7,7 @@ import { loadAiSettings, DEFAULT_AI_SETTINGS, type AiSettings } from "@/ai/setti
 import { useAccount } from "@/components/AccountGate";
 import { areaIdFor } from "@/curriculum";
 import { areasForCycles } from "@/domain/areas";
-import { activeCompetencies, classroomLabel } from "@/domain/classrooms";
+import { activeCompetencies, byStudentName, classroomLabel } from "@/domain/classrooms";
 import { newNote, removeNote, upsertNote, validateNote, validStudents } from "@/domain/notes";
 import { noteDir } from "@/domain/paths";
 import { linkedSessionsOfNote } from "@/domain/units";
@@ -140,7 +140,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
 
   const students = yearData.students
     .filter((s) => s.active && s.classroomId === classroom.id)
-    .sort((a, b) => a.lastNames.localeCompare(b.lastNames, "es") || a.firstNames.localeCompare(b.firstNames, "es"));
+    .sort(byStudentName);
   const competencies = activeCompetencies(classroom);
   const areas = areasForCycles([classroom.cycle]).filter((a) => competencies.some((c) => areaIdFor(c, classroom.cycle) === a.id));
   const areaCompetencies = competencies.filter((c) => areaIdFor(c, classroom.cycle) === note.areaId);

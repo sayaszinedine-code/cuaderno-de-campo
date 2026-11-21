@@ -1,6 +1,6 @@
 import type * as ExcelNS from "exceljs";
 import { summary, monthDays } from "@/domain/attendance";
-import { classroomLabel } from "@/domain/classrooms";
+import { byStudentName, classroomLabel } from "@/domain/classrooms";
 import { gradeTable, usesScale } from "@/domain/grades";
 import { safeName } from "@/domain/paths";
 import {
@@ -87,7 +87,8 @@ export async function gradesWorkbook(params: {
   if (!scale) ws.addRow(["Evaluación descriptiva: resumen de la conclusión de cada competencia."]);
   ws.addRow([]);
   boldRow(ws.addRow(["N.°", "Niño o niña", ...table.competencies.map((c) => c.shortName)]));
-  table.students.forEach((s, i) => {
+  const rows = [...table.students].sort(byStudentName);
+  rows.forEach((s, i) => {
     const cells = table.competencies.map((c) => {
       const e = table.cell(s.id, c.id);
       if (!e) return "";
@@ -110,7 +111,7 @@ export async function gradesWorkbook(params: {
 
   const cs = wb.addWorksheet("Conclusiones");
   boldRow(cs.addRow(["Niño o niña", "Competencia", "Conclusión"]));
-  for (const s of table.students) {
+  for (const s of rows) {
     for (const c of table.competencies) {
       const conclusion = table.cell(s.id, c.id)?.conclusion.trim() ?? "";
       if (conclusion) cs.addRow([rowName(s), c.name, conclusion]);
@@ -143,7 +144,8 @@ export async function attendanceWorkbook(params: {
 }): Promise<Blob> {
   const Excel = await loadExcel();
   const { classroom, month, attendance } = params;
-  const students = params.students.filter((s) => s.classroomId === classroom.id && s.active);
+  const students = params.students.filter((s) => s.classroomId === classroom.id && s.active)
+    .sort(byStudentName);
   const days = monthDays(attendance, classroom.id, month);
   const range = monthRange(month);
 
@@ -198,7 +200,8 @@ export async function saveReport(
   if (!relPath.safeParse(folder).success) throw new Error("Invalid report folder");
   const base = `${safeName(baseName).slice(0, 60).trim()} ${stamp(now)}`;
   const cleanExt = safeName(ext).replace(/^\.+/, "");
-  const taken = new Set((await storage.list(folder).catch(() => [])).map((e) => e.name.toLowerCase()));
+  // Both backends return [] for a missing folder; any other failure must stop the write (no blind overwrite).
+  const taken = new Set((await storage.list(folder)).map((e) => e.name.toLowerCase()));
   let name = `${base}.${cleanExt}`;
   for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${base} (${n}).${cleanExt}`;
   await storage.writeFile(`${folder}/${name}`, blob);

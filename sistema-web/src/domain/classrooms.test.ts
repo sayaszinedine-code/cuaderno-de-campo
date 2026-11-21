@@ -171,3 +171,21 @@ describe("updatePeriods", () => {
     expect(() => updatePeriods(empty(), next)).toThrow("El bimestre 1 necesita fechas de inicio y fin");
   });
 });
+
+describe("byStudentName", () => {
+  it("sorts by apellidos, then nombres, with Spanish collation", async () => {
+    const { byStudentName } = await import("./classrooms");
+    const list = [
+      { firstNames: "Zoe", lastNames: "Ñahui" },
+      { firstNames: "Luz", lastNames: "Álvarez" },
+      { firstNames: "Ana", lastNames: "Nuñez" },
+      { firstNames: "Bea", lastNames: "Álvarez" },
+    ];
+    expect([...list].sort(byStudentName).map((s) => `${s.lastNames}, ${s.firstNames}`)).toEqual([
+      "Álvarez, Bea",
+      "Álvarez, Luz",
+      "Nuñez, Ana",
+      "Ñahui, Zoe",
+    ]);
+  });
+});

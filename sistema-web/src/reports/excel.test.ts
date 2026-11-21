@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
 import { activeCompetencies } from "@/domain/classrooms";
 import {
@@ -190,6 +190,34 @@ describe("attendanceWorkbook", () => {
   });
 });
 
+describe("student order", () => {
+  const unsorted: Student[] = [
+    { id: "z", classroomId: "c1", firstNames: "Zoe", lastNames: "Ñahui", active: true },
+    { id: "b", classroomId: "c1", firstNames: "Bea", lastNames: "Álvarez", active: true },
+    { id: "a", classroomId: "c1", firstNames: "Ana", lastNames: "Nuñez", active: true },
+  ];
+  const order = (ws: ExcelJS.Worksheet) => {
+    const names: string[] = [];
+    ws.eachRow((row) => {
+      const v = row.getCell(2).value;
+      if (typeof v === "string" && v.includes(", ")) names.push(v);
+    });
+    return names;
+  };
+  const expected = ["Álvarez, Bea", "Nuñez, Ana", "Ñahui, Zoe"];
+
+  it("lists children by apellidos then nombres in the grade register", async () => {
+    const blob = await gradesWorkbook({ profile, classroom: scaleRoom, students: unsorted, period: { id: "B1", name: "I Bimestre" }, grades: grades([]) });
+    expect(order((await load(blob)).getWorksheet("Registro I Bimestre")!)).toEqual(expected);
+  });
+
+  it("lists children by apellidos then nombres in the attendance sheet", async () => {
+    const att: AttendanceFile = { version: SCHEMA_VERSION, schoolYear: 2026, days: [] };
+    const blob = await attendanceWorkbook({ classroom: scaleRoom, students: unsorted, month: "2026-04", attendance: att });
+    expect(order((await load(blob)).worksheets[0])).toEqual(expected);
+  });
+});
+
 describe("saveReport", () => {
   const now = new Date(2026, 10, 21, 15, 30);
 
@@ -209,6 +237,14 @@ describe("saveReport", () => {
     expect(c).toBe("Asistencia 2026-11 Girasoles 2026-11-21 1530 (3).xlsx");
     expect(await storage.readText(`2026/Aula X/Reportes/${a}`)).toBe("1");
     expect(await storage.readText(`2026/Aula X/Reportes/${b}`)).toBe("2");
+  });
+
+  it("propagates a list failure and writes nothing", async () => {
+    const storage = new MemoryStorage();
+    storage.list = () => Promise.reject(new Error("permission lost"));
+    const write = vi.spyOn(storage, "writeFile");
+    await expect(saveReport(storage, "2026/Aula X/", "Asistencia", "xlsx", new Blob(["1"]), now)).rejects.toThrow("permission lost");
+    expect(write).not.toHaveBeenCalled();
   });
 
   it("strips path-hostile characters from the base name and rejects unsafe dirs", async () => {

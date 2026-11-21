@@ -74,6 +74,15 @@ export function ReportsPage() {
   const [monthPick, setMonthPick] = useState("");
   const [gradesState, setGradesState] = useState<CardState>(IDLE);
   const [attendanceState, setAttendanceState] = useState<CardState>(IDLE);
+  const [seenYear, setSeenYear] = useState(year);
+  if (seenYear !== year) {
+    // The open year changed: picks from the previous year no longer apply.
+    setSeenYear(year);
+    setMonthPick("");
+    setPeriodPick(null);
+    setGradesState(IDLE);
+    setAttendanceState(IDLE);
+  }
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -175,8 +184,10 @@ export function ReportsPage() {
             type="month"
             className="field"
             value={month}
+            min={`${year}-01`}
+            max={`${year}-12`}
             onChange={(e) => {
-              if (!e.target.value) return;
+              if (!e.target.value.startsWith(`${year}-`)) return;
               setMonthPick(e.target.value);
               setAttendanceState(IDLE);
             }}
