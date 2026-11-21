@@ -228,6 +228,14 @@ describe("saveReport", () => {
     expect(await storage.readText(`2026/Aula X/Reportes/${name}`)).toBe("a");
   });
 
+  it("keeps the suffix whole when a long label is shortened", async () => {
+    const storage = new MemoryStorage();
+    const label = `Portafolio ${"Ana María Valentina Fernández de la Cruz Huamaní".padEnd(50, "x")}`;
+    const name = await saveReport(storage, "2026/Aula X/", label, "pdf", new Blob(["a"]), now, " 2026-03-01_2026-04-30");
+    expect(name).toMatch(/^Portafolio Ana María .+ 2026-03-01_2026-04-30 2026-11-21 1530\.pdf$/);
+    expect(name.length).toBeLessThanOrEqual(60 + " 2026-11-21 1530.pdf".length);
+  });
+
   it("never overwrites: adds « (2)», « (3)»", async () => {
     const storage = new MemoryStorage();
     const a = await saveReport(storage, "2026/Aula X/", "Asistencia 2026-11 Girasoles", "xlsx", new Blob(["1"]), now);

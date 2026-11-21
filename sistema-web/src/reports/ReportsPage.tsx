@@ -15,7 +15,9 @@ const DOWNLOAD_REVOKE_DELAY_MS = 1000;
 const RANGE_ERROR = "La fecha «Desde» no puede ser posterior a «Hasta».";
 const PROFILE_NOTICE = "Completa tu perfil para que aparezca en los reportes.";
 
-type CardState = { busy: boolean; error: string; saved: { name: string; blob: Blob } | null };
+type Saved = { name: string; blob: Blob; skippedPhotos: number };
+type CardState = { busy: boolean; error: string; saved: Saved | null };
+type Built = { base: string; suffix?: string; blob: Blob; skippedPhotos?: number };
 const IDLE: CardState = { busy: false, error: "", saved: null };
 
 function openBlob(blob: Blob) {
@@ -56,6 +58,11 @@ function ReportCard(props: { title: string; hint?: string; blocked?: string; sta
       {state.saved && (
         <div className="space-y-2">
           <p role="status" className="text-sm">{`Guardado en Reportes: ${state.saved.name}`}</p>
+          {state.saved.skippedPhotos > 0 && (
+            <p className="text-sm text-muted">
+              {`${state.saved.skippedPhotos} foto(s) no se incluyeron (formato no compatible o archivo no encontrado).`}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-secondary" onClick={() => state.saved && openBlob(state.saved.blob)}>
               Abrir
@@ -139,13 +146,13 @@ export function ReportsPage() {
   async function run(
     set: (s: CardState) => void,
     ext: "xlsx" | "pdf",
-    build: () => Promise<{ base: string; blob: Blob }>,
+    build: () => Promise<Built>,
   ): Promise<void> {
     set({ busy: true, error: "", saved: null });
     try {
-      const { base, blob } = await build();
-      const name = await saveReport(storage, classroomDir(year, classroom), base, ext, blob);
-      if (mounted.current) set({ busy: false, error: "", saved: { name, blob } });
+      const { base, suffix, blob, skippedPhotos = 0 } = await build();
+      const name = await saveReport(storage, classroomDir(year, classroom), base, ext, blob, new Date(), suffix);
+      if (mounted.current) set({ busy: false, error: "", saved: { name, blob, skippedPhotos } });
     } catch {
       if (mounted.current) set({ busy: false, error: "No se pudo generar el reporte.", saved: null });
     }
@@ -153,7 +160,8 @@ export function ReportsPage() {
 
   const generateGrades = () =>
     void run(setGradesState, "xlsx", async () => ({
-      base: `Registro de notas Bimestre ${periodId.slice(1)} ${classroom.name}`,
+      base: `Registro de notas ${classroom.name}`,
+      suffix: ` Bimestre ${periodId.slice(1)}`,
       blob: await gradesWorkbook({
         profile,
         classroom,
@@ -165,7 +173,8 @@ export function ReportsPage() {
 
   const generateAttendance = () =>
     void run(setAttendanceState, "xlsx", async () => ({
-      base: `Asistencia ${month} ${classroom.name}`,
+      base: `Asistencia ${classroom.name}`,
+      suffix: ` ${month}`,
       blob: await attendanceWorkbook({ classroom, students: yearData.students, month, attendance }),
     }));
 
@@ -191,7 +200,7 @@ export function ReportsPage() {
         from,
         to,
       });
-      return { base: `Portafolio ${fullName(student)} ${from}_${to}`, blob: r.blob };
+      return { base: `Portafolio ${fullName(student)}`, suffix: ` ${from}_${to}`, ...r };
     });
   };
 
@@ -207,7 +216,7 @@ export function ReportsPage() {
         grades,
         attendance,
       });
-      return { base: `Informe de progreso ${fullName(student)} Bimestre ${periodId.slice(1)}`, blob: r.blob };
+      return { base: `Informe de progreso ${fullName(student)}`, suffix: ` Bimestre ${periodId.slice(1)}`, ...r };
     });
   };
 
@@ -216,7 +225,7 @@ export function ReportsPage() {
     void run(setNotebookState, "pdf", async () => {
       const { notebookPdf } = await import("./pdf/generate");
       const r = await notebookPdf({ storage, profile, classroom, students: yearData.students, notes, year, from, to });
-      return { base: `Cuaderno de campo ${classroom.name} ${from}_${to}`, blob: r.blob };
+      return { base: `Cuaderno de campo ${classroom.name}`, suffix: ` ${from}_${to}`, ...r };
     });
   };
 

@@ -79,7 +79,7 @@ describe("Reportes page", () => {
     fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "Generar" }));
     const msg = await within(card as HTMLElement).findByText(/^Guardado en Reportes: /, {}, { timeout: 10000 });
     const name = msg.textContent!.replace("Guardado en Reportes: ", "");
-    expect(name).toMatch(/^Registro de notas Bimestre 1 Girasoles \d{4}-\d{2}-\d{2} \d{4}\.xlsx$/);
+    expect(name).toMatch(/^Registro de notas Girasoles Bimestre 1 \d{4}-\d{2}-\d{2} \d{4}\.xlsx$/);
     const files = await storage.list(`${classroomDir(year, classroom)}Reportes`);
     expect(files.map((f) => f.name)).toEqual([name]);
     expect(within(card as HTMLElement).getByRole("button", { name: "Abrir" })).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe("Reportes page", () => {
     const card = screen.getByRole("heading", { name: "Asistencia del mes (Excel)" }).closest("section") as HTMLElement;
     fireEvent.click(within(card).getByRole("button", { name: "Generar" }));
     const msg = await within(card).findByText(/^Guardado en Reportes: /, {}, { timeout: 10000 });
-    expect(msg.textContent).toMatch(new RegExp(`Asistencia ${year}-04 Girasoles .*\\.xlsx$`));
+    expect(msg.textContent).toMatch(new RegExp(`Asistencia Girasoles ${year}-04 .*\\.xlsx$`));
     fireEvent.click(within(card).getByRole("button", { name: "Abrir" }));
     await waitFor(() => expect(open).toHaveBeenCalledWith("blob:fake", "_blank"));
   });

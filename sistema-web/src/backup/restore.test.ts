@@ -30,13 +30,14 @@ describe("restoreBackup", () => {
   it("round-trips many files through streaming writers with small chunks", async () => {
     const src = new MemoryStorage();
     await seed(src);
-    for (let i = 0; i < 60; i++) {
-      const b = new Uint8Array(64 * 1024);
-      for (let j = 0; j < b.length; j++)
-        b[j] = (i * 13 + j * 5 + (j >> 7)) & 255;
+    // Two files with a varying byte pattern catch reordered or dropped bytes; the rest are cheap fills.
+    const pattern = Uint8Array.from({ length: 64 * 1024 }, (_, j) => (j * 5 + (j >> 7)) & 255);
+    await src.writeFile("2026/x/pattern.png", new Blob([pattern]));
+    await src.writeFile("2026/x/pattern.txt", new Blob([pattern]));
+    for (let i = 0; i < 30; i++) {
       await src.writeFile(
         `2026/x/f${i}.${i % 2 ? "png" : "txt"}`,
-        new Blob([b]),
+        new Blob([new Uint8Array(64 * 1024).fill((i * 13) & 255)]),
       );
     }
     const blob = await backupOf(src);

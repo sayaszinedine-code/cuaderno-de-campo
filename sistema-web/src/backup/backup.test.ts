@@ -86,18 +86,18 @@ describe("saveBackup + inspectBackup", () => {
     });
   });
 
-  it("accepts big folders (200 files x 64 KB) reading only small slices", async () => {
+  it("accepts big folders (many files and a 3 MB photo) reading only small slices", async () => {
     const s = new MemoryStorage();
     await seed(s);
-    for (let i = 0; i < 200; i++) {
-      const b = new Uint8Array(64 * 1024);
-      for (let j = 0; j < b.length; j++)
-        b[j] = (i * 31 + j * 7 + (j >> 8)) & 255;
+    // Stored (jpg) files keep their size in the zip, so the output spans several flushes; the 3 MB photo
+    // is bigger than one read slice.
+    for (let i = 0; i < 50; i++) {
       await s.writeFile(
         `2026/fotos/p${i}.${i % 2 ? "jpg" : "txt"}`,
-        new Blob([b]),
+        new Blob([new Uint8Array(64 * 1024).fill((i * 31) & 255)]),
       );
     }
+    await s.writeFile("2026/fotos/grande.jpg", new Blob([new Uint8Array(3 * 1024 * 1024).fill(0x5a)]));
     const sizes: number[] = [];
     const orig = FileReader.prototype.readAsArrayBuffer;
     const spy = vi

@@ -152,6 +152,50 @@ describe("ReportsPage PDF reports", () => {
     expect([args.from, args.to]).toEqual([`${year}-05-01`, `${year}-06-30`]);
   });
 
+  it("keeps the date range and the bimester in the file name of a child with a long name", async () => {
+    const long = "Ana María Valentina Fernández de la Cruz Huamaní".padEnd(50, "x");
+    expect(long).toHaveLength(50);
+    const data = base();
+    data.students = [{ id: "s9", classroomId: "c1", firstNames: long, lastNames: "Rojas", active: true }];
+    await storage.writeTextAtomic(yearDataPath(year), JSON.stringify(data));
+    render(
+      <WorkspaceProvider userId="u1">
+        <ReportsPage />
+      </WorkspaceProvider>,
+    );
+    fireEvent.change(await screen.findByLabelText("Desde"), { target: { value: `${year}-03-01` } });
+    fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: `${year}-04-30` } });
+    fireEvent.change(screen.getByLabelText("Bimestre"), { target: { value: "B2" } });
+    fireEvent.click(card("Portafolio de evidencias (PDF)").getByRole("button", { name: "Generar" }));
+    fireEvent.click(card("Informe de progreso (PDF)").getByRole("button", { name: "Generar" }));
+    expect((await card("Portafolio de evidencias (PDF)").findByRole("status")).textContent).toMatch(
+      new RegExp(`^Guardado en Reportes: Portafolio Ana María .+ ${year}-03-01_${year}-04-30 \\d{4}-\\d{2}-\\d{2} \\d{4}\\.pdf$`),
+    );
+    expect((await card("Informe de progreso (PDF)").findByRole("status")).textContent).toMatch(
+      /^Guardado en Reportes: Informe de progreso Ana María .+ Bimestre 2 \d{4}-\d{2}-\d{2} \d{4}\.pdf$/,
+    );
+  });
+
+  it("says how many photos were left out, without blocking", async () => {
+    pdfs.notebookPdf.mockResolvedValueOnce({ blob: new Blob(["%PDF"], { type: "application/pdf" }), skippedPhotos: 2 });
+    await renderPage();
+    fireEvent.click(await card("Cuaderno de campo del periodo (PDF)").findByRole("button", { name: "Generar" }));
+    await card("Cuaderno de campo del periodo (PDF)").findByRole("status");
+    expect(
+      card("Cuaderno de campo del periodo (PDF)").getByText(
+        "2 foto(s) no se incluyeron (formato no compatible o archivo no encontrado).",
+      ),
+    ).toBeInTheDocument();
+    expect(card("Cuaderno de campo del periodo (PDF)").getByRole("button", { name: "Abrir" })).toBeInTheDocument();
+  });
+
+  it("does not mention photos when none were left out", async () => {
+    await renderPage();
+    fireEvent.click(await card("Cuaderno de campo del periodo (PDF)").findByRole("button", { name: "Generar" }));
+    await card("Cuaderno de campo del periodo (PDF)").findByRole("status");
+    expect(card("Cuaderno de campo del periodo (PDF)").queryByText(/foto\(s\) no se incluyeron/)).toBeNull();
+  });
+
   it("refuses an inverted date range", async () => {
     await renderPage();
     fireEvent.change(await screen.findByLabelText("Desde"), { target: { value: `${year}-06-30` } });

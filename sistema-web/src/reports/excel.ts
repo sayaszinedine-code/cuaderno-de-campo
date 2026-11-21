@@ -184,8 +184,12 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const stamp = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}${pad(d.getMinutes())}`;
 
+/** Longest base name (label + suffix) before the timestamp. */
+const BASE_MAX = 60;
+
 /**
- * Saves `blob` as `<dir>Reportes/<base> YYYY-MM-DD HHMM.<ext>`; never overwrites (« (2)», « (3)»…).
+ * Saves `blob` as `<dir>Reportes/<base><suffix> YYYY-MM-DD HHMM.<ext>`; never overwrites (« (2)», « (3)»…).
+ * Only `base` is shortened to fit, so the `suffix` (a date range, « Bimestre N»…) always stays whole.
  * Resolves with the file name.
  */
 export async function saveReport(
@@ -195,10 +199,12 @@ export async function saveReport(
   ext: string,
   blob: Blob,
   now: Date = new Date(),
+  suffix = "",
 ): Promise<string> {
   const folder = `${dir.replace(/\/+$/, "")}/Reportes`;
   if (!relPath.safeParse(folder).success) throw new Error("Invalid report folder");
-  const base = `${safeName(baseName).slice(0, 60).trim()} ${stamp(now)}`;
+  const tail = suffix.replace(/[\\/:*?"<>|\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trimEnd().slice(0, BASE_MAX - 1);
+  const base = `${safeName(baseName).slice(0, BASE_MAX - tail.length).trim()}${tail} ${stamp(now)}`;
   const cleanExt = safeName(ext).replace(/^\.+/, "");
   // Both backends return [] for a missing folder; any other failure must stop the write (no blind overwrite).
   const taken = new Set((await storage.list(folder)).map((e) => e.name.toLowerCase()));
