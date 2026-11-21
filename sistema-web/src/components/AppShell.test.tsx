@@ -55,3 +55,13 @@ describe("AppShell backup banner", () => {
     role.warning = false;
   });
 });
+
+describe("AppShell offline badge", () => {
+  it("tells the teacher her data stays on her computer while offline", () => {
+    role.value = "teacher";
+    const spy = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    render(<AppShell>x</AppShell>);
+    expect(screen.getByText("Sin conexión: tus datos se guardan en tu computadora.")).toBeInTheDocument();
+    spy.mockRestore();
+  });
+});

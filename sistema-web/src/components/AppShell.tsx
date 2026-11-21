@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { useAccount } from "@/components/AccountGate";
+import { OfflineBadge } from "@/components/OfflineBadge";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 type NavItem = { label: string; href?: string };
@@ -118,6 +119,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        <OfflineBadge />
         {backupWarning && (
           <p role="status" className="bg-accent-soft text-foreground mx-4 rounded-xl px-4 py-2 text-sm md:mx-8">
             Haz un respaldo de tus datos. Ve a Carpeta › Respaldos.
