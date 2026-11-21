@@ -2,6 +2,7 @@
 
 import { BackupPanel } from "@/backup/BackupPanel";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
+import { ImportLegacy } from "./ImportLegacy";
 
 export default function CarpetaPage() {
   const { storage, canChooseFolder, changeFolder, backupBusy } = useWorkspace();
@@ -31,6 +32,7 @@ export default function CarpetaPage() {
         <p>Haz copias de esta carpeta con frecuencia (por ejemplo, en una memoria USB).</p>
       </section>
       <BackupPanel />
+      <ImportLegacy />
     </div>
   );
 }

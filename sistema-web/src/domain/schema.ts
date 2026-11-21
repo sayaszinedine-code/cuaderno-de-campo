@@ -65,6 +65,8 @@ const studentShape = z.object({
   healthNotes: z.string().optional(),
   photo: relPath.optional(),
   active: z.boolean(),
+  /** Id of the child in the previous field-notebook app, when imported from it. */
+  importedFrom: z.string().optional(),
 });
 
 const yearDataShape = z.object({
@@ -123,6 +125,8 @@ const fieldNoteShape = z.object({
   interpretation: z.string(),
   reflection: z.string(),
   level: z.enum(LEVELS).optional(),
+  /** Id of the record in the previous field-notebook app, when imported from it. */
+  importedFrom: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -247,6 +251,8 @@ const agendaEventShape = z.object({
   title: z.string(),
   type: z.enum(EVENT_TYPES),
   note: z.string(),
+  /** Id of the event in the previous field-notebook app, when imported from it. */
+  importedFrom: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
