@@ -93,7 +93,6 @@ export function AiSettings({ userId }: { userId: string }) {
     setTesting(false);
   }
 
-  const consentProvider = provider.label.startsWith("Claude") ? "Claude (Anthropic)" : provider.label;
 
   return (
     <section className="card max-w-2xl space-y-4 p-6" aria-labelledby="ai-title">
@@ -109,10 +108,11 @@ export function AiSettings({ userId }: { userId: string }) {
       {asking && (
         <div role="alertdialog" aria-label="Consentimiento" className="space-y-3 rounded-xl bg-accent-soft p-4">
           <p>
-            Al usar el asistente, el texto que elijas (y la foto, si lo pides) se envía a {consentProvider} para
-            generar la redacción. {consentProvider} procesa los datos en {provider.country}. Los nombres de los niños
+            Al usar el asistente, el texto que elijas (y la foto, si lo pides) se envía a {provider.label} para
+            generar la redacción. {provider.label} procesa los datos en {provider.country}. Los nombres de los niños
             se reemplazan por iniciales antes de enviarse. Tu clave se guarda solo en este navegador.
           </p>
+          {provider.consentNote && <p>{provider.consentNote}</p>}
           <div className="flex gap-3">
             <button type="button" className="btn-primary" onClick={accept}>Acepto</button>
             <button type="button" className="btn" onClick={() => setAsking(false)}>Cancelar</button>
@@ -128,6 +128,7 @@ export function AiSettings({ userId }: { userId: string }) {
         >
           <option value="deepseek">DeepSeek</option>
           <option value="claude">Claude</option>
+          <option value="gemini">Gemini</option>
         </select>
       </label>
       {providerChanged && (

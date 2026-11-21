@@ -34,6 +34,17 @@ describe("ai settings", () => {
     expect(() => saveAiSettings("u1", { enabled: false, provider: "claude", apiKeys: { claude: "k" } })).not.toThrow();
     expect(() => saveAiSettings("u1", { enabled: true, provider: "claude", apiKeys: { claude: "k" } })).toThrow();
   });
+  it("round-trips Gemini with its own key", () => {
+    saveAiSettings("u1", { enabled: false, provider: "gemini", apiKeys: { gemini: "AIza-1", deepseek: "dk" } });
+    const s = loadAiSettings("u1");
+    expect(s.provider).toBe("gemini");
+    expect(s.apiKeys).toEqual({ gemini: "AIza-1", deepseek: "dk" });
+    expect(currentApiKey(s)).toBe("AIza-1");
+  });
+  it("falls back to DeepSeek for an unknown provider", () => {
+    localStorage.setItem("ai-settings:u1", JSON.stringify({ provider: "otro" }));
+    expect(loadAiSettings("u1").provider).toBe("deepseek");
+  });
   it("tolerates corrupt storage", () => {
     localStorage.setItem("ai-settings:u1", "{bad");
     expect(loadAiSettings("u1").enabled).toBe(false);

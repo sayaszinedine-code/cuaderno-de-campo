@@ -281,6 +281,11 @@ describe("AiNoteAction", () => {
     ).toBeNull();
   });
 
+  it("photo description is offered with Gemini", () => {
+    setup("photo", base({ evidence: ["a/evidencia-1.jpg"] }), { ...on, provider: "gemini" });
+    expect(screen.getByRole("button", { name: "Describir la foto" })).toBeInTheDocument();
+  });
+
   it("photo description with Claude sends the first photo and appends on «Usar»", async () => {
     const blob = new Blob(["x"], { type: "image/jpeg" });
     const readFile = vi.fn().mockResolvedValue(blob);

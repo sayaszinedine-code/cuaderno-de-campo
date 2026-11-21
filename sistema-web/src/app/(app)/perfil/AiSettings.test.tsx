@@ -32,6 +32,21 @@ describe("AiSettings", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(loadAiSettings("u1").enabled).toBe(false);
   });
+  it("Gemini consent names Google and warns about the free tier", () => {
+    render(<AiSettings userId="u1" />);
+    fireEvent.change(screen.getByLabelText("Proveedor"), { target: { value: "gemini" } });
+    fireEvent.click(screen.getByLabelText("Usar asistente de IA"));
+    expect(screen.getByText(/se envía a Gemini \(Google\)/)).toBeInTheDocument();
+    expect(screen.getByText(/procesa los datos en Estados Unidos/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/En el nivel gratuito, Google puede usar lo que envías para mejorar sus productos\./),
+    ).toBeInTheDocument();
+  });
+  it("only Gemini shows the free-tier note", () => {
+    render(<AiSettings userId="u1" />);
+    fireEvent.click(screen.getByLabelText("Usar asistente de IA"));
+    expect(screen.queryByText(/nivel gratuito/)).toBeNull();
+  });
   it("stores the key, shows only the last 4 chars, input is a password field", () => {
     render(<AiSettings userId="u1" />);
     const input = screen.getByLabelText("Clave de IA");

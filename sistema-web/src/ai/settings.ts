@@ -10,7 +10,7 @@ export interface AiSettings {
 
 export const DEFAULT_AI_SETTINGS: AiSettings = { enabled: false, provider: "deepseek", apiKeys: {} };
 
-const PROVIDERS: readonly AiProviderId[] = ["deepseek", "claude"];
+const PROVIDERS: readonly AiProviderId[] = ["deepseek", "claude", "gemini"];
 
 /** The key saved for the selected provider ("" when none). */
 export const currentApiKey = (s: AiSettings): string => s.apiKeys[s.provider] ?? "";
@@ -33,7 +33,7 @@ export function loadAiSettings(userId: string): AiSettings {
     const raw = localStorage.getItem(key(userId));
     if (!raw) return { ...DEFAULT_AI_SETTINGS, apiKeys: {} };
     const p = JSON.parse(raw) as Record<string, unknown>;
-    const provider: AiProviderId = p.provider === "claude" ? "claude" : "deepseek";
+    const provider: AiProviderId = PROVIDERS.find((id) => id === p.provider) ?? "deepseek";
     const consentAt = typeof p.consentAt === "string" ? p.consentAt : undefined;
     const apiKeys = readKeys(p.apiKeys);
     // Older versions stored a single `apiKey`: it belongs to the provider saved with it.

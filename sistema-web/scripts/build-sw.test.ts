@@ -78,6 +78,7 @@ describe("buildServiceWorker", () => {
     expect(source).toContain("supabase.co");
     expect(source).toContain("api.deepseek.com");
     expect(source).toContain("api.anthropic.com");
+    expect(source).toContain("generativelanguage.googleapis.com");
     expect(source).toContain(version);
     expect(source).toContain('"/inicio/"');
     expect(source).not.toContain("main-abc.js.map");

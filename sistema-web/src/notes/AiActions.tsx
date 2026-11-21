@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { generateWithSettings } from "@/ai";
 import type { AiSettings } from "@/ai/settings";
-import { AI_ERROR_MESSAGES, AiError } from "@/ai/types";
+import { AI_ERROR_MESSAGES, AI_PROVIDERS, AiError } from "@/ai/types";
 import { anonymize, deanonymize } from "@/ai/anonymize";
 import {
   describePhoto,
@@ -259,7 +259,7 @@ export function AiNoteAction({
 }) {
   if (
     kind === "photo" &&
-    (settings.provider !== "claude" || note.evidence.length === 0)
+    (!AI_PROVIDERS[settings.provider].images || note.evidence.length === 0)
   )
     return null;
 

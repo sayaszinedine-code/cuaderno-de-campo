@@ -11,6 +11,10 @@ export async function generate(provider: AiProviderId, apiKey: string, req: AiRe
     const { generateClaude } = await import("./claude");
     return generateClaude(key, req);
   }
+  if (provider === "gemini") {
+    const { generateGemini } = await import("./gemini");
+    return generateGemini(key, req);
+  }
   const { generateDeepseek } = await import("./deepseek");
   return generateDeepseek(key, req);
 }

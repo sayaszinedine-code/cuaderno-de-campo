@@ -100,7 +100,7 @@ const FALLBACK_PAGE = ${JSON.stringify(FALLBACK_PAGE)};
 const NOT_FOUND_PAGE = ${JSON.stringify(NOT_FOUND_PAGE)};
 const NAV_TIMEOUT_MS = ${NAV_TIMEOUT_MS};
 // Accounts and AI always go straight to the network (any other origin too).
-const BYPASS_HOSTS = ["supabase.co", "api.deepseek.com", "api.anthropic.com"];
+const BYPASS_HOSTS = ["supabase.co", "api.deepseek.com", "api.anthropic.com", "generativelanguage.googleapis.com"];
 
 function bypassed(url) {
   if (url.origin !== self.location.origin) return true;
