@@ -9,6 +9,7 @@ import {
   parseLegacy,
   planLegacyImport,
   splitLegacyName,
+  findImportedClassrooms,
   type ImportDeps,
   type LegacyData,
 } from "./legacy-import";
@@ -36,7 +37,7 @@ function legacyFixture() {
       r2: {
         id: "r2", fecha: "2026-11-17", hora: "10:00", momento: "Experiencia de aprendizaje", tipo: "logro",
         area: "Comunicación", comp: "Se comunica oralmente en su lengua materna", ninos: ["n1", "n2"],
-        hecho: "Contaron cómo sembraron una planta.", interpretacion: "", acciones: "", fotos: [],
+        hecho: "Contaron cómo sembraron una planta.", interpretacion: "", acciones: "", fotos: [] as { src: string }[],
       },
       r3: {
         id: "r3", fecha: "2026-11-16", momento: "Taller", tipo: "anec", area: "Arte", comp: "Competencia inventada",
@@ -175,6 +176,7 @@ describe("planLegacyImport", () => {
       unmatchedCompetencies: ["Competencia inventada"],
       unmatchedNotes: 1,
       otherYearNotes: 1,
+      skippedPhotos: 0,
     });
   });
 });
@@ -322,4 +324,98 @@ describe("applyLegacyImport", () => {
     await expect(applyLegacyImport(parsed(), target(state), deps)).rejects.toThrow(/No se pudo completar la importación/);
     expect(state.yearData.students).toHaveLength(0);
   });
+
+  it("stops at the attendance step and a retry completes it without duplicates", async () => {
+    const state = initialState();
+    const { deps, calls } = fakeWorkspace(state, { attendance: true });
+    await expect(applyLegacyImport(parsed(), target(state), deps)).rejects.toThrow(/No se pudo completar la importación/);
+    expect(calls).toEqual(["update", "notes", "attendance"]);
+    expect(state.notes.notes).toHaveLength(3);
+    expect(state.attendance.days).toHaveLength(0);
+    expect(state.agenda.events).toHaveLength(0);
+
+    const retry = fakeWorkspace(state);
+    await applyLegacyImport(parsed(), target(state), retry.deps);
+    expect(retry.calls).toEqual(["attendance", "agenda"]);
+    expect(state.yearData.students).toHaveLength(3);
+    expect(state.notes.notes).toHaveLength(3);
+    expect(state.attendance.days).toHaveLength(2);
+    expect(state.agenda.events).toHaveLength(2);
+  });
 });
+
+describe("repeated ids inside one backup", () => {
+  it("imports each source id once and does not call it already imported", () => {
+    const json = legacyFixture();
+    json.ninos.push({ ...json.ninos[0] });
+    const r = { ...json.registros.r2 };
+    const registros: Record<string, unknown> = { ...json.registros, copy: r };
+    json.agenda.push({ ...json.agenda[0] });
+    const plan = planLegacyImport(parsed({ ...json, registros }), target(initialState()));
+    expect(plan).toMatchObject({ students: 3, notes: 3, events: 2, alreadyImported: false });
+  });
+});
+
+describe("area matching", () => {
+  it("reports an unknown area even without a competency", () => {
+    const json = legacyFixture();
+    json.registros.r2 = { ...json.registros.r2, area: "Arte", comp: "" };
+    const plan = planLegacyImport(parsed(json), target(initialState()));
+    expect(plan.unmatchedNotes).toBe(2);
+    expect(plan.unmatchedCompetencies).toEqual(["Arte", "Competencia inventada"]);
+  });
+});
+
+describe("findImportedClassrooms", () => {
+  it("finds the classrooms that already hold children or records of this backup", async () => {
+    const other: Classroom = { ...classroomII, id: "c3", name: "Rosas" };
+    const state = initialState([classroomII, other]);
+    const { deps } = fakeWorkspace(state);
+    expect(findImportedClassrooms(parsed(), state.yearData, state.notes.notes)).toEqual([]);
+    await applyLegacyImport(parsed(), target(state, other), deps);
+    expect(findImportedClassrooms(parsed(), state.yearData, state.notes.notes)).toEqual(["c3"]);
+    // Planning into another classroom is not «already imported» there (it would duplicate, which the UI warns about).
+    expect(planLegacyImport(parsed(), target(state, classroomII))).toMatchObject({ students: 3, notes: 3, events: 0 });
+  });
+});
+
+describe("hostile input", () => {
+  it("handles __proto__ keys without polluting prototypes", async () => {
+    const json = JSON.parse(`{
+      "ninos": [{ "id": "__proto__", "nombre": "Ana Pérez Ríos" }],
+      "registros": { "__proto__": { "id": "rp", "fecha": "${YEAR}-05-02", "ninos": ["__proto__"], "hecho": "x" } },
+      "asis": { "__proto__": { "x": { "y": "P" } }, "${YEAR}-05": { "__proto__": { "a": "P" }, "${YEAR}-05-02": { "__proto__": "T" } } }
+    }`);
+    const d = parsed(json);
+    expect(({} as Record<string, unknown>).P).toBeUndefined();
+    expect(Object.getPrototypeOf(d.asis)).toBe(Object.prototype);
+    const state = initialState();
+    const { deps } = fakeWorkspace(state);
+    await applyLegacyImport(d, target(state), deps);
+    const [ana] = state.yearData.students;
+    expect(ana.importedFrom).toBe("__proto__");
+    expect(state.notes.notes[0]).toMatchObject({ importedFrom: "rp", studentIds: [ana.id] });
+    expect(markOf(state.attendance, "c2", `${YEAR}-05-02`, ana.id)).toBe("T");
+    expect(state.attendance.days).toHaveLength(1);
+  });
+
+  it("skips malformed base64 and non-image data URLs, and counts them", async () => {
+    const json = legacyFixture();
+    json.registros.r2 = {
+      ...json.registros.r2,
+      fotos: [{ src: "data:image/jpeg;base64,@@@not base64@@@" }, { src: "data:text/html;base64,PGgxPmhpPC9oMT4=" }, { src: PNG }],
+    };
+    const plan = planLegacyImport(parsed(json), target(initialState()));
+    expect(plan).toMatchObject({ photos: 3, skippedPhotos: 1 });
+    const state = initialState();
+    const { deps, storage } = fakeWorkspace(state);
+    const result = await applyLegacyImport(parsed(json), target(state), deps);
+    expect(result.skippedPhotos).toBe(2);
+    expect(result.photos).toBe(2);
+    const r2 = state.notes.notes.find((n) => n.importedFrom === "r2")!;
+    expect(r2.evidence).toHaveLength(1);
+    expect(r2.evidence[0]).toMatch(/evidencia-1\.jpg$/);
+    expect((await storage.readFile(r2.evidence[0]))?.type).toBe("image/png");
+  });
+});
+

@@ -136,4 +136,40 @@ describe("ImportLegacy", () => {
     expect((await repo.loadNotes(Y)).notes).toHaveLength(0);
     expect((await repo.loadAttendance(Y)).days).toHaveLength(0);
   });
+
+  it("preselects the classroom that already has this backup and warns before duplicating into another one", async () => {
+    const repo = createWorkspaceRepo(storage);
+    const room = (id: string, name: string) => ({
+      id, name, cycle: "II" as const, bands: ["4y" as const], disabledCompetencyIds: [], cycleIGrading: "descriptive" as const,
+    });
+    await repo.saveYear({
+      version: 1,
+      schoolYear: Y,
+      periods: defaultPeriods(Y),
+      classrooms: [room("c1", "Pollitos"), room("c2", "Rosas")],
+      students: [{ id: "s1", classroomId: "c2", firstNames: "Valentina", lastNames: "Quispe Huamán", active: true, importedFrom: "n1" }],
+    });
+    renderImport();
+    await choose(JSON.stringify(legacy));
+    expect(await screen.findByLabelText("Aula de destino")).toHaveValue("c2");
+    expect(screen.getByText("Este respaldo ya se importó. Solo se agregará lo nuevo.")).toBeInTheDocument();
+    expect(screen.getByText("Niños: 1")).toBeInTheDocument();
+    const warning = "Este respaldo ya se importó en el aula Rosas. Si lo importas en otra aula, se duplicarán los niños y registros.";
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Aula de destino"), { target: { value: "c1" } });
+    expect(screen.getByText(warning)).toBeInTheDocument();
+    expect(screen.getByText("Niños: 2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Importar" })).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText("Aula de destino"), { target: { value: "new" } });
+    expect(screen.getByText(warning)).toBeInTheDocument();
+
+    // Not blocked: importing into Pollitos goes ahead.
+    fireEvent.change(screen.getByLabelText("Aula de destino"), { target: { value: "c1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Importar" }));
+    expect(await screen.findByText(/Importación terminada/)).toBeInTheDocument();
+    expect((await repo.loadYear(Y)).students.filter((s) => s.classroomId === "c1")).toHaveLength(2);
+  });
 });
+

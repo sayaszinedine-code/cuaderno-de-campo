@@ -34,7 +34,8 @@ export const LEGACY_MAX_BYTES = 300 * 1024 * 1024;
 
 /** Any value as a trimmed-free string: strings as is, numbers stringified, everything else "". */
 const text = z.unknown().optional().transform((v) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : ""));
-const objectLike = z.record(z.string(), z.unknown());
+/** Kept by reference (no copy), so a `__proto__` own key from JSON.parse survives as data. */
+const objectLike = z.custom<Record<string, unknown>>((v) => typeof v === "object" && v !== null);
 
 // Unknown keys of the legacy objects are dropped: only these fields are mapped.
 const childSchema = z.object({ id: text, nombre: text, nac: text, apo: text, tel: text, notas: text });
@@ -72,21 +73,32 @@ const rootSchema = z
   .object({ ninos: z.array(z.unknown()), registros: objectLike, perfil: z.unknown().optional(), asis: z.unknown().optional(), agenda: z.unknown().optional() })
   .loose();
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 const asObject = (v: unknown): Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 
+/**
+ * Copies `asis` keeping only well-formed months and dates. Built with `Object.fromEntries`, which defines own
+ * properties, so a `__proto__` key (e.g. a child id) is kept as data instead of replacing the prototype.
+ */
 function parseAsis(v: unknown): LegacyData["asis"] {
-  const out: LegacyData["asis"] = {};
-  for (const [month, days] of Object.entries(asObject(v))) {
-    const m: Record<string, Record<string, string>> = {};
-    for (const [date, marks] of Object.entries(asObject(days))) {
-      const d: Record<string, string> = {};
-      for (const [child, mark] of Object.entries(asObject(marks))) if (typeof mark === "string") d[child] = mark;
-      m[date] = d;
-    }
-    out[month] = m;
-  }
-  return out;
+  return Object.fromEntries(
+    Object.entries(asObject(v))
+      .filter(([month]) => /^\d{4}-\d{2}$/.test(month))
+      .map(([month, days]) => [
+        month,
+        Object.fromEntries(
+          Object.entries(asObject(days))
+            .filter(([date]) => ISO_DATE.test(date))
+            .map(([date, marks]) => [
+              date,
+              Object.fromEntries(Object.entries(asObject(marks)).filter((e): e is [string, string] => typeof e[1] === "string")),
+            ]),
+        ),
+      ]),
+  );
 }
 
 function photoSrc(f: unknown): string | null {
@@ -149,9 +161,6 @@ export function splitLegacyName(name: string): { firstNames: string; lastNames: 
   return { firstNames: words.slice(0, -2).join(" "), lastNames: words.slice(-2).join(" ") };
 }
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
-
 export type ImportTarget = {
   /** Destination classroom; may not be saved yet (new classroom) while planning. */
   classroom: Classroom;
@@ -169,14 +178,16 @@ export type LegacyPlan = {
   photos: number;
   attendanceDays: number;
   events: number;
-  /** Some child, record or event of this backup is already in the workspace. */
+  /** Some child, record or event of this backup is already in the destination classroom (or the agenda). */
   alreadyImported: boolean;
-  /** Distinct competency names (as written in the backup) not found in the catalog. */
+  /** Distinct competency (or, without one, area) names as written in the backup that were not found in the catalog. */
   unmatchedCompetencies: string[];
   /** New records saved without competency because their competency was not recognized. */
   unmatchedNotes: number;
   /** Records dated outside the target year (not imported). */
   otherYearNotes: number;
+  /** Photos not imported: not an image (known when planning) or unreadable/too large (known when applying). */
+  skippedPhotos: number;
 };
 
 type PendingNote = { note: FieldNote; photos: string[] };
@@ -225,7 +236,11 @@ function build(data: LegacyData, t: ImportTarget, gen: Gen): Built {
     if (s.classroomId === classroom.id && s.importedFrom) studentIds.set(s.importedFrom, s.id);
   }
   const students: Student[] = [];
+  const seenChildren = new Set<string>();
   for (const n of data.ninos) {
+    // A repeated id inside the same backup is the same child: import it once, it is not «already imported».
+    if (seenChildren.has(n.id)) continue;
+    seenChildren.add(n.id);
     if (studentIds.has(n.id)) {
       alreadyImported = true;
       continue;
@@ -252,7 +267,11 @@ function build(data: LegacyData, t: ImportTarget, gen: Gen): Built {
   const unmatched = new Set<string>();
   let unmatchedNotes = 0;
   let otherYearNotes = 0;
+  let skippedPhotos = 0;
+  const seenRecords = new Set<string>();
   for (const r of data.registros) {
+    if (seenRecords.has(r.id)) continue;
+    seenRecords.add(r.id);
     if (importedNotes.has(r.id)) {
       alreadyImported = true;
       continue;
@@ -262,8 +281,10 @@ function build(data: LegacyData, t: ImportTarget, gen: Gen): Built {
       continue;
     }
     const match = matchCompetency(r, classroom);
-    if (r.comp.trim() && !match.competencyId) {
-      unmatched.add(r.comp.trim());
+    const comp = r.comp.trim();
+    const area = r.area.trim();
+    if (!match.competencyId && (comp || (area && !match.areaId))) {
+      unmatched.add(comp || area);
       unmatchedNotes++;
     }
     const ids = [...new Set(r.ninos.flatMap((id) => studentIds.get(id) ?? []))];
@@ -282,7 +303,9 @@ function build(data: LegacyData, t: ImportTarget, gen: Gen): Built {
       ...(level ? { level } : {}),
       importedFrom: r.id,
     };
-    notes.push({ note, photos: r.fotos });
+    const photos = r.fotos.filter(isImageDataUrl);
+    skippedPhotos += r.fotos.length - photos.length;
+    notes.push({ note, photos });
   }
 
   // Attendance: only marks the classroom does not have yet.
@@ -299,7 +322,10 @@ function build(data: LegacyData, t: ImportTarget, gen: Gen): Built {
   // Agenda: per teacher, dedup by origin id across the year.
   const importedEvents = new Set(t.agenda.events.flatMap((e) => (e.importedFrom ? [e.importedFrom] : [])));
   const events: AgendaEvent[] = [];
+  const seenEvents = new Set<string>();
   for (const e of data.agenda) {
+    if (seenEvents.has(e.id)) continue;
+    seenEvents.add(e.id);
     if (importedEvents.has(e.id)) {
       alreadyImported = true;
       continue;
@@ -345,6 +371,7 @@ function build(data: LegacyData, t: ImportTarget, gen: Gen): Built {
       unmatchedCompetencies: [...unmatched],
       unmatchedNotes,
       otherYearNotes,
+      skippedPhotos,
     },
     students,
     notes,
@@ -360,6 +387,19 @@ function attendanceEntries(data: LegacyData, yearPrefix: string): [string, Recor
   return Object.values(data.asis).flatMap((days) =>
     Object.entries(days).filter(([date]) => ISO_DATE.test(date) && date.startsWith(yearPrefix)),
   );
+}
+
+/**
+ * Classrooms of the year that already hold children or records imported from this backup (by `importedFrom`),
+ * in the order of `yearData.classrooms`. Used to preselect the destination and to warn before duplicating.
+ */
+export function findImportedClassrooms(data: LegacyData, yearData: YearData, notes: FieldNote[]): string[] {
+  const children = new Set(data.ninos.map((n) => n.id));
+  const records = new Set(data.registros.map((r) => r.id));
+  const hit = new Set<string>();
+  for (const s of yearData.students) if (s.importedFrom !== undefined && children.has(s.importedFrom)) hit.add(s.classroomId);
+  for (const n of notes) if (n.importedFrom !== undefined && records.has(n.importedFrom)) hit.add(n.classroomId);
+  return yearData.classrooms.filter((c) => hit.has(c.id)).map((c) => c.id);
 }
 
 export function planLegacyImport(data: LegacyData, target: ImportTarget): LegacyPlan {
@@ -381,6 +421,11 @@ export type ImportDeps = {
   onPhoto?: (index: number, total: number) => void;
 };
 
+const isImageDataUrl = (src: string): boolean => /^data:image\//i.test(src);
+
+/** Original bytes are kept when the browser cannot re-encode a photo, up to this size. */
+export const RAW_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+
 /** `data:<type>[;base64],<payload>` → Blob, without `fetch`. Throws on malformed input. */
 export function dataUrlToBlob(src: string): Blob {
   const m = /^data:([^;,]*)((?:;[^;,]*)*?)(;base64)?,([\s\S]*)$/.exec(src);
@@ -393,13 +438,21 @@ export function dataUrlToBlob(src: string): Blob {
   return new Blob([bytes], { type });
 }
 
-/** Re-encodes the photo like the notebook does; keeps the original bytes when the browser cannot decode it here. */
-async function photoBlob(src: string): Promise<Blob> {
-  const raw = dataUrlToBlob(src);
+/**
+ * Re-encodes the photo like the notebook does. When the browser cannot decode it here, keeps the original bytes if
+ * they are small enough; otherwise (or when the data URL is malformed) returns null and the photo is skipped.
+ */
+async function photoBlob(src: string): Promise<Blob | null> {
+  let raw: Blob;
+  try {
+    raw = dataUrlToBlob(src);
+  } catch {
+    return null;
+  }
   try {
     return await compressPhoto(raw, EVIDENCE_MAX_SIZE);
   } catch {
-    return raw;
+    return raw.size > 0 && raw.size <= RAW_PHOTO_MAX_BYTES ? raw : null;
   }
 }
 
@@ -433,6 +486,8 @@ export async function applyLegacyImport(
     fail();
   }
 
+  let written = 0;
+  let skipped = built.plan.skippedPhotos;
   if (built.notes.length > 0) {
     const total = built.plan.photos;
     let index = 0;
@@ -443,21 +498,21 @@ export async function applyLegacyImport(
       let n = 1;
       for (const src of photos) {
         deps.onPhoto?.(++index, total);
+        const blob = await photoBlob(src);
+        if (!blob) {
+          skipped++; // The record keeps its text.
+          continue;
+        }
         while (onDisk.has(`evidencia-${n}.jpg`)) n++;
         const name = `evidencia-${n}.jpg`;
         onDisk.add(name);
-        let blob: Blob;
-        try {
-          blob = await photoBlob(src);
-        } catch {
-          continue; // A malformed photo is skipped; the record keeps its text.
-        }
         try {
           await deps.storage.writeFile(`${dir}${name}`, blob);
         } catch {
           fail();
         }
         evidence.push(`${dir}${name}`);
+        written++;
       }
       note.evidence = evidence;
     }
@@ -508,5 +563,5 @@ export async function applyLegacyImport(
     }
   }
 
-  return built.plan;
+  return { ...built.plan, photos: written, skippedPhotos: skipped };
 }
