@@ -2,7 +2,7 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServiceWorker, writeServiceWorker } from "./build-sw.mjs";
 
 let outDir = "";
@@ -20,6 +20,7 @@ beforeEach(() => {
   put("inicio/index.html", '<script src="/_next/static/chunks/big-initial.js"></script>');
   put("inicio/index.txt", "rsc");
   put("404.html", "not found");
+  put("404/index.html", "not found page");
   put("manifest.webmanifest", "{}");
   put("favicon.ico", "ico");
   put("icons/icon-192.png", "png");
@@ -28,7 +29,7 @@ beforeEach(() => {
   put("_next/static/css/app.css", "css");
   put("_next/static/media/font.woff2", "font");
   put("_next/static/media/profile.icc", "icc");
-  // Large lazy chunk (dynamic import, not referenced by any page): cached on first use.
+  // Large lazy chunk (dynamic import of the reports): precached too, so offline reports always work.
   put("_next/static/chunks/lazy-pdf.js", Buffer.alloc(400 * 1024, 1));
   // Large chunk a page needs on first paint: always precached.
   put("_next/static/chunks/big-initial.js", Buffer.alloc(400 * 1024, 2));
@@ -38,14 +39,17 @@ beforeEach(() => {
 afterEach(() => rmSync(outDir, { recursive: true, force: true }));
 
 describe("buildServiceWorker", () => {
-  it("precaches pages, scripts, styles, fonts and images but not maps, itself, 404.html or large lazy chunks", () => {
+  it("precaches pages, every static asset (lazy report chunks and .icc too) but not maps, itself or 404.html", () => {
     const { files } = buildServiceWorker(outDir);
     expect(files).toEqual([
       "/",
+      "/404/",
       "/_next/static/chunks/big-initial.js",
+      "/_next/static/chunks/lazy-pdf.js",
       "/_next/static/chunks/main-abc.js",
       "/_next/static/css/app.css",
       "/_next/static/media/font.woff2",
+      "/_next/static/media/profile.icc",
       "/favicon.ico",
       "/icons/icon-192.png",
       "/index.txt",
@@ -57,8 +61,8 @@ describe("buildServiceWorker", () => {
 
   it("reports the precache total size", () => {
     const { totalBytes } = buildServiceWorker(outDir);
-    expect(totalBytes).toBeGreaterThan(400 * 1024);
-    expect(totalBytes).toBeLessThan(500 * 1024);
+    expect(totalBytes).toBeGreaterThan(800 * 1024);
+    expect(totalBytes).toBeLessThan(900 * 1024);
   });
 
   it("derives a stable version that changes with the content", () => {
@@ -77,7 +81,7 @@ describe("buildServiceWorker", () => {
     expect(source).toContain(version);
     expect(source).toContain('"/inicio/"');
     expect(source).not.toContain("main-abc.js.map");
-    expect(source).not.toContain("lazy-pdf.js");
+    expect(source).toContain('"/_next/static/chunks/lazy-pdf.js"');
   });
 
   it("writes out/sw.js", () => {
@@ -101,14 +105,22 @@ type FakeEvent = {
   respondWith: (r: Promise<Response> | Response) => void;
   waitUntil: (p: Promise<unknown>) => void;
   responded?: Promise<Response> | Response;
-  waited?: Promise<unknown>;
+  waited: Promise<unknown>[];
 };
+type MatchOptions = { ignoreSearch?: boolean; ignoreVary?: boolean };
+type Network = (req: Request) => Promise<Response>;
 
 const ORIGIN = "https://cuaderno.example";
+const pathOf = (r: Request | string) => new URL(typeof r === "string" ? r : r.url, ORIGIN).pathname;
 
-function loadWorker(source: string, network: (req: Request) => Promise<Response>) {
+/** Answers like the static host: every exported file, with its path as the body. */
+const host: Network = async (r) => new Response(`cached ${pathOf(r)}`);
+
+function loadWorker(source: string) {
   const listeners = new Map<string, Handler>();
   const stores = new Map<string, Map<string, Response>>();
+  const matchOptions: MatchOptions[] = [];
+  const net: { current: Network } = { current: host };
   const keyOf = (req: Request | string, ignoreSearch = false) => {
     const url = new URL(typeof req === "string" ? req : req.url, ORIGIN);
     return ignoreSearch ? url.origin + url.pathname : url.href;
@@ -117,7 +129,8 @@ function loadWorker(source: string, network: (req: Request) => Promise<Response>
     if (!stores.has(name)) stores.set(name, new Map());
     const store = stores.get(name)!;
     return {
-      match: async (req: Request | string, opts?: { ignoreSearch?: boolean }) => {
+      match: async (req: Request | string, opts?: MatchOptions) => {
+        if (opts) matchOptions.push(opts);
         if (opts?.ignoreSearch) {
           const k = keyOf(req, true);
           for (const [key, value] of store) if (keyOf(key, true) === k) return value.clone();
@@ -126,8 +139,8 @@ function loadWorker(source: string, network: (req: Request) => Promise<Response>
         return store.get(keyOf(req))?.clone();
       },
       put: async (req: Request | string, res: Response) => void store.set(keyOf(req), res),
-      addAll: async (urls: Array<Request | string>) => {
-        for (const u of urls) store.set(keyOf(u), new Response(`cached ${new URL(keyOf(u)).pathname}`));
+      addAll: async () => {
+        throw new Error("addAll must not be used: it would store redirected responses");
       },
     };
   };
@@ -135,13 +148,6 @@ function loadWorker(source: string, network: (req: Request) => Promise<Response>
     open: async (name: string) => openStore(name),
     keys: async () => [...stores.keys()],
     delete: async (name: string) => stores.delete(name),
-    match: async (req: Request | string, opts?: { ignoreSearch?: boolean }) => {
-      for (const name of stores.keys()) {
-        const hit = await openStore(name).match(req, opts);
-        if (hit) return hit;
-      }
-      return undefined;
-    },
   };
   const skipped = { value: false };
   const self = {
@@ -150,21 +156,23 @@ function loadWorker(source: string, network: (req: Request) => Promise<Response>
     skipWaiting: async () => void (skipped.value = true),
     clients: { claim: async () => undefined },
   };
-  new Function("self", "caches", "fetch", source)(self, caches, network);
+  new Function("self", "caches", "fetch", source)(self, caches, (r: Request) => net.current(r));
   const dispatch = (type: string, init: Partial<FakeEvent>) => {
     const event: FakeEvent = {
       ...init,
+      waited: [],
       respondWith(r) {
         event.responded = r;
       },
       waitUntil(p) {
-        event.waited = p;
+        event.waited.push(p);
       },
     };
     listeners.get(type)!(event);
     return event;
   };
-  return { dispatch, stores, skipped };
+  const entries = () => [...stores.values()][0] ?? new Map<string, Response>();
+  return { dispatch, stores, skipped, net, entries, matchOptions };
 }
 
 const req = (url: string, init: RequestInit & { navigate?: boolean } = {}) => {
@@ -174,19 +182,55 @@ const req = (url: string, init: RequestInit & { navigate?: boolean } = {}) => {
   return r;
 };
 
-describe("generated sw.js", () => {
-  const offline = () => Promise.reject(new TypeError("Failed to fetch"));
+const redirectedResponse = (body: string) => {
+  const res = new Response(body, { headers: { "content-type": "text/html" } });
+  Object.defineProperty(res, "redirected", { value: true });
+  return res;
+};
 
-  async function installed(network: (r: Request) => Promise<Response>) {
+const offline: Network = () => Promise.reject(new TypeError("Failed to fetch"));
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+async function installed(network: Network = offline) {
+  const { source } = buildServiceWorker(outDir);
+  const worker = loadWorker(source);
+  await Promise.all(worker.dispatch("install", {}).waited);
+  await Promise.all(worker.dispatch("activate", {}).waited);
+  worker.net.current = network;
+  return worker;
+}
+
+describe("generated sw.js install", () => {
+  it("fetches and stores every precached file", async () => {
+    const w = await installed();
+    expect(w.entries().size).toBe(buildServiceWorker(outDir).files.length);
+    expect(w.entries().has(`${ORIGIN}/_next/static/chunks/lazy-pdf.js`)).toBe(true);
+    expect(w.entries().has(`${ORIGIN}/_next/static/media/profile.icc`)).toBe(true);
+  });
+
+  it("stores a clean copy of a redirected response", async () => {
     const { source } = buildServiceWorker(outDir);
-    const worker = loadWorker(source, network);
-    await worker.dispatch("install", {}).waited;
-    await worker.dispatch("activate", {}).waited;
-    return worker;
-  }
+    const w = loadWorker(source);
+    w.net.current = async (r) => (pathOf(r) === "/inicio/" ? redirectedResponse("inicio page") : host(r));
+    await Promise.all(w.dispatch("install", {}).waited);
+    const stored = w.entries().get(`${ORIGIN}/inicio/`)!;
+    expect(stored.redirected).toBe(false);
+    expect(stored.status).toBe(200);
+    expect(stored.headers.get("content-type")).toBe("text/html");
+    expect(await stored.text()).toBe("inicio page");
+  });
 
+  it("fails the install when any file is not OK", async () => {
+    const { source } = buildServiceWorker(outDir);
+    const w = loadWorker(source);
+    w.net.current = async (r) => (pathOf(r) === "/favicon.ico" ? new Response("gone", { status: 404 }) : host(r));
+    await expect(Promise.all(w.dispatch("install", {}).waited)).rejects.toThrow();
+  });
+});
+
+describe("generated sw.js fetch", () => {
   it("never intercepts cross-origin, non-GET or Range requests", async () => {
-    const w = await installed(offline);
+    const w = await installed();
     for (const r of [
       req("https://abc.supabase.co/rest/v1/profiles"),
       req("https://api.deepseek.com/chat/completions"),
@@ -199,51 +243,100 @@ describe("generated sw.js", () => {
     }
   });
 
-  it("serves hashed static assets cache-first", async () => {
+  it("serves hashed static assets cache-first, the lazy report chunk included", async () => {
     let calls = 0;
     const w = await installed(async () => {
       calls++;
       return new Response("fresh");
     });
-    const res = await w.dispatch("fetch", { request: req("/_next/static/chunks/main-abc.js") }).responded;
-    expect(await res!.text()).toBe("cached /_next/static/chunks/main-abc.js");
+    const res = await w.dispatch("fetch", { request: req("/_next/static/chunks/lazy-pdf.js") }).responded;
+    expect(await res!.text()).toBe("cached /_next/static/chunks/lazy-pdf.js");
     expect(calls).toBe(0);
   });
 
-  it("caches a lazy chunk on first use and never caches error responses", async () => {
-    const w = await installed(async (r) =>
-      r.url.endsWith("broken.js") ? new Response("nope", { status: 500 }) : new Response("lazy"),
-    );
-    await w.dispatch("fetch", { request: req("/_next/static/chunks/lazy-pdf.js") }).responded;
-    await w.dispatch("fetch", { request: req("/_next/static/chunks/broken.js") }).responded;
-    await new Promise((r) => setTimeout(r, 0));
-    const keys = [...[...w.stores.values()][0].keys()];
-    expect(keys).toContain(`${ORIGIN}/_next/static/chunks/lazy-pdf.js`);
+  it("caches a missing static asset on use but never error or redirected responses", async () => {
+    const w = await installed(async (r) => {
+      if (r.url.endsWith("broken.js")) return new Response("nope", { status: 500 });
+      if (r.url.endsWith("moved.js")) return redirectedResponse("moved");
+      return new Response("new");
+    });
+    for (const name of ["extra.js", "broken.js", "moved.js"]) {
+      await w.dispatch("fetch", { request: req(`/_next/static/chunks/${name}`) }).responded;
+    }
+    await flush();
+    const keys = [...w.entries().keys()];
+    expect(keys).toContain(`${ORIGIN}/_next/static/chunks/extra.js`);
     expect(keys).not.toContain(`${ORIGIN}/_next/static/chunks/broken.js`);
+    expect(keys).not.toContain(`${ORIGIN}/_next/static/chunks/moved.js`);
   });
 
-  it("serves pages network-first and falls back to the cache offline", async () => {
-    const online = await installed(async () => new Response("network page"));
-    const fresh = await online.dispatch("fetch", { request: req("/inicio/", { navigate: true }) }).responded;
-    expect(await fresh!.text()).toBe("network page");
+  it("serves pages network-first, refreshing only precached paths", async () => {
+    const w = await installed(async (r) => new Response(`network ${pathOf(r)}`));
+    const fresh = await w.dispatch("fetch", { request: req("/inicio/", { navigate: true }) }).responded;
+    expect(await fresh!.text()).toBe("network /inicio/");
+    await w.dispatch("fetch", { request: req("/otra/", { navigate: true }) }).responded;
+    await flush();
+    expect(await w.entries().get(`${ORIGIN}/inicio/`)!.clone().text()).toBe("network /inicio/");
+    expect(w.entries().has(`${ORIGIN}/otra/`)).toBe(false);
+  });
 
-    const w = await installed(offline);
-    const cached = await w.dispatch("fetch", { request: req("/inicio/", { navigate: true }) }).responded;
+  it("falls back to the cached page offline, matching with ignoreVary", async () => {
+    const w = await installed();
+    const cached = await w.dispatch("fetch", { request: req("/inicio/?x=1", { navigate: true }) }).responded;
     expect(await cached!.text()).toBe("cached /inicio/");
-    const uncached = await w.dispatch("fetch", { request: req("/ninos/", { navigate: true }) }).responded;
-    expect(await uncached!.text()).toBe("cached /inicio/");
+    const noSlash = await w.dispatch("fetch", { request: req("/inicio", { navigate: true }) }).responded;
+    expect(await noSlash!.text()).toBe("cached /inicio/");
+    expect(w.matchOptions.length).toBeGreaterThan(0);
+    expect(w.matchOptions.every((o) => o.ignoreVary === true)).toBe(true);
+  });
+
+  it("serves the exported 404 page for an unknown route offline", async () => {
+    const w = await installed();
+    const res = await w.dispatch("fetch", { request: req("/no-existe/", { navigate: true }) }).responded;
+    expect(res!.status).toBe(404);
+    expect(await res!.text()).toBe("cached /404/");
+  });
+
+  it("falls back to /inicio/ for an unknown route when the export has no 404 page", async () => {
+    rmSync(path.join(outDir, "404"), { recursive: true });
+    const w = await installed();
+    const res = await w.dispatch("fetch", { request: req("/no-existe/", { navigate: true }) }).responded;
+    expect(await res!.text()).toBe("cached /inicio/");
+  });
+
+  it("answers a slow navigation from the cache after 3 s and still refreshes it in the background", async () => {
+    const w = await installed();
+    let finish: (r: Response) => void = () => undefined;
+    w.net.current = () => new Promise<Response>((resolve) => (finish = resolve));
+    vi.useFakeTimers();
+    try {
+      const event = w.dispatch("fetch", { request: req("/inicio/", { navigate: true }) });
+      let settled = false;
+      void Promise.resolve(event.responded).then(() => (settled = true));
+      await vi.advanceTimersByTimeAsync(2900);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(await (await event.responded)!.text()).toBe("cached /inicio/");
+      finish(new Response("late network"));
+      await Promise.all(event.waited);
+      await vi.advanceTimersByTimeAsync(10);
+    } finally {
+      vi.useRealTimers();
+    }
+    await flush();
+    expect(await w.entries().get(`${ORIGIN}/inicio/`)!.clone().text()).toBe("late network");
   });
 
   it("serves RSC payloads from the cache offline ignoring the query", async () => {
-    const w = await installed(offline);
+    const w = await installed();
     const res = await w.dispatch("fetch", { request: req("/inicio/index.txt?_rsc=abc") }).responded;
     expect(await res!.text()).toBe("cached /inicio/index.txt");
   });
 
   it("drops old caches on activate and skips waiting only when asked", async () => {
-    const w = await installed(offline);
+    const w = await installed();
     w.stores.set("cuaderno-web-old", new Map());
-    await w.dispatch("activate", {}).waited;
+    await Promise.all(w.dispatch("activate", {}).waited);
     expect([...w.stores.keys()]).toHaveLength(1);
     expect(w.skipped.value).toBe(false);
     w.dispatch("message", { data: { type: "SKIP_WAITING" } });

@@ -5,7 +5,11 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-/** Extensions worth keeping offline: pages, RSC payloads, scripts, styles, fonts, images, manifest. */
+/**
+ * Outside `/_next/static/`, extensions worth keeping offline: pages, RSC payloads, scripts, styles,
+ * fonts, images, manifest. Everything in `/_next/static/` is precached (except source maps), so the
+ * lazily loaded report libraries and their assets (react-pdf's `.icc` profile) work offline from day one.
+ */
 const PRECACHE_EXTENSIONS = new Set([
   ".html", ".txt", ".js", ".css",
   ".woff", ".woff2", ".ttf", ".otf",
@@ -13,11 +17,14 @@ const PRECACHE_EXTENSIONS = new Set([
   ".webmanifest",
 ]);
 
-/** Scripts bigger than this that no page loads up front (react-pdf, exceljs…) are cached on first use. */
-export const LAZY_CHUNK_LIMIT = 300 * 1024;
-
 /** Page the worker serves for an offline navigation to a page it never stored. */
 export const FALLBACK_PAGE = "/inicio/";
+
+/** The export's not-found page (`404/index.html`), served offline for unknown routes when present. */
+export const NOT_FOUND_PAGE = "/404/";
+
+/** A navigation slower than this is answered from the cache while the network keeps refreshing it. */
+export const NAV_TIMEOUT_MS = 3000;
 
 /** @param {string} dir @param {string} [prefix] @returns {string[]} relative POSIX paths */
 function walk(dir, prefix = "") {
@@ -39,7 +46,7 @@ function toUrl(rel) {
 }
 
 /**
- * @typedef {{ files: string[]; totalBytes: number; version: string; source: string; skipped: string[] }} ServiceWorkerBuild
+ * @typedef {{ files: string[]; totalBytes: number; version: string; source: string }} ServiceWorkerBuild
  */
 
 /**
@@ -51,26 +58,15 @@ export function buildServiceWorker(outDir) {
   if (!statSync(outDir).isDirectory()) throw new Error(`${outDir} is not a folder`);
   const all = walk(outDir).sort();
 
-  // Chunks a page needs on first paint are named in its HTML or RSC payload; lazy chunks are not.
-  let referenced = "";
-  for (const rel of all) {
-    if (rel.endsWith(".html") || rel.endsWith(".txt")) referenced += readFileSync(path.join(outDir, rel), "utf8");
-  }
-
   /** @type {string[]} */
   const files = [];
-  /** @type {string[]} */
-  const skipped = [];
   const hash = createHash("sha256");
   let totalBytes = 0;
   for (const rel of all) {
     const ext = path.extname(rel).toLowerCase();
-    if (rel === "sw.js" || rel === "404.html" || !PRECACHE_EXTENSIONS.has(ext)) continue;
+    if (rel === "sw.js" || rel === "404.html" || ext === ".map") continue;
+    if (!rel.startsWith("_next/static/") && !PRECACHE_EXTENSIONS.has(ext)) continue;
     const content = readFileSync(path.join(outDir, rel));
-    if (ext === ".js" && content.length > LAZY_CHUNK_LIMIT && !referenced.includes(rel.replace(/^_next\//, ""))) {
-      skipped.push(`/${rel}`);
-      continue;
-    }
     const url = toUrl(rel);
     files.push(url);
     totalBytes += content.length;
@@ -78,7 +74,7 @@ export function buildServiceWorker(outDir) {
   }
   files.sort();
   const version = hash.digest("hex").slice(0, 12);
-  return { files, totalBytes, version, source: workerSource(files, version), skipped };
+  return { files, totalBytes, version, source: workerSource(files, version) };
 }
 
 /**
@@ -101,6 +97,8 @@ const CACHE_PREFIX = "cuaderno-web-";
 const CACHE = CACHE_PREFIX + VERSION;
 const PRECACHE = ${JSON.stringify(files)};
 const FALLBACK_PAGE = ${JSON.stringify(FALLBACK_PAGE)};
+const NOT_FOUND_PAGE = ${JSON.stringify(NOT_FOUND_PAGE)};
+const NAV_TIMEOUT_MS = ${NAV_TIMEOUT_MS};
 // Accounts and AI always go straight to the network (any other origin too).
 const BYPASS_HOSTS = ["supabase.co", "api.deepseek.com", "api.anthropic.com"];
 
@@ -109,19 +107,24 @@ function bypassed(url) {
   return BYPASS_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith("." + host));
 }
 
-// Only complete, same-origin answers are stored: never opaque, partial or error responses.
+// Only complete, same-origin, direct answers are stored: never opaque, partial, redirected or error responses.
 function cacheable(response) {
-  return !!response && response.status === 200 && (response.type === "basic" || response.type === "default");
+  return (
+    !!response &&
+    response.status === 200 &&
+    !response.redirected &&
+    (response.type === "basic" || response.type === "default")
+  );
 }
 
 function store(key, response) {
-  if (!cacheable(response)) return;
+  if (!cacheable(response)) return Promise.resolve();
   const copy = response.clone();
-  caches.open(CACHE).then((cache) => cache.put(key, copy)).catch(() => undefined);
+  return caches.open(CACHE).then((cache) => cache.put(key, copy)).catch(() => undefined);
 }
 
 function fromCache(key, options) {
-  return caches.open(CACHE).then((cache) => cache.match(key, options));
+  return caches.open(CACHE).then((cache) => cache.match(key, Object.assign({ ignoreVary: true }, options)));
 }
 
 function cacheFirst(request) {
@@ -134,19 +137,52 @@ function cacheFirst(request) {
   });
 }
 
-function pageNetworkFirst(request, url) {
+// The stored copy of this page (with or without its trailing slash), if any.
+function cachedPage(url) {
   const key = url.origin + url.pathname;
-  return fetch(request)
-    .then((response) => {
-      store(key, response);
-      return response;
+  return fromCache(key).then((hit) => hit || (url.pathname.endsWith("/") ? undefined : fromCache(key + "/")));
+}
+
+function isKnownPage(pathname) {
+  return PRECACHE.includes(pathname) || PRECACHE.includes(pathname + "/");
+}
+
+// Offline answer for a navigation: the page itself, the export's 404 page for unknown routes, or Inicio.
+function offlinePage(url) {
+  return cachedPage(url)
+    .then((hit) => {
+      if (hit || isKnownPage(url.pathname) || !PRECACHE.includes(NOT_FOUND_PAGE)) return hit;
+      return fromCache(url.origin + NOT_FOUND_PAGE).then((page) =>
+        page ? new Response(page.body, { status: 404, statusText: "Not Found", headers: page.headers }) : undefined,
+      );
     })
-    .catch(() =>
-      fromCache(key)
-        .then((hit) => hit || (url.pathname.endsWith("/") ? undefined : fromCache(key + "/")))
-        .then((hit) => hit || fromCache(new URL(FALLBACK_PAGE, url.origin).href))
-        .then((hit) => hit || Response.error()),
-    );
+    .then((hit) => hit || fromCache(url.origin + FALLBACK_PAGE))
+    .then((hit) => hit || Response.error());
+}
+
+function pageNetworkFirst(event, request, url) {
+  let saving = Promise.resolve();
+  const network = fetch(request).then((response) => {
+    if (PRECACHE.includes(url.pathname)) saving = store(url.origin + url.pathname, response);
+    return response;
+  });
+  // A slow answer still refreshes the cache after the page was served from it.
+  event.waitUntil(network.then(() => saving, () => undefined));
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(null), NAV_TIMEOUT_MS);
+  });
+  return Promise.race([network, timeout]).then(
+    (response) => {
+      clearTimeout(timer);
+      if (response) return response;
+      return cachedPage(url).then((hit) => hit || network.catch(() => offlinePage(url)));
+    },
+    () => {
+      clearTimeout(timer);
+      return offlinePage(url);
+    },
+  );
 }
 
 function networkFirst(request, url) {
@@ -158,9 +194,21 @@ function networkFirst(request, url) {
     .catch(() => fromCache(request, { ignoreSearch: true }).then((hit) => hit || Response.error()));
 }
 
+// addAll would keep redirected responses (which browsers refuse for navigations): fetch one by one,
+// store a clean copy of a redirected answer and fail the whole install on any non-OK response.
+function precacheOne(cache, file) {
+  const url = new URL(file, self.location.href).href;
+  return fetch(new Request(url, { cache: "reload" })).then((response) => {
+    if (!response.ok) throw new Error("Precache failed for " + file + " (" + response.status + ")");
+    if (!response.redirected) return cache.put(url, response);
+    return response.blob().then((body) =>
+      cache.put(url, new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers })),
+    );
+  });
+}
+
 self.addEventListener("install", (event) => {
-  const requests = PRECACHE.map((file) => new Request(new URL(file, self.location.href).href, { cache: "reload" }));
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(requests)));
+  event.waitUntil(caches.open(CACHE).then((cache) => Promise.all(PRECACHE.map((file) => precacheOne(cache, file)))));
 });
 
 self.addEventListener("activate", (event) => {
@@ -183,7 +231,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (bypassed(url)) return;
   if (url.pathname.startsWith("/_next/static/")) event.respondWith(cacheFirst(request));
-  else if (request.mode === "navigate") event.respondWith(pageNetworkFirst(request, url));
+  else if (request.mode === "navigate") event.respondWith(pageNetworkFirst(event, request, url));
   else event.respondWith(networkFirst(request, url));
 });
 `;
@@ -191,9 +239,6 @@ self.addEventListener("fetch", (event) => {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const outDir = path.resolve(process.argv[2] ?? "out");
-  const { files, totalBytes, version, skipped } = writeServiceWorker(outDir);
-  console.log(
-    `sw.js ${version}: ${files.length} files precached (${(totalBytes / 1024).toFixed(0)} KB); ` +
-      `${skipped.length} large lazy chunks cached on first use.`,
-  );
+  const { files, totalBytes, version } = writeServiceWorker(outDir);
+  console.log(`sw.js ${version}: ${files.length} files precached (${(totalBytes / 1024).toFixed(0)} KB).`);
 }

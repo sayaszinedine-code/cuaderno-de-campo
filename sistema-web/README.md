@@ -61,6 +61,24 @@ Se genera la carpeta `out/` (sitio estático). Opciones:
 
 Después del primer despliegue, actualiza la *Site URL* y las *Redirect URLs* de Supabase con la URL real.
 
+### Uso sin conexión (app instalable): cabeceras del hosting
+
+`npm run build` genera además `out/sw.js` (service worker que guarda la app para abrirla sin internet). El hosting debe servir:
+
+- `/sw.js` con `Cache-Control: no-cache`, para que el navegador detecte cada versión nueva y la docente vea «Hay una nueva versión. Recargar.».
+- `/manifest.webmanifest` con `Content-Type: application/manifest+json`, para que Chrome y Edge ofrezcan instalar la app.
+
+Netlify (`out/_headers`, copiado desde `public/_headers` si lo creas):
+
+```
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+```
+
+Vercel (`vercel.json`): agrega en `headers` las mismas dos reglas para `source: "/sw.js"` y `source: "/manifest.webmanifest"`.
+
 ## 4. Supabase gratis: pausa por inactividad
 
 Un proyecto del plan Free se **pausa tras 7 días sin actividad**. Mientras está pausado nadie puede iniciar sesión ni registrarse. Para reactivarlo: entra a <https://supabase.com/dashboard>, abre el proyecto y pulsa **Restore project** (tarda unos minutos). Las docentes que ya tenían sesión y comprobación de cuenta reciente pueden seguir usando la app sin conexión hasta por 30 días. Para evitar pausas, entra al panel al menos una vez por semana o pasa a un plan de pago.
@@ -74,6 +92,6 @@ Un proyecto del plan Free se **pausa tras 7 días sin actividad**. Mientras est�
 | `npm run e2e` | Prueba de punta a punta (Playwright, Chromium). Antes compila la app con Supabase simulado (`pree2e`) en `out-e2e/`; la primera vez ejecuta `npx playwright install chromium` |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Revisión de tipos (`tsc --noEmit`) |
-| `npm run build` | Compila el sitio estático en `out/` |
+| `npm run build` | Compila el sitio estático en `out/` y genera `out/sw.js` (`postbuild`) |
 
 Nota: la compilación de `npm run e2e` (con claves de prueba) va a `out-e2e/` y nunca toca `out/`, la carpeta que se despliega. No despliegues `out-e2e/`.
