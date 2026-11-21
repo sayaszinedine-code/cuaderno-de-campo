@@ -86,6 +86,9 @@ test("asistencia: P y F persisten tras recargar y el resumen del mes muestra el 
   await addStudent(page, "Mateo", "Flores");
 
   await page.goto("/asistencia/");
+  // A fixed date inside the 4th bimester, so the month and period columns never depend on today's date.
+  const day = `${YEAR}-11-10`;
+  await page.getByLabel("Fecha").fill(day);
   await page.getByRole("button", { name: "Valentina Quispe: Presente" }).click();
   await page.getByRole("button", { name: "Mateo Flores: Falta", exact: true }).click();
   await expect(page.getByLabel("Contadores del día")).toHaveText(
@@ -95,6 +98,7 @@ test("asistencia: P y F persisten tras recargar y el resumen del mes muestra el 
   await expect.poll(() => savedMarks(page)).toEqual(["F", "P"]);
 
   await page.reload();
+  await page.getByLabel("Fecha").fill(day);
   await expect(page.getByRole("button", { name: "Valentina Quispe: Presente" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Mateo Flores: Falta", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Mateo Flores: Presente" })).toHaveAttribute("aria-pressed", "false");
