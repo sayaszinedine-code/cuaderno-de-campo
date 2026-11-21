@@ -1,0 +1,17 @@
+{
+  "name": "Cuaderno de Campo — Docente Inicial",
+  "short_name": "Cuaderno",
+  "description": "Cuaderno de campo, notas y sesiones para docentes de Educación Inicial.",
+  "lang": "es-PE",
+  "id": "/",
+  "start_url": "/inicio/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F3F6F4",
+  "theme_color": "#1F7A6D",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

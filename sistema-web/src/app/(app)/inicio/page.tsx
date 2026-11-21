@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { NoteCard } from "@/components/NoteCard";
 import { useAccount } from "@/components/AccountGate";
+import { upcoming } from "@/domain/agenda";
 import { todayISO } from "@/domain/classrooms";
 import { studentsWithoutRecentNotes } from "@/domain/notes";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 export default function InicioPage() {
   const { profile } = useAccount();
-  const { storage, year, yearData, profile: local, notes } = useWorkspace();
+  const { storage, year, yearData, profile: local, notes, agenda } = useWorkspace();
   // The offline cached account has no names: fall back to the profile saved in the folder.
   const names = profile.firstNames.trim() || local?.firstNames.trim() || "";
   const firstName = names.split(/\s+/)[0] ?? "";
@@ -22,6 +23,8 @@ export default function InicioPage() {
   const today = todayISO();
   const neglected =
     year === Number(today.slice(0, 4)) ? studentsWithoutRecentNotes(notes, yearData.students, today) : [];
+
+  const soon = upcoming(agenda, today).slice(0, 5);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -56,6 +59,20 @@ export default function InicioPage() {
             semanas
           </p>
           <p className="text-muted">{neglected.map((s) => `${s.firstNames} ${s.lastNames}`.trim()).join(", ")}</p>
+        </section>
+      )}
+      {soon.length > 0 && (
+        <section className="space-y-2" aria-label="Próximos eventos">
+          <h2 className="text-lg font-semibold">Próximos 14 días</h2>
+          <ul className="space-y-1">
+            {soon.map((e) => (
+              <li key={e.id}>
+                <Link href={`/agenda/?dia=${e.date}`} className="underline">
+                  {`${e.date.slice(8)}/${e.date.slice(5, 7)}${e.time ? ` ${e.time}` : ""} — ${e.title}`}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
       {lastNotes.length > 0 && (

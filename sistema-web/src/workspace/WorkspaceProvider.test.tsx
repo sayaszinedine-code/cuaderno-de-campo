@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
 import type { Storage } from "@/storage/types";
-import { gradesPath, notesPath, unitsPath, yearDataPath } from "@/domain/paths";
+import { agendaPath, attendancePath, gradesPath, notesPath, unitsPath, yearDataPath } from "@/domain/paths";
 import type { FieldNote, NotesFile, YearData } from "@/domain/schema";
 
 const pick = vi.hoisted(() => ({
@@ -15,9 +16,13 @@ const pick = vi.hoisted(() => ({
 }));
 vi.mock("@/storage/pick", () => pick);
 
+const restoreMock = vi.hoisted(() => ({ restoreBackup: vi.fn() }));
+vi.mock("@/backup/restore", () => restoreMock);
+
 import { WorkspaceProvider, useWorkspace } from "./WorkspaceProvider";
 
 const YEAR = new Date().getFullYear();
+const BUSY = "Espera a que termine el respaldo o la restauración en curso.";
 
 function Probe() {
   const ws = useWorkspace();
@@ -643,5 +648,427 @@ describe("grades and units", () => {
       await screen.findByText("No se pudo leer tus datos (archivo dañado o de una versión más nueva). No se modificó nada."),
     ).toBeInTheDocument();
     expect(write).not.toHaveBeenCalled();
+  });
+});
+
+describe("attendance and agenda", () => {
+  const mkEvent = (id: string) => ({
+    id,
+    date: "2026-05-20",
+    title: "t",
+    type: "Reunión" as const,
+    note: "",
+    createdAt: "",
+    updatedAt: "",
+  });
+  const day = { date: "2026-05-18", classroomId: "c1", marks: { s1: "P" as const } };
+  let results: Promise<boolean>[] = [];
+
+  function AAProbe() {
+    const ws = useWorkspace();
+    return (
+      <div>
+        <p>year:{ws.year}</p>
+        <p>days:{ws.attendance.days.length}</p>
+        <p>events:{ws.agenda.events.map((e) => e.id).join(",")}</p>
+        <button onClick={() => results.push(ws.updateAttendance((f) => ({ ...f, days: [...f.days, day] })))}>add-day</button>
+        <button onClick={() => results.push(ws.updateAgenda((f) => ({ ...f, events: [...f.events, mkEvent("e1")] })))}>add-event</button>
+        <button
+          onClick={() => {
+            results.push(ws.update((d) => ({ ...d, classrooms: [...d.classrooms, mkRoom("a")] })));
+            results.push(ws.updateAttendance((f) => ({ ...f, days: [...f.days, day] })));
+            results.push(ws.updateAgenda((f) => ({ ...f, events: [...f.events, mkEvent("e2")] })));
+          }}
+        >
+          all
+        </button>
+        <button onClick={() => results.push(ws.updateAttendance((f) => ({ ...f, days: [...f.days, day] }), { year: YEAR }))}>
+          day-current
+        </button>
+        <button onClick={() => results.push(ws.updateAgenda((f) => ({ ...f, events: [...f.events, mkEvent("g")] }), { year: YEAR }))}>
+          event-current
+        </button>
+        <button onClick={() => void ws.setYear(YEAR - 1)}>prev</button>
+      </div>
+    );
+  }
+  function renderAA(storage: Storage) {
+    results = [];
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+    render(
+      <WorkspaceProvider userId="u1">
+        <AAProbe />
+      </WorkspaceProvider>,
+    );
+  }
+
+  it("saves to their own files", async () => {
+    const storage = new MemoryStorage();
+    renderAA(storage);
+    fireEvent.click(await screen.findByRole("button", { name: "add-day" }));
+    fireEvent.click(screen.getByRole("button", { name: "add-event" }));
+    expect(await Promise.all(results)).toEqual([true, true]);
+    expect(JSON.parse((await storage.readText(attendancePath(YEAR))) ?? "{}").days).toHaveLength(1);
+    expect(JSON.parse((await storage.readText(agendaPath(YEAR))) ?? "{}").events).toHaveLength(1);
+    expect(await screen.findByText("days:1")).toBeInTheDocument();
+    expect(await screen.findByText("events:e1")).toBeInTheDocument();
+  });
+
+  it("serializes with update through the queue", async () => {
+    const storage = new MemoryStorage();
+    const real = storage.writeTextAtomic.bind(storage);
+    let inFlight = 0;
+    let maxInFlight = 0;
+    vi.spyOn(storage, "writeTextAtomic").mockImplementation(async (p, t) => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      await real(p, t);
+      inFlight--;
+    });
+    renderAA(storage);
+    fireEvent.click(await screen.findByRole("button", { name: "all" }));
+    expect(await Promise.all(results)).toEqual([true, true, true]);
+    expect(maxInFlight).toBe(1);
+  });
+
+  it("year-guarded updates write nothing when another year is loaded", async () => {
+    const storage = new MemoryStorage();
+    renderAA(storage);
+    await screen.findByText(`year:${YEAR}`);
+    fireEvent.click(screen.getByRole("button", { name: "prev" }));
+    await screen.findByText(`year:${YEAR - 1}`);
+    const write = vi.spyOn(storage, "writeTextAtomic");
+    fireEvent.click(screen.getByRole("button", { name: "day-current" }));
+    fireEvent.click(screen.getByRole("button", { name: "event-current" }));
+    expect(await Promise.all(results)).toEqual([false, false]);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("setYear loads the attendance and agenda of that year", async () => {
+    const storage = new MemoryStorage();
+    await storage.writeTextAtomic(attendancePath(YEAR - 1), JSON.stringify({ version: 1, schoolYear: YEAR - 1, days: [day] }));
+    await storage.writeTextAtomic(agendaPath(YEAR - 1), JSON.stringify({ version: 1, schoolYear: YEAR - 1, events: [mkEvent("old")] }));
+    renderAA(storage);
+    await screen.findByText(`year:${YEAR}`);
+    fireEvent.click(screen.getByRole("button", { name: "prev" }));
+    expect(await screen.findByText("events:old")).toBeInTheDocument();
+    expect(screen.getByText("days:1")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["asistencia.json", attendancePath],
+    ["agenda.json", agendaPath],
+  ])("shows the data error and writes nothing when %s is corrupt", async (_n, path) => {
+    const storage = new MemoryStorage();
+    await storage.writeTextAtomic(path(YEAR), "{no json");
+    const write = vi.spyOn(storage, "writeTextAtomic");
+    renderAA(storage);
+    expect(
+      await screen.findByText("No se pudo leer tus datos (archivo dañado o de una versión más nueva). No se modificó nada."),
+    ).toBeInTheDocument();
+    expect(write).not.toHaveBeenCalled();
+  });
+});
+
+describe("WorkspaceProvider backups", () => {
+  const stamp = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const daysAgo = (n: number) => stamp(new Date(Date.now() - n * 86_400_000));
+  const seedBackup = (s: MemoryStorage, daysOld: number) =>
+    s.writeFile(`Respaldos/respaldo-${daysAgo(daysOld)}-1200.zip`, new Blob(["x"]));
+  const profileJson = JSON.stringify({ version: 1, firstNames: "A", lastNames: "B", phone: "", region: "", address: "", email: "", level: "Inicial", ugel: "", institution: "" });
+  const seedData = (s: MemoryStorage) => s.writeTextAtomic("datos/perfil.json", profileJson);
+  const autos = async (s: MemoryStorage) => (await s.list("Respaldos")).filter((e) => e.name.endsWith("-auto.zip"));
+
+  const importGate: { release: () => void } = { release: () => undefined };
+  function BackupProbe() {
+    const ws = useWorkspace();
+    const [err, setErr] = useState("");
+    return (
+      <div>
+        <p>warning:{String(ws.backupWarning)}</p>
+        <p>busy:{String(ws.backupBusy)}</p>
+        <p>error:{err}</p>
+        <button
+          onClick={() =>
+            void ws.restoreBackupFile(new Blob(["z"]), true).catch((e: unknown) => setErr(e instanceof Error ? e.message : "?"))
+          }
+        >
+          restore
+        </button>
+        <button onClick={() => void ws.runBackup().catch((e: unknown) => setErr(e instanceof Error ? e.message : "?"))}>backup</button>
+        <button onClick={() => void ws.update((d) => ({ ...d, classrooms: [mkRoom("a")] }))}>write</button>
+        <button
+          onClick={() =>
+            void ws
+              .runExclusive("import", () => new Promise<void>((r) => (importGate.release = r)))
+              .catch((e: unknown) => setErr(e instanceof Error ? e.message : "?"))
+          }
+        >
+          import
+        </button>
+      </div>
+    );
+  }
+  const renderBackup = (storage: MemoryStorage, autoBackupDelayMs = 0) => {
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+    return render(
+      <WorkspaceProvider userId="u1" autoBackupDelayMs={autoBackupDelayMs}>
+        <BackupProbe />
+      </WorkspaceProvider>,
+    );
+  };
+
+  beforeEach(() => {
+    restoreMock.restoreBackup.mockReset();
+  });
+
+  it("runs one automatic backup on open when the last one is older than 7 days", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    await seedBackup(storage, 8);
+    renderBackup(storage);
+    await waitFor(async () => expect(await autos(storage)).toHaveLength(1));
+    await waitFor(() => expect(screen.getByText("warning:false")).toBeInTheDocument());
+  });
+
+  it("runs an automatic backup when there is data and never was a backup", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    renderBackup(storage);
+    await waitFor(async () => expect(await autos(storage)).toHaveLength(1));
+  });
+
+  it("does not run an automatic backup when the last one is recent or there is no data", async () => {
+    const recent = new MemoryStorage();
+    await seedData(recent);
+    await seedBackup(recent, 3);
+    const empty = new MemoryStorage();
+    for (const s of [recent, empty]) {
+      const { unmount } = renderBackup(s);
+      await screen.findByText(/warning:/);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(await autos(s)).toHaveLength(0);
+      unmount();
+    }
+  });
+
+  it("does not warn when the last backup is 10 days old", async () => {
+    const storage = new MemoryStorage();
+    await seedBackup(storage, 10);
+    renderBackup(storage);
+    await screen.findByText(/warning:/);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText("warning:false")).toBeInTheDocument();
+  });
+
+  it("records an automatic backup failure without throwing into the UI", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    await storage.writeFile("datos/CON.json", new Blob(["x"])); // unrestorable name -> preflight fails
+    renderBackup(storage);
+    expect(await screen.findByText(/warning:/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("warning:true")).toBeInTheDocument());
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("restore waits for pending writes, blocks the queue and reloads afterwards", async () => {
+    const storage = new MemoryStorage();
+    const log: string[] = [];
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const original = storage.writeTextAtomic.bind(storage);
+    vi.spyOn(storage, "writeTextAtomic").mockImplementation(async (p, t) => {
+      if (p.endsWith("anio.json")) {
+        log.push("write-start");
+        await gate;
+        log.push("write-end");
+      }
+      return original(p, t);
+    });
+    restoreMock.restoreBackup.mockImplementation(async () => {
+      log.push("restore");
+      await original("datos/perfil.json", profileJson);
+    });
+    renderBackup(storage);
+    fireEvent.click(await screen.findByRole("button", { name: "write" }));
+    fireEvent.click(screen.getByRole("button", { name: "restore" }));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(log).toEqual(["write-start"]);
+    release();
+    await waitFor(() => expect(log).toEqual(["write-start", "write-end", "restore"]));
+    await waitFor(() => expect(screen.getByText("busy:null")).toBeInTheDocument());
+    expect(restoreMock.restoreBackup).toHaveBeenCalledWith(storage, expect.any(Blob), { replace: true });
+    expect(await screen.findByText("warning:true")).toBeInTheDocument(); // reloaded: probe still mounted, no backup yet
+  });
+
+  it("ignores a second restore while one is running", async () => {
+    const storage = new MemoryStorage();
+    let release: () => void = () => undefined;
+    restoreMock.restoreBackup.mockImplementation(() => new Promise<void>((r) => (release = r)));
+    renderBackup(storage);
+    const btn = await screen.findByRole("button", { name: "restore" });
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    await waitFor(() => expect(restoreMock.restoreBackup).toHaveBeenCalled());
+    expect(screen.getByText("busy:restore")).toBeInTheDocument();
+    release();
+    await waitFor(() => expect(screen.getByText("busy:null")).toBeInTheDocument());
+    expect(restoreMock.restoreBackup).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not warn on an empty folder", async () => {
+    renderBackup(new MemoryStorage(), 100_000);
+    await screen.findByText(/warning:/);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText("warning:false")).toBeInTheDocument();
+  });
+
+  it("warns when there is data and no backup", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    renderBackup(storage, 100_000);
+    expect(await screen.findByText("warning:true")).toBeInTheDocument();
+  });
+
+  it("does not warn when there is data and the backup is recent", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    await seedBackup(storage, 2);
+    renderBackup(storage, 100_000);
+    await screen.findByText(/warning:/);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText("warning:false")).toBeInTheDocument();
+  });
+
+  it("waits for the app to be idle before the automatic backup", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    renderBackup(storage, 10_000);
+    await screen.findByText(/warning:/);
+    await new Promise((r) => setTimeout(r, 80));
+    expect(await autos(storage)).toHaveLength(0);
+  });
+
+  it("postpones the automatic backup while the teacher keeps writing", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    renderBackup(storage, 200);
+    const write = await screen.findByRole("button", { name: "write" });
+    await new Promise((r) => setTimeout(r, 120));
+    fireEvent.click(write);
+    await new Promise((r) => setTimeout(r, 150)); // 270 ms after open, but only 150 after the write
+    expect(await autos(storage)).toHaveLength(0);
+    await waitFor(async () => expect(await autos(storage)).toHaveLength(1), { timeout: 2000 });
+  });
+
+  it("cancels the pending automatic backup on unmount", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    const { unmount } = renderBackup(storage, 100);
+    await screen.findByText(/warning:/);
+    unmount();
+    await new Promise((r) => setTimeout(r, 250));
+    expect(await autos(storage)).toHaveLength(0);
+  });
+
+  it("clears the empty-folder state after a first write", async () => {
+    const storage = new MemoryStorage();
+    renderBackup(storage, 100_000);
+    fireEvent.click(await screen.findByRole("button", { name: "write" }));
+    await waitFor(() => expect(screen.getByText("warning:true")).toBeInTheDocument());
+  });
+  it("blocks backup and restore while a legacy import runs, then frees them", async () => {
+    const storage = new MemoryStorage();
+    renderBackup(storage, 100_000);
+    fireEvent.click(await screen.findByRole("button", { name: "import" }));
+    expect(await screen.findByText("busy:import")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "restore" }));
+    expect(await screen.findByText(`error:${BUSY}`)).toBeInTheDocument();
+    expect(restoreMock.restoreBackup).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "backup" }));
+    await new Promise((r) => setTimeout(r, 30));
+    expect((await storage.list("Respaldos").catch(() => [])).length).toBe(0);
+    act(() => importGate.release());
+    await waitFor(() => expect(screen.getByText("busy:null")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "restore" }));
+    await waitFor(() => expect(restoreMock.restoreBackup).toHaveBeenCalledTimes(1));
+  });
+
+  it("rejects a legacy import while a restore runs", async () => {
+    const storage = new MemoryStorage();
+    let release: () => void = () => undefined;
+    restoreMock.restoreBackup.mockImplementation(() => new Promise<void>((r) => (release = r)));
+    renderBackup(storage, 100_000);
+    fireEvent.click(await screen.findByRole("button", { name: "restore" }));
+    await waitFor(() => expect(restoreMock.restoreBackup).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "import" }));
+    expect(await screen.findByText(`error:${BUSY}`)).toBeInTheDocument();
+    expect(screen.getByText("busy:restore")).toBeInTheDocument();
+    release();
+    await waitFor(() => expect(screen.getByText("busy:null")).toBeInTheDocument());
+  });
+
+  it("re-arms the automatic backup when a legacy import holds it, and runs it after the import", async () => {
+    const storage = new MemoryStorage();
+    await seedData(storage);
+    renderBackup(storage, 0);
+    fireEvent.click(await screen.findByRole("button", { name: "import" }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(await autos(storage)).toHaveLength(0);
+    act(() => importGate.release());
+    await waitFor(async () => expect(await autos(storage)).toHaveLength(1), { timeout: 2000 });
+  });
+});
+
+describe("WorkspaceProvider beforeunload guard", () => {
+  const leave = () => {
+    const e = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(e);
+    return e.defaultPrevented;
+  };
+
+  it("warns before leaving only while a write is pending or a backup, restore or import runs", async () => {
+    const storage = new MemoryStorage();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const original = storage.writeTextAtomic.bind(storage);
+    vi.spyOn(storage, "writeTextAtomic").mockImplementation(async (p, t) => {
+      if (p.endsWith("anio.json")) await gate;
+      return original(p, t);
+    });
+    let exclusive: () => void = () => undefined;
+    function GuardProbe() {
+      const ws = useWorkspace();
+      return (
+        <div>
+          <p>busy:{String(ws.backupBusy)}</p>
+          <button onClick={() => void ws.update((d) => ({ ...d, classrooms: [mkRoom("a")] }))}>write</button>
+          <button onClick={() => void ws.runExclusive("import", () => new Promise<void>((r) => (exclusive = r)))}>import</button>
+        </div>
+      );
+    }
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+    const { unmount } = render(
+      <WorkspaceProvider userId="u1" autoBackupDelayMs={100_000}>
+        <GuardProbe />
+      </WorkspaceProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "write" }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(leave()).toBe(true);
+    release();
+    await waitFor(() => expect(leave()).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "import" }));
+    expect(await screen.findByText("busy:import")).toBeInTheDocument();
+    expect(leave()).toBe(true);
+    act(() => exclusive());
+    await waitFor(() => expect(screen.getByText("busy:null")).toBeInTheDocument());
+    expect(leave()).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "import" }));
+    expect(await screen.findByText("busy:import")).toBeInTheDocument();
+    unmount();
+    expect(leave()).toBe(false); // listener removed on unmount
   });
 });

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { useAccount } from "@/components/AccountGate";
+import { OfflineBadge } from "@/components/OfflineBadge";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 type NavItem = { label: string; href?: string };
@@ -15,8 +16,9 @@ const NAV: NavItem[] = [
   { label: "Aulas", href: "/aulas/" },
   { label: "Notas", href: "/notas/" },
   { label: "Unidades", href: "/unidades/" },
-  { label: "Asistencia" },
-  { label: "Agenda" },
+  { label: "Asistencia", href: "/asistencia/" },
+  { label: "Agenda", href: "/agenda/" },
+  { label: "Reportes", href: "/reportes/" },
 ];
 
 /** Personal pages: on desktop after the main list, on mobile inside «Más». */
@@ -28,14 +30,14 @@ const PERSONAL: NavItem[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { profile } = useAccount();
-  const { year, years, setYear } = useWorkspace();
+  const { year, years, setYear, backupWarning } = useWorkspace();
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const admin: NavItem[] = profile.role === "admin" ? [{ label: "Administración", href: "/admin/" }] : [];
   const desktopItems: NavItem[] = [...NAV, ...PERSONAL, ...admin];
   const mobileItems = NAV.filter((i) => ["Inicio", "Cuaderno", "Niños", "Notas"].includes(i.label));
   const moreItems: NavItem[] = [
-    ...NAV.filter((i) => ["Aulas", "Unidades", "Asistencia", "Agenda"].includes(i.label)),
+    ...NAV.filter((i) => ["Aulas", "Unidades", "Asistencia", "Agenda", "Reportes"].includes(i.label)),
     ...PERSONAL,
     ...admin,
   ];
@@ -117,6 +119,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        <OfflineBadge />
+        {backupWarning && (
+          <p role="status" className="bg-accent-soft text-foreground mx-4 rounded-xl px-4 py-2 text-sm md:mx-8">
+            Haz un respaldo de tus datos. Ve a Carpeta › Respaldos.
+          </p>
+        )}
         <main className="px-4 py-4 md:px-8">{children}</main>
       </div>
     </div>

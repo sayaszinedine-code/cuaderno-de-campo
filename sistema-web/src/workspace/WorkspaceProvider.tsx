@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createWorkspaceRepo, WorkspaceDataError, type WorkspaceRepo } from "@/domain/workspace-repo";
-import type { FieldNote, GradesFile, NotesFile, TeacherProfile, UnitsFile, YearData } from "@/domain/schema";
+import type { AgendaFile, AttendanceFile, FieldNote, GradesFile, NotesFile, TeacherProfile, UnitsFile, YearData } from "@/domain/schema";
 import {
   chooseFolder,
   grantPermission,
@@ -51,12 +51,42 @@ export type WorkspaceValue = {
   units: UnitsFile;
   /** Same semantics as `updateNotes`, for the units file. */
   updateUnits(fn: (f: UnitsFile) => UnitsFile, opts?: { year?: number }): Promise<boolean>;
+  /** Attendance of the open year (`asistencia.json`). */
+  attendance: AttendanceFile;
+  /** Same semantics as `updateNotes`, for the attendance file. */
+  updateAttendance(fn: (f: AttendanceFile) => AttendanceFile, opts?: { year?: number }): Promise<boolean>;
+  /** Agenda of the open year (`agenda.json`). */
+  agenda: AgendaFile;
+  /** Same semantics as `updateNotes`, for the agenda file. */
+  updateAgenda(fn: (f: AgendaFile) => AgendaFile, opts?: { year?: number }): Promise<boolean>;
   reload(): Promise<void>;
+  /** Date (YYYY-MM-DD) of the newest backup in `Respaldos/`; null when there is none; undefined until first checked. */
+  backupDate: string | null | undefined;
+  /** True when there is no backup or the last one is more than 14 days old. */
+  backupWarning: boolean;
+  /** Last automatic backup failure (Spanish), shown only in the backups panel. Empty when none. */
+  backupError: string;
+  /** What exclusive task is running (backup, restore or legacy import); null when idle. */
+  backupBusy: BusyKind | null;
+  /** Makes a manual backup through the write queue; resolves with the file name. Rejects with a Spanish message. */
+  runBackup(): Promise<string>;
+  /**
+   * Restores `file` through the write queue (no other write interleaves), then reloads the workspace from disk
+   * inside the same queue slot. Rejects with a Spanish message; the workspace is reloaded either way.
+   */
+  restoreBackupFile(file: Blob, replace: boolean): Promise<void>;
+  /**
+   * Runs `fn` while backups, restores and folder changes are blocked, without holding the write queue (so `fn` can
+   * still save through `update*`). Rejects with the busy message when another exclusive task is running.
+   */
+  runExclusive<T>(kind: "import", fn: () => Promise<T>): Promise<T>;
   /** Opens the folder picker and switches to the chosen folder. */
   changeFolder(): Promise<void>;
   /** True when the browser can pick a real folder (false = browser-internal storage). */
   canChooseFolder: boolean;
 };
+
+export type BusyKind = "backup" | "restore" | "import";
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
 
@@ -81,23 +111,47 @@ type Loaded = {
   notesFile: NotesFile;
   gradesFile: GradesFile;
   unitsFile: UnitsFile;
+  attendanceFile: AttendanceFile;
+  agendaFile: AgendaFile;
   profile: TeacherProfile | null;
 };
 
-type YearDocs = Pick<Loaded, "yearData" | "notesFile" | "gradesFile" | "unitsFile">;
+type YearDocs = Pick<Loaded, "yearData" | "notesFile" | "gradesFile" | "unitsFile" | "attendanceFile" | "agendaFile">;
 
 /** Loads every document of one year; the single place that knows which files make up a year. */
 async function loadYearDocs(repo: WorkspaceRepo, y: number): Promise<YearDocs> {
-  const [yearData, notesFile, gradesFile, unitsFile] = await Promise.all([
+  const [yearData, notesFile, gradesFile, unitsFile, attendanceFile, agendaFile] = await Promise.all([
     repo.loadYear(y),
     repo.loadNotes(y),
     repo.loadGrades(y),
     repo.loadUnits(y),
+    repo.loadAttendance(y),
+    repo.loadAgenda(y),
   ]);
-  return { yearData, notesFile, gradesFile, unitsFile };
+  return { yearData, notesFile, gradesFile, unitsFile, attendanceFile, agendaFile };
 }
 
 const currentYear = () => new Date().getFullYear();
+
+const DAY_MS = 86_400_000;
+const AUTO_BACKUP_AFTER_DAYS = 7;
+const BACKUP_WARNING_AFTER_DAYS = 14;
+const AUTO_BACKUP_IDLE_MS = 60_000;
+const FOLDER_CHANGED_MESSAGE = "La carpeta cambió. Inténtalo de nuevo.";
+export const BUSY_MESSAGE = "Espera a que termine el respaldo o la restauración en curso.";
+
+/** Whole days since a local `YYYY-MM-DD` date (Infinity when unparsable). */
+function daysSince(date: string, now: Date = new Date()): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return Infinity;
+  const then = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((today.getTime() - then.getTime()) / DAY_MS);
+}
+
+function errorMessage(e: unknown): string {
+  return e instanceof Error && e.message ? e.message : "No se pudo completar la operación.";
+}
 
 function withYear(years: number[], y: number): number[] {
   return [...new Set([...years, y])].sort((a, b) => b - a);
@@ -115,11 +169,27 @@ function initialYear(yearsWithData: number[]): number {
 }
 
 /** `userId` scopes the remembered folder and the browser-internal storage to the signed-in account. */
-export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
+export function WorkspaceProvider({
+  userId,
+  children,
+  autoBackupDelayMs = AUTO_BACKUP_IDLE_MS,
+}: {
+  userId: string;
+  children: ReactNode;
+  /** How long the app must be idle (no queued work, no writes) before the automatic backup starts. Injectable for tests. */
+  autoBackupDelayMs?: number;
+}) {
   const [phase, setPhase] = useState<Phase>({ status: "loading" });
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [notice, setNotice] = useState("");
   const [saveError, setSaveError] = useState(false);
+  const [backupDate, setBackupDate] = useState<string | null | undefined>(undefined);
+  const [backupError, setBackupError] = useState("");
+  const [backupBusy, setBackupBusy] = useState<BusyKind | null>(null);
+  const [folderHasData, setFolderHasData] = useState(false);
+  const pending = useRef(0);
+  const lastActivity = useRef(Date.now());
+  const busyRef = useRef<BusyKind | null>(null);
 
   const generation = useRef(0);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -143,7 +213,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     const gen = generation.current;
     const live = () => generation.current === gen;
     const guarded = async () => (live() ? task(live) : undefined);
+    pending.current++;
     const run = queue.current.then(guarded, guarded);
+    void run.then(
+      () => void pending.current--,
+      () => void pending.current--,
+    );
     queue.current = run.catch(() => undefined);
     return run;
   }, []);
@@ -155,6 +230,9 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       setLoaded(null);
       setNotice("");
       setSaveError(false);
+      setBackupDate(undefined);
+      setFolderHasData(false);
+      setBackupError("");
       setPhase({ status: "loading" });
       try {
         const repo = createWorkspaceRepo(storage);
@@ -210,16 +288,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
   const readyPhase = phase.status === "ready" ? phase : null;
 
-  const reload = useCallback(async () => {
-    if (!readyPhase) return;
-    await enqueue(async (live) => {
+  /** Re-reads the open year from disk. Must run inside a queue slot. */
+  const reloadNow = useCallback(
+    async (repo: WorkspaceRepo, live: () => boolean) => {
       const year = latest.current?.year ?? currentYear();
       try {
-        const [list, docs, profile] = await Promise.all([
-          readyPhase.repo.listYears(),
-          loadYearDocs(readyPhase.repo, year),
-          readyPhase.repo.loadProfile(),
-        ]);
+        const [list, docs, profile] = await Promise.all([repo.listYears(), loadYearDocs(repo, year), repo.loadProfile()]);
         if (!live()) return;
         commit({ years: withYear(list, year), year, ...docs, profile });
       } catch (e) {
@@ -229,8 +303,188 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           message: e instanceof WorkspaceDataError ? DATA_ERROR_MESSAGE : "No se pudo leer la carpeta.",
         });
       }
+    },
+    [commit],
+  );
+
+  const reload = useCallback(async () => {
+    if (!readyPhase) return;
+    await enqueue((live) => reloadNow(readyPhase.repo, live));
+  }, [readyPhase, enqueue, reloadNow]);
+
+  const readyStorage = readyPhase?.storage ?? null;
+
+  /** Takes the exclusive slot (`busyRef` + `backupBusy`) or rejects; always releases it when `fn` settles. */
+  const withBusy = useCallback(async <T,>(kind: BusyKind, fn: () => Promise<T>): Promise<T> => {
+    if (busyRef.current) throw new Error(BUSY_MESSAGE);
+    busyRef.current = kind;
+    setBackupBusy(kind);
+    try {
+      return await fn();
+    } finally {
+      busyRef.current = null;
+      setBackupBusy(null);
+    }
+  }, []);
+
+  const runExclusive = useCallback(
+    <T,>(kind: "import", fn: () => Promise<T>): Promise<T> => withBusy(kind, fn),
+    [withBusy],
+  );
+
+  // Leaving the page now could cut a save, a backup, a restore or an import in half: ask the browser to confirm.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pending.current > 0 || busyRef.current) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  /** Runs `task` as the only thing in the queue; `busyRef` makes a second call fail fast (double click, navigation). */
+  const runBackupTask = useCallback(
+    async <T,>(kind: "backup" | "restore", task: (live: () => boolean) => Promise<T>): Promise<T> =>
+      withBusy(kind, async () => {
+        const out = await enqueue(async (live) => {
+          const r = await task(live);
+          // The folder was switched while this ran: never report success for a folder that is no longer open.
+          if (!live()) throw new Error(FOLDER_CHANGED_MESSAGE);
+          return r;
+        });
+        if (out === undefined) throw new Error(FOLDER_CHANGED_MESSAGE);
+        return out;
+      }),
+    [enqueue, withBusy],
+  );
+
+  const runBackup = useCallback(async (): Promise<string> => {
+    if (!readyStorage) throw new Error("La carpeta no está lista.");
+    return runBackupTask("backup", async (live) => {
+      const { saveBackup, lastBackupDate } = await import("@/backup/backup");
+      const { hasData } = await import("@/backup/backup");
+      const name = await saveBackup(readyStorage, "manual");
+      const [date, data] = await Promise.all([lastBackupDate(readyStorage), hasData(readyStorage)]);
+      if (live()) {
+        setBackupDate(date);
+        setFolderHasData(data);
+      }
+      return name;
     });
-  }, [readyPhase, enqueue, commit]);
+  }, [readyStorage, runBackupTask]);
+
+  const restoreBackupFile = useCallback(
+    async (file: Blob, replace: boolean): Promise<void> => {
+      if (!readyPhase) throw new Error("La carpeta no está lista.");
+      const { repo, storage } = readyPhase;
+      await runBackupTask("restore", async (live) => {
+        try {
+          const { restoreBackup } = await import("@/backup/restore");
+          await restoreBackup(storage, file, { replace });
+        } finally {
+          // Even after a partial failure the screen must show what is really on disk, inside this same slot.
+          await reloadNow(repo, live);
+          const { lastBackupDate, hasData } = await import("@/backup/backup");
+          const date = await lastBackupDate(storage).catch(() => null);
+          const data = await hasData(storage).catch(() => true);
+          if (live()) {
+            setBackupDate(date);
+            setFolderHasData(data);
+          }
+        }
+        return true;
+      });
+    },
+    [readyPhase, runBackupTask, reloadNow],
+  );
+
+  /**
+   * Weekly automatic backup. The status (date, has data) is read right away without touching the queue; the backup
+   * itself starts only after the app has been idle for `autoBackupDelayMs`. Known limit: once it runs it holds the
+   * write queue until the zip is done, so saves wait on very large folders.
+   */
+  const autoBackupFor = useRef<Storage | null>(null);
+  useEffect(() => {
+    if (!readyStorage || autoBackupFor.current === readyStorage) return;
+    autoBackupFor.current = readyStorage;
+    const storage = readyStorage;
+    const gen = generation.current;
+    const live = () => generation.current === gen;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let idleHandle: number | undefined;
+    lastActivity.current = Date.now();
+
+    const idle = () => pending.current === 0 && Date.now() - lastActivity.current >= autoBackupDelayMs;
+    const wait = () => Math.max(autoBackupDelayMs - (Date.now() - lastActivity.current), 50);
+
+    const start = () => {
+      idleHandle = undefined;
+      if (cancelled || !live()) return;
+      if (!idle()) return schedule();
+      void enqueue(async (stillLive) => {
+        try {
+          if (!stillLive()) return;
+          // A manual backup, restore or legacy import holds the slot: try again later instead of giving up.
+          if (busyRef.current) {
+            // Count the busy slot as activity so the retry waits a full idle window, not 50 ms.
+            lastActivity.current = Date.now();
+            if (!cancelled && live()) schedule();
+            return;
+          }
+          const { saveBackup, lastBackupDate } = await import("@/backup/backup");
+          busyRef.current = "backup";
+          setBackupBusy("backup");
+          try {
+            await saveBackup(storage, "auto");
+            const date = await lastBackupDate(storage);
+            if (stillLive()) {
+              setBackupDate(date);
+              setBackupError("");
+            }
+          } finally {
+            busyRef.current = null;
+            setBackupBusy(null);
+          }
+        } catch (e) {
+          console.warn("Automatic backup failed", e);
+          if (stillLive()) setBackupError(errorMessage(e));
+        }
+      }).catch(() => undefined);
+    };
+    const schedule = () => {
+      timer = setTimeout(() => {
+        timer = undefined;
+        if (cancelled || !live()) return;
+        if (!idle()) return schedule();
+        if (typeof window.requestIdleCallback === "function") idleHandle = window.requestIdleCallback(start, { timeout: 10_000 });
+        else start();
+      }, wait());
+    };
+
+    void (async () => {
+      try {
+        const { lastBackupDate, hasData } = await import("@/backup/backup");
+        const [date, data] = await Promise.all([lastBackupDate(storage), hasData(storage)]);
+        if (cancelled || !live()) return;
+        setBackupDate(date);
+        setFolderHasData(data);
+        const stale = date ? daysSince(date) > AUTO_BACKUP_AFTER_DAYS : data;
+        if (stale) schedule();
+      } catch (e) {
+        console.warn("Backup status check failed", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      autoBackupFor.current = null;
+      if (timer !== undefined) clearTimeout(timer);
+      if (idleHandle !== undefined && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleHandle);
+    };
+  }, [readyStorage, enqueue, autoBackupDelayMs]);
 
   const value = useMemo<WorkspaceValue | null>(() => {
     if (!readyPhase || !loaded) return null;
@@ -254,6 +508,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       fn: (d: D) => D,
       year?: number,
     ): Promise<boolean> => {
+      lastActivity.current = Date.now();
       const saved = await enqueue(async (live): Promise<boolean> => {
         const cur = latest.current;
         if (!cur) return false;
@@ -268,6 +523,8 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           await save(next);
           if (!live()) return false;
           commit(store(cur, next));
+          lastActivity.current = Date.now();
+          setFolderHasData(true);
           setSaveError(false);
           return true;
         } catch {
@@ -289,9 +546,19 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       notes: loaded.notesFile.notes,
       grades: loaded.gradesFile,
       units: loaded.unitsFile,
+      attendance: loaded.attendanceFile,
+      agenda: loaded.agendaFile,
       profile: loaded.profile,
       canChooseFolder: supportsFolderAccess(),
       reload,
+      backupDate,
+      backupWarning:
+        folderHasData && (backupDate === null || (backupDate !== undefined && daysSince(backupDate) > BACKUP_WARNING_AFTER_DAYS)),
+      backupError,
+      backupBusy,
+      runBackup,
+      restoreBackupFile,
+      runExclusive,
       changeFolder: pickFolder,
       setYear: (y) =>
         enqueue(async (live) => {
@@ -336,14 +603,33 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
           fn,
           opts?.year,
         ),
+      updateAttendance: (fn, opts) =>
+        mutate(
+          (l) => l.attendanceFile,
+          (l, attendanceFile) => ({ ...l, attendanceFile }),
+          (f) => repo.saveAttendance(f),
+          fn,
+          opts?.year,
+        ),
+      updateAgenda: (fn, opts) =>
+        mutate(
+          (l) => l.agendaFile,
+          (l, agendaFile) => ({ ...l, agendaFile }),
+          (f) => repo.saveAgenda(f),
+          fn,
+          opts?.year,
+        ),
       saveProfile: (p): Promise<void> =>
         enqueue(async (live) => {
+          lastActivity.current = Date.now();
           await repo.saveProfile(p);
+          lastActivity.current = Date.now();
+          setFolderHasData(true);
           const cur = latest.current;
           if (cur && live()) commit({ ...cur, profile: p });
         }),
     };
-  }, [readyPhase, loaded, reload, pickFolder, enqueue, commit]);
+  }, [readyPhase, loaded, reload, backupDate, folderHasData, backupError, backupBusy, runBackup, restoreBackupFile, runExclusive, pickFolder, enqueue, commit]);
 
   if (value && readyPhase) {
     return (

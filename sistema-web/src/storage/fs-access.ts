@@ -1,4 +1,4 @@
-import type { Storage, StorageEntry, StorageKind } from "./types";
+import type { FileWriter, Storage, StorageEntry, StorageKind } from "./types";
 import { blobToText, splitPath } from "./path";
 
 const MISSING = new Set(["NotFoundError", "TypeMismatchError"]);
@@ -73,28 +73,55 @@ export class FsAccessStorage implements Storage {
     if (!loc) throw new Error("Cannot create folder");
     const { dir, name } = loc;
     const tmpName = `${name}.tmp`;
-    const blob = new Blob([text], { type: "application/json" });
     try {
-      await this.put(dir, tmpName, blob);
-      const tmp = await dir.getFileHandle(tmpName);
-      let moved = false;
-      if (typeof tmp.move === "function") {
-        try {
-          await tmp.move(name);
-          moved = true;
-        } catch {
-          // Some browsers reject move() on picker handles; fall back to rewrite.
-        }
-      }
-      if (!moved) {
-        await this.put(dir, name, blob);
-        await dir.removeEntry(tmpName);
-      }
+      await this.put(dir, tmpName, new Blob([text], { type: "application/json" }));
+      await this.commit(dir, name, tmpName);
     } catch (e) {
       // Best-effort cleanup; the original destination is never touched before the tmp is complete.
       await dir.removeEntry(tmpName).catch(() => undefined);
       throw e;
     }
+  }
+
+  /** Moves a complete tmp file over `name` (rename when supported, otherwise copy then delete the tmp). */
+  private async commit(dir: FileSystemDirectoryHandle, name: string, tmpName: string): Promise<void> {
+    const tmp = await dir.getFileHandle(tmpName);
+    if (typeof tmp.move === "function") {
+      try {
+        await tmp.move(name);
+        return;
+      } catch {
+        // Some browsers reject move() on picker handles; fall back to rewrite.
+      }
+    }
+    await this.put(dir, name, await tmp.getFile());
+    await dir.removeEntry(tmpName);
+  }
+
+  async createWriter(path: string): Promise<FileWriter> {
+    const loc = await this.fileFor(path, true);
+    if (!loc) throw new Error("Cannot create folder");
+    const { dir, name } = loc;
+    const tmpName = `${name}.tmp`;
+    const handle = await dir.getFileHandle(tmpName, { create: true });
+    const w = await handle.createWritable();
+    const cleanup = () => dir.removeEntry(tmpName).catch(() => undefined);
+    return {
+      write: (chunk) => w.write(chunk.slice()),
+      close: async () => {
+        try {
+          await w.close();
+          await this.commit(dir, name, tmpName);
+        } catch (e) {
+          await cleanup();
+          throw e;
+        }
+      },
+      abort: async () => {
+        await w.abort?.().catch(() => undefined);
+        await cleanup();
+      },
+    };
   }
 
   async list(dir: string): Promise<StorageEntry[]> {

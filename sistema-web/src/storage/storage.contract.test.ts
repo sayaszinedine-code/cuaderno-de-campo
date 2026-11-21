@@ -75,6 +75,45 @@ export function storageContract(name: string, make: () => Storage) {
       expect(Array.from(got)).toEqual(Array.from(bytes));
     });
 
+    it("createWriter streams chunks and publishes the file on close", async () => {
+      const s = make();
+      const w = await s.createWriter("deep/dir/big.bin");
+      await w.write(new Uint8Array([1, 2, 3]));
+      await w.write(new Uint8Array([250, 255]));
+      await w.close();
+      const back = await s.readFile("deep/dir/big.bin");
+      expect(Array.from(await readBytes(back as Blob))).toEqual([1, 2, 3, 250, 255]);
+      expect((await s.list("deep/dir")).map((e) => e.name)).toEqual(["big.bin"]);
+    });
+
+    it("createWriter replaces an existing file only on close", async () => {
+      const s = make();
+      await s.writeFile("f.bin", new Blob([new Uint8Array([9])]));
+      const w = await s.createWriter("f.bin");
+      await w.write(new Uint8Array([1, 2]));
+      expect(Array.from(await readBytes((await s.readFile("f.bin")) as Blob))).toEqual([9]);
+      await w.close();
+      expect(Array.from(await readBytes((await s.readFile("f.bin")) as Blob))).toEqual([1, 2]);
+    });
+
+    it("createWriter abort leaves no file and no temp file, and keeps the original", async () => {
+      const s = make();
+      await s.writeFile("keep.bin", new Blob([new Uint8Array([7])]));
+      const w1 = await s.createWriter("keep.bin");
+      await w1.write(new Uint8Array([1]));
+      await w1.abort();
+      const w2 = await s.createWriter("new.bin");
+      await w2.write(new Uint8Array([1]));
+      await w2.abort();
+      expect((await s.list("")).map((e) => e.name)).toEqual(["keep.bin"]);
+      expect(Array.from(await readBytes((await s.readFile("keep.bin")) as Blob))).toEqual([7]);
+    });
+
+    it("createWriter rejects invalid paths", async () => {
+      const s = make();
+      for (const p of ["../x.bin", "/abs.bin", ".."]) await expect(s.createWriter(p)).rejects.toThrow("Invalid path");
+    });
+
     it("rejects path traversal and absolute paths", async () => {
       const s = make();
       for (const p of ["../x.json", "a/../../x.json", "/abs.json", "a/..", ".."]) {
