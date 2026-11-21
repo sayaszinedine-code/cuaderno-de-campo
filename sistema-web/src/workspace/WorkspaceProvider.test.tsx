@@ -1021,3 +1021,54 @@ describe("WorkspaceProvider backups", () => {
     await waitFor(async () => expect(await autos(storage)).toHaveLength(1), { timeout: 2000 });
   });
 });
+
+describe("WorkspaceProvider beforeunload guard", () => {
+  const leave = () => {
+    const e = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(e);
+    return e.defaultPrevented;
+  };
+
+  it("warns before leaving only while a write is pending or a backup, restore or import runs", async () => {
+    const storage = new MemoryStorage();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const original = storage.writeTextAtomic.bind(storage);
+    vi.spyOn(storage, "writeTextAtomic").mockImplementation(async (p, t) => {
+      if (p.endsWith("anio.json")) await gate;
+      return original(p, t);
+    });
+    let exclusive: () => void = () => undefined;
+    function GuardProbe() {
+      const ws = useWorkspace();
+      return (
+        <div>
+          <p>busy:{String(ws.backupBusy)}</p>
+          <button onClick={() => void ws.update((d) => ({ ...d, classrooms: [mkRoom("a")] }))}>write</button>
+          <button onClick={() => void ws.runExclusive("import", () => new Promise<void>((r) => (exclusive = r)))}>import</button>
+        </div>
+      );
+    }
+    pick.restoreStorage.mockResolvedValue({ status: "ready", storage });
+    const { unmount } = render(
+      <WorkspaceProvider userId="u1" autoBackupDelayMs={100_000}>
+        <GuardProbe />
+      </WorkspaceProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "write" }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(leave()).toBe(true);
+    release();
+    await waitFor(() => expect(leave()).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "import" }));
+    expect(await screen.findByText("busy:import")).toBeInTheDocument();
+    expect(leave()).toBe(true);
+    act(() => exclusive());
+    await waitFor(() => expect(screen.getByText("busy:null")).toBeInTheDocument());
+    expect(leave()).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "import" }));
+    expect(await screen.findByText("busy:import")).toBeInTheDocument();
+    unmount();
+    expect(leave()).toBe(false); // listener removed on unmount
+  });
+});

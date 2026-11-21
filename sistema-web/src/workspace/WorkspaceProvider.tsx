@@ -332,6 +332,18 @@ export function WorkspaceProvider({
     [withBusy],
   );
 
+  // Leaving the page now could cut a save, a backup, a restore or an import in half: ask the browser to confirm.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pending.current > 0 || busyRef.current) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
   /** Runs `task` as the only thing in the queue; `busyRef` makes a second call fail fast (double click, navigation). */
   const runBackupTask = useCallback(
     async <T,>(kind: "backup" | "restore", task: (live: () => boolean) => Promise<T>): Promise<T> =>
