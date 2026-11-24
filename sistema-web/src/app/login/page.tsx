@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthCard } from "@/components/AuthCard";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/auth/client";
@@ -27,31 +28,30 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto max-w-md p-8">
-      <h1 className="mb-6 text-2xl font-bold">Iniciar sesión</h1>
+    <AuthCard title="Iniciar sesión">
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1">
           Correo electrónico
           <input type="email" required autoComplete="email" value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded border border-gray-400 px-3 py-2 focus-visible:outline-2 focus-visible:outline-blue-600" />
+            className="field" />
         </label>
         <label className="flex flex-col gap-1">
           Contraseña
           <input type="password" required autoComplete="current-password" value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded border border-gray-400 px-3 py-2 focus-visible:outline-2 focus-visible:outline-blue-600" />
+            className="field" />
         </label>
-        <p role="alert" aria-live="polite" className="min-h-6 text-red-700">{error}</p>
+        <p role="alert" aria-live="polite" className="min-h-6 text-attention-foreground">{error}</p>
         <button type="submit" disabled={busy}
-          className="rounded bg-blue-600 px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-60">
+          className="btn-primary w-full">
           {busy ? "Ingresando…" : "Ingresar"}
         </button>
       </form>
       <p className="mt-6 flex flex-col gap-2">
-        <a href="/recuperar/" className="text-blue-700 underline">¿Olvidaste tu contraseña?</a>
-        <a href="/registro/" className="text-blue-700 underline">Crear una cuenta</a>
+        <a href="/recuperar/" className="text-primary font-medium underline">¿Olvidaste tu contraseña?</a>
+        <a href="/registro/" className="text-primary font-medium underline">Crear una cuenta</a>
       </p>
-    </main>
+    </AuthCard>
   );
 }

@@ -1,12 +1,12 @@
 "use client";
 
+import { AuthCard } from "@/components/AuthCard";
 import { useState, type FormEvent } from "react";
 import { signUp } from "@/auth/client";
 import { authErrorMessage } from "@/auth/messages";
 import { REGIONS } from "@/auth/regions";
 
-const input =
-  "rounded border border-gray-400 px-3 py-2 focus-visible:outline-2 focus-visible:outline-blue-600";
+const input = "field";
 
 export default function RegistroPage() {
   const [form, setForm] = useState({
@@ -38,17 +38,16 @@ export default function RegistroPage() {
 
   if (done) {
     return (
-      <main className="mx-auto max-w-md p-8">
-        <p role="status" className="rounded border border-green-600 p-4">
+      <AuthCard title="¡Listo!">
+        <p role="status" className="bg-success-soft text-success-foreground rounded-xl p-4">
           Revisa tu correo para confirmar tu cuenta. Luego un administrador revisará tu solicitud.
         </p>
-      </main>
+      </AuthCard>
     );
   }
 
   return (
-    <main className="mx-auto max-w-md p-8">
-      <h1 className="mb-6 text-2xl font-bold">Crear cuenta</h1>
+    <AuthCard title="Crear cuenta">
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1">Nombres
           <input required autoComplete="given-name" value={form.firstNames} onChange={set("firstNames")} className={input} />
@@ -79,18 +78,18 @@ export default function RegistroPage() {
         <label className="flex items-start gap-2">
           <input type="checkbox" required checked={accepted} onChange={(e) => setAccepted(e.target.checked)} className="mt-1" />
           <span>
-            Acepto la <a href="/privacidad/" className="text-blue-700 underline">política de privacidad</a>
+            Acepto la <a href="/privacidad/" className="text-primary font-medium underline">política de privacidad</a>
           </span>
         </label>
-        <p role="alert" aria-live="polite" className="min-h-6 text-red-700">{error}</p>
+        <p role="alert" aria-live="polite" className="min-h-6 text-attention-foreground">{error}</p>
         <button type="submit" disabled={busy}
-          className="rounded bg-blue-600 px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-60">
+          className="btn-primary w-full">
           {busy ? "Enviando…" : "Crear cuenta"}
         </button>
       </form>
       <p className="mt-6">
-        ¿Ya tienes cuenta? <a href="/login/" className="text-blue-700 underline">Iniciar sesión</a>
+        ¿Ya tienes cuenta? <a href="/login/" className="text-primary font-medium underline">Iniciar sesión</a>
       </p>
-    </main>
+    </AuthCard>
   );
 }

@@ -1,10 +1,50 @@
+import { Icon, type IconName } from "@/components/icons";
+
+const FEATURES: { icon: IconName; title: string; text: string }[] = [
+  { icon: "cuaderno", title: "Cuaderno de campo con fotos", text: "Registra lo que observas en el aula, con evidencias." },
+  { icon: "notas", title: "Notas y reportes", text: "Calificaciones por competencia, informes en PDF y Excel." },
+  { icon: "agenda", title: "Asistencia y agenda", text: "Pasa lista y organiza tus actividades del día." },
+  { icon: "check", title: "Funciona sin internet", text: "Instálala y úsala aunque no tengas conexión." },
+];
+
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-3xl font-bold">Cuaderno de Campo</h1>
-      <a href="/login/" className="rounded bg-blue-600 px-4 py-2 text-white">
-        Iniciar sesión
-      </a>
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center gap-12 px-5 py-12">
+      <section className="page-enter flex flex-col items-center gap-5 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static export, no image optimizer */}
+        <img src="/icons/icon-192.png" alt="" width={88} height={88} className="size-22 rounded-3xl shadow-lg" />
+        <h1 className="text-4xl font-bold sm:text-5xl">Cuaderno de Campo</h1>
+        <p className="text-muted max-w-xl text-lg">
+          Tu cuaderno de campo, notas y sesiones de Educación Inicial, en un solo lugar.
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <a href="/login/" className="btn-primary">
+            Iniciar sesión
+          </a>
+          <a href="/registro/" className="btn-secondary">
+            Crear una cuenta
+          </a>
+        </div>
+      </section>
+
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {FEATURES.map((f) => (
+          <li key={f.title} className="card flex flex-col gap-2 p-5">
+            <span className="bg-accent-soft text-primary flex size-11 items-center justify-center rounded-2xl">
+              <Icon name={f.icon} className="size-6" />
+            </span>
+            <strong>{f.title}</strong>
+            <span className="text-muted text-sm">{f.text}</span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="text-muted text-center text-sm">
+        Tus datos se quedan en tu computadora.{" "}
+        <a href="/privacidad/" className="text-primary underline">
+          Política de privacidad
+        </a>
+      </p>
     </main>
   );
 }
