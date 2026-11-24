@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { addStudent, classroomLabel, todayISO } from "@/domain/classrooms";
 import { formatAge } from "@/domain/age";
+import { Avatar } from "@/components/ui/Avatar";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Fab } from "@/components/ui/Fab";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 export default function NinosPage() {
@@ -46,8 +50,11 @@ export default function NinosPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold">Niños</h1>
+    <div className="space-y-6">
+      <PageHeader
+        title="Niños"
+        subtitle={rooms.length > 0 ? `${students.length} ${students.length === 1 ? "niño o niña" : "niños y niñas"}` : undefined}
+      />
 
       {rooms.length === 0 ? (
         <p>
@@ -78,26 +85,34 @@ export default function NinosPage() {
           </div>
 
           {students.length === 0 ? (
-            <p>{showArchived ? "No hay niños archivados." : "Todavía no hay niños en esta lista."}</p>
+            <EmptyState icon="ninos" text={showArchived ? "No hay niños archivados." : "Todavía no hay niños en esta lista."} />
           ) : (
-            <ul className="space-y-2">
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {students.map((s) => {
                 const age = s.birthDate ? formatAge(s.birthDate, today) : "";
                 return (
-                  <li key={s.id} className="card flex flex-wrap items-center justify-between gap-2 p-3">
-                    <Link href={`/ninos/ficha/?id=${encodeURIComponent(s.id)}`} className="font-medium underline">
-                      {s.lastNames}, {s.firstNames}
+                  <li key={s.id}>
+                    <Link
+                      href={`/ninos/ficha/?id=${encodeURIComponent(s.id)}`}
+                      className="card card-interactive flex items-center gap-3 p-3"
+                    >
+                      <Avatar name={`${s.firstNames} ${s.lastNames}`} />
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold">
+                          {s.lastNames}, {s.firstNames}
+                        </span>
+                        <span className="block text-sm text-muted">
+                          {[age, roomName(s.classroomId)].filter(Boolean).join(" · ")}
+                        </span>
+                      </span>
                     </Link>
-                    <span className="text-sm text-muted">
-                      {[age, roomName(s.classroomId)].filter(Boolean).join(" · ")}
-                    </span>
                   </li>
                 );
               })}
             </ul>
           )}
 
-          <form onSubmit={onSubmit} className="card space-y-4 p-4">
+          <form id="agregar-nino" onSubmit={onSubmit} className="card max-w-3xl scroll-mt-24 space-y-4 p-4">
             <h2 className="text-lg font-semibold">Agregar niño</h2>
             <label className="block space-y-1">
               <span>Nombres</span>
@@ -130,6 +145,7 @@ export default function NinosPage() {
               Agregar niño
             </button>
           </form>
+          <Fab href="#agregar-nino" label="Agregar niño" />
         </>
       )}
     </div>
