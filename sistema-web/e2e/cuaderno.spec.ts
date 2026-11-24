@@ -95,7 +95,8 @@ test("cuaderno: crear, persistir con foto, filtrar por área y eliminar; sin pet
     });
   expect(await countPhotos()).toBe(1);
 
-  // El filtro por área lo muestra (y otra área no)
+  // El filtro por área lo muestra (y otra área no); los filtros están plegados tras «Filtros»
+  await page.getByText("Filtros", { exact: true }).click();
   await page.getByLabel(/^Área/).selectOption({ label: "Matemática" });
   await expect(page.getByRole("article").filter({ hasText: "Agrupó los bloques por color" })).toBeVisible();
   await page.getByLabel(/^Área/).selectOption({ label: "Comunicación" });
