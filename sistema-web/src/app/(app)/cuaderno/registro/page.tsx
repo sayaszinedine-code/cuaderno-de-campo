@@ -17,6 +17,7 @@ import { AiNoteAction } from "@/notes/AiActions";
 import { EvidencePhotos } from "@/notes/EvidencePhotos";
 import { PerformancePicker } from "@/notes/PerformancePicker";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
+import { useToast } from "@/components/Toast";
 
 const LIST = "/cuaderno/";
 const PHOTO_FAILED = "No se pudo guardar una de las fotos.";
@@ -81,6 +82,7 @@ const basename = (p: string) => p.slice(p.lastIndexOf("/") + 1);
 
 function Form({ existing }: { existing: FieldNote | undefined }) {
   const router = useRouter();
+  const toast = useToast();
   const { profile } = useAccount();
   const { storage, year: currentYear, yearData, units, updateNotes } = useWorkspace();
   /** The year this form was opened with: every write targets it, never a year chosen later. */
@@ -253,6 +255,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
       addedRef.current = [];
       writeLast(profile.id, clean);
       setMessage("Registro guardado.");
+      toast("Registro guardado.");
       router.push(LIST);
     } finally {
       setSaving(false);

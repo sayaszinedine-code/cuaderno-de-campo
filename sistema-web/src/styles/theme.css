@@ -167,3 +167,42 @@ body::before {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Floating confirmations (see components/Toast.tsx). */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 28rem;
+  padding: 0.625rem 1rem;
+  border-radius: 999px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  animation: fade-up 200ms ease-out;
+}
+
+/* Gentle entrance for each new screen (see components/AppShell.tsx). */
+.page-enter {
+  animation: fade-up 220ms ease-out;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .page-enter {
+    animation: none;
+  }
+}

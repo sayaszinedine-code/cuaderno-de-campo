@@ -13,6 +13,7 @@ import type { Classroom, Period, YearData } from "@/domain/schema";
 import { CYCLE_BANDS, getCompetencies, type AgeBand, type Cycle } from "@/curriculum";
 import { countStoredLevels, stripLevelsForDescriptive } from "@/domain/grades";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
+import { useToast } from "@/components/Toast";
 
 function errorText(e: unknown): string {
   return e instanceof Error ? e.message : "No se pudo completar la acción.";
@@ -159,6 +160,7 @@ function EditClassroom({
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const { updateGrades, year, grades, notes, units, yearData } = useWorkspace();
+  const toast = useToast();
   /** Number of stored levels waiting for the teacher's confirmation before going descriptive. */
   const [pendingStrip, setPendingStrip] = useState<number | null>(null);
   const hasRecords = units.units.some((u) => u.classroomId === classroom.id) || notes.some((n) => n.classroomId === classroom.id);
@@ -168,6 +170,7 @@ function EditClassroom({
     const { error: msg, saved: ok } = await applyChange(update, change);
     setError(msg);
     setSaved(ok);
+    if (ok) toast("Cambios guardados.");
     return ok;
   }
 
@@ -309,6 +312,7 @@ function EditClassroom({
 
 function PeriodsSection({ periods, update }: { periods: Period[]; update: Update }) {
   const [draft, setDraft] = useState<Period[]>(periods);
+  const toast = useToast();
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
@@ -322,6 +326,7 @@ function PeriodsSection({ periods, update }: { periods: Period[]; update: Update
     const { error: msg, saved: ok } = await applyChange(update, (d) => updatePeriods(d, draft));
     setError(msg);
     setSaved(ok);
+    if (ok) toast("Bimestres guardados.");
   }
 
   return (

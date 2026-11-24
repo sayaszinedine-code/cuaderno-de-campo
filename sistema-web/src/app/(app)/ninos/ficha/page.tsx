@@ -8,6 +8,7 @@ import { studentDir } from "@/domain/paths";
 import { compressPhoto, PHOTO_ERROR } from "@/domain/photo";
 import type { Student } from "@/domain/schema";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
+import { useToast } from "@/components/Toast";
 
 type Details = Pick<Student, "dni" | "guardian" | "guardianPhone" | "motherTongue" | "healthNotes">;
 
@@ -35,6 +36,7 @@ export default function FichaPage() {
 
 function Ficha({ student }: { student: Student }) {
   const { yearData, year, storage, update } = useWorkspace();
+  const toast = useToast();
   const classroom = yearData.classrooms.find((c) => c.id === student.classroomId);
   const [form, setForm] = useState<Details>({
     dni: student.dni ?? "",
@@ -87,7 +89,10 @@ function Ficha({ student }: { student: Student }) {
         healthNotes: clean(form.healthNotes),
       }),
     );
-    if (saved) setMessage("Ficha guardada.");
+    if (saved) {
+      setMessage("Ficha guardada.");
+      toast("Ficha guardada.");
+    }
   }
 
   async function onPhoto(file: File | undefined) {
