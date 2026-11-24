@@ -311,3 +311,22 @@ test.describe("sin conexión", () => {
     expect(aiRequests).toEqual([]);
   });
 });
+
+test("agenda: el enlace de un evento en Inicio abre la Agenda en ese día", async ({ page }) => {
+  await setUp(page);
+  const d = new Date();
+  d.setDate(d.getDate() + 3);
+  test.skip(d.getFullYear() !== new Date().getFullYear(), "needs a day within the current school year");
+  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  await page.goto(`/agenda/?dia=${iso}`);
+  await page.getByRole("button", { name: "Agregar evento" }).click();
+  await page.getByLabel("Título").fill("Visita al museo");
+  await page.getByRole("button", { name: "Guardar" }).click();
+  await expect(page.getByRole("region", { name: "Eventos del día" }).getByText("Visita al museo")).toBeVisible();
+
+  await page.goto("/inicio/");
+  await page.getByRole("region", { name: "Próximos eventos" }).getByRole("link", { name: /Visita al museo$/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/agenda/\\?dia=${iso}$`));
+  await expect(page.getByRole("region", { name: "Eventos del día" }).getByText("Visita al museo")).toBeVisible();
+});
