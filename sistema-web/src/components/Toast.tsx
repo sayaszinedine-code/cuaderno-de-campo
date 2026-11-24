@@ -36,8 +36,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={show}>
       {children}
       <div
-        role="status"
-        aria-live="polite"
+        // Visual only: each save site keeps its own role="status" message for screen readers.
+        aria-hidden="true"
         className="pointer-events-none fixed inset-x-3 bottom-24 z-40 flex flex-col items-center gap-2 md:bottom-6"
       >
         {items.map((t) => (

@@ -38,6 +38,16 @@ describe("Toast", () => {
     expect(screen.getByText("B")).toBeInTheDocument();
   });
 
+  it("is visual only so the page's own status message is announced once", () => {
+    render(
+      <ToastProvider>
+        <Grab />
+      </ToastProvider>,
+    );
+    act(() => show("Nota guardada."));
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("useToast without a provider is a no-op", () => {
     render(<Grab />);
     expect(() => show("x")).not.toThrow();
