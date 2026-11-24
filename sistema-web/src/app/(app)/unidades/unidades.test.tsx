@@ -91,9 +91,11 @@ describe("Unidades list", () => {
     await seed();
     renderList("?bim=B1");
     expect(await screen.findByText("Aún no hay unidades en este bimestre.")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.getByRole("link", { name: "Nueva unidad" })).toHaveAttribute("href", expect.stringMatching(/\/unidades\/unidad\/?\?aula=c1&bim=B1/)),
-    );
+    await waitFor(() => {
+      const links = screen.getAllByRole("link", { name: "Nueva unidad" });
+      expect(links).toHaveLength(2);
+      for (const l of links) expect(l).toHaveAttribute("href", expect.stringMatching(/\/unidades\/unidad\/?\?aula=c1&bim=B1/));
+    });
   });
 
   it("renders cards with kind, dates, competencies, counts and link", async () => {

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Icon, type IconName } from "@/components/icons";
 import { NoteCard } from "@/components/NoteCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useAccount } from "@/components/AccountGate";
 import { upcoming } from "@/domain/agenda";
 import { todayISO } from "@/domain/classrooms";
@@ -27,9 +29,8 @@ export default function InicioPage() {
   const soon = upcoming(agenda, today).slice(0, 5);
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">{firstName ? `¡Hola, ${firstName}!` : "¡Hola!"}</h1>
-      <p>Año escolar {year}</p>
+    <div className="space-y-6">
+      <PageHeader title={firstName ? `¡Hola, ${firstName}!` : "¡Hola!"} subtitle={`Año escolar ${year}`} />
       <section className="card space-y-1 p-5">
         <p>
           Tu carpeta: <strong>{storage.label}</strong>
@@ -38,20 +39,18 @@ export default function InicioPage() {
           {yearData.classrooms.length} aulas · {kids} niños en {year}
         </p>
       </section>
-      <div className="flex flex-wrap gap-3">
-        <Link href="/cuaderno/registro/" className="btn-primary">
-          Nuevo registro
-        </Link>
-        <Link href="/perfil/" className="btn-secondary">
-          Perfil
-        </Link>
-        <Link href="/carpeta/" className="btn-secondary">
-          Carpeta
-        </Link>
-        <Link href="/ninos/" className="btn-secondary">
-          Niños
-        </Link>
-      </div>
+      <nav aria-label="Accesos rápidos" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        {QUICK.map((q, i) => (
+          <Link
+            key={q.href}
+            href={q.href}
+            className={`card card-interactive flex flex-col items-start gap-2 p-4 font-semibold ${i === 0 ? "nav-active" : ""}`}
+          >
+            <Icon name={q.icon} className="size-7" />
+            {q.label}
+          </Link>
+        ))}
+      </nav>
       {neglected.length > 0 && (
         <section className="card space-y-1 p-5">
           <p className="font-medium">
@@ -78,11 +77,22 @@ export default function InicioPage() {
       {lastNotes.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Últimos registros</h2>
-          {lastNotes.map((n) => (
-            <NoteCard key={n.id} note={n} students={yearData.students} storage={storage} compact />
-          ))}
+          <div className="grid gap-3 lg:grid-cols-3">
+            {lastNotes.map((n) => (
+              <NoteCard key={n.id} note={n} students={yearData.students} storage={storage} compact />
+            ))}
+          </div>
         </section>
       )}
     </div>
   );
 }
+
+const QUICK: { href: string; label: string; icon: IconName }[] = [
+  { href: "/cuaderno/registro/", label: "Nuevo registro", icon: "mas-simple" },
+  { href: "/asistencia/", label: "Asistencia", icon: "asistencia" },
+  { href: "/notas/", label: "Notas", icon: "notas" },
+  { href: "/ninos/", label: "Niños", icon: "ninos" },
+  { href: "/perfil/", label: "Perfil", icon: "perfil" },
+  { href: "/carpeta/", label: "Carpeta", icon: "carpeta" },
+];

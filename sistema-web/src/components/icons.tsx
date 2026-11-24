@@ -17,6 +17,10 @@ export const ICON_NAMES = [
   "mas",
   "instalar",
   "check",
+  "buscar",
+  "filtro",
+  "cerrar",
+  "mas-simple",
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
@@ -96,6 +100,15 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   check: <polyline points="5 12 10 17 19 7" />,
+  buscar: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
+    </>
+  ),
+  filtro: <path d="M4 5h16l-6 7.5V19l-4 1.5v-8z" />,
+  cerrar: <path d="M6 6l12 12M18 6 6 18" />,
+  "mas-simple": <path d="M12 5v14M5 12h14" />,
 };
 
 export function Icon({ name, className = "size-5" }: { name: IconName; className?: string }) {

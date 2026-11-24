@@ -6,6 +6,7 @@ import { REGIONS } from "@/auth/regions";
 import { useAccount } from "@/components/AccountGate";
 import type { TeacherProfile } from "@/domain/schema";
 import { AiSettings } from "./AiSettings";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 const OFFLINE_SAVE_MESSAGE =
@@ -69,7 +70,7 @@ export default function PerfilPage() {
   return (
     <div className="space-y-6">
     <form onSubmit={onSubmit} className="card max-w-2xl space-y-4 p-6">
-      <h1 className="text-2xl font-semibold">Mi perfil</h1>
+      <PageHeader title="Mi perfil" />
       <Field label="Nombres" value={form.firstNames} onChange={set("firstNames")} required />
       <Field label="Apellidos" value={form.lastNames} onChange={set("lastNames")} required />
       <Field label="Teléfono" type="tel" value={form.phone} onChange={set("phone")} />

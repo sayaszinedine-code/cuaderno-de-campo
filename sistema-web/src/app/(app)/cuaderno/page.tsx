@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { Icon } from "@/components/icons";
 import { NoteCard } from "@/components/NoteCard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Fab } from "@/components/ui/Fab";
+import { FilterBar, type ActiveFilter } from "@/components/ui/FilterBar";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { getCompetenciesByArea, type Cycle } from "@/curriculum";
 import { areasForCycles } from "@/domain/areas";
 import { filterNotes } from "@/domain/notes";
@@ -62,19 +67,69 @@ export default function CuadernoPage() {
     };
 
   const sel = "field";
+  const nameOf = (id: string) => {
+    const st = yearData.students.find((x) => x.id === id);
+    return st ? `${st.firstNames} ${st.lastNames}`.trim() : id;
+  };
+  const active: ActiveFilter[] = [
+    studentId && { key: "student", label: nameOf(studentId), onClear: () => reset(setStudentId)("") },
+    areaId && {
+      key: "area",
+      label: areas.find(([id]) => id === areaId)?.[1] ?? areaId,
+      onClear: () => {
+        reset(setAreaId)("");
+        setCompetencyId("");
+      },
+    },
+    competencyId && {
+      key: "competency",
+      label: competencies.find(([id]) => id === competencyId)?.[1] ?? competencyId,
+      onClear: () => reset(setCompetencyId)(""),
+    },
+    periodId && {
+      key: "period",
+      label: yearData.periods.find((p) => p.id === periodId)?.name ?? periodId,
+      onClear: () => reset(setPeriodId)(""),
+    },
+    kind && { key: "kind", label: NOTE_KIND_LABELS[kind as NoteKind] ?? kind, onClear: () => reset(setKind)("") },
+  ].filter((f): f is ActiveFilter => Boolean(f));
+  const clearAll = () => {
+    [setStudentId, setAreaId, setCompetencyId, setPeriodId, setKind].forEach((set) => set(""));
+    setVisible(PAGE);
+  };
+  const count = `${list.length} ${list.length === 1 ? "registro" : "registros"}`;
+
   return (
-    <div className="max-w-3xl space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Cuaderno</h1>
-        <Link href="/cuaderno/registro/" className="btn-primary">
-          Nuevo registro
-        </Link>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="sm:col-span-2">
-          Buscar
-          <input className={sel} type="search" value={text} onChange={(e) => reset(setText)(e.target.value)} />
-        </label>
+    <div className="space-y-5">
+      <PageHeader
+        title="Cuaderno"
+        subtitle={notes.length > 0 ? count : undefined}
+        action={
+          <span className="hidden md:inline-flex">
+            <Link href="/cuaderno/registro/" className="btn-primary gap-2">
+              <Icon name="mas-simple" />
+              Nuevo registro
+            </Link>
+          </span>
+        }
+      />
+      <FilterBar
+        active={active}
+        onClearAll={clearAll}
+        search={
+          <label className="relative block">
+            <span className="sr-only">Buscar</span>
+            <Icon name="buscar" className="text-muted pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2" />
+            <input
+              className={`${sel} !pl-10`}
+              type="search"
+              placeholder="Buscar…"
+              value={text}
+              onChange={(e) => reset(setText)(e.target.value)}
+            />
+          </label>
+        }
+      >
         <label>
           Niño o niña
           <select className={sel} value={studentId} onChange={(e) => reset(setStudentId)(e.target.value)}>
@@ -137,16 +192,26 @@ export default function CuadernoPage() {
             ))}
           </select>
         </label>
-      </div>
+      </FilterBar>
       {notes.length === 0 ? (
-        <p className="card p-5">Todavía no hay registros. Toca «Nuevo registro» para tu primera observación.</p>
+        <EmptyState icon="cuaderno" text="Todavía no hay registros. Toca «Nuevo registro» para tu primera observación." />
       ) : list.length === 0 ? (
-        <p className="card p-5">Ningún registro coincide con los filtros.</p>
+        <EmptyState
+          icon="filtro"
+          text="Ningún registro coincide con los filtros."
+          action={
+            <button type="button" className="btn-secondary" onClick={() => { clearAll(); reset(setText)(""); }}>
+              Limpiar filtros y búsqueda
+            </button>
+          }
+        />
       ) : (
-        <div className="space-y-3">
-          {list.slice(0, visible).map((n) => (
-            <NoteCard key={n.id} note={n} students={yearData.students} storage={storage} />
-          ))}
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+            {list.slice(0, visible).map((n) => (
+              <NoteCard key={n.id} note={n} students={yearData.students} storage={storage} />
+            ))}
+          </div>
           <p className="text-sm text-muted">
             Mostrando {Math.min(visible, list.length)} de {list.length} registros
           </p>
@@ -157,6 +222,7 @@ export default function CuadernoPage() {
           )}
         </div>
       )}
+      <Fab href="/cuaderno/registro/" label="Nuevo registro" />
     </div>
   );
 }

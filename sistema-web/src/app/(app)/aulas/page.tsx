@@ -12,6 +12,7 @@ import {
 import type { Classroom, Period, YearData } from "@/domain/schema";
 import { CYCLE_BANDS, getCompetencies, type AgeBand, type Cycle } from "@/curriculum";
 import { countStoredLevels, stripLevelsForDescriptive } from "@/domain/grades";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 import { useToast } from "@/components/Toast";
 
@@ -25,7 +26,7 @@ export default function AulasPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold">Aulas</h1>
+      <PageHeader title="Aulas" />
       {yearData.classrooms.length === 0 ? (
         <p>Todavía no tienes aulas. Crea la primera aquí abajo.</p>
       ) : (

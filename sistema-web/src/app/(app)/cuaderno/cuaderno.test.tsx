@@ -71,7 +71,57 @@ describe("Cuaderno list", () => {
     expect(
       await screen.findByText("Todavía no hay registros. Toca «Nuevo registro» para tu primera observación."),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Nuevo registro" })).toHaveAttribute("href", "/cuaderno/registro");
+    const links = screen.getAllByRole("link", { name: "Nuevo registro" });
+    expect(links.length).toBeGreaterThanOrEqual(2);
+    for (const l of links) expect(l).toHaveAttribute("href", "/cuaderno/registro");
+  });
+
+  it("shows the record count in the header", async () => {
+    await seed([note({ id: "a", evidenceText: "uno" }), note({ id: "b", evidenceText: "dos" })]);
+    renderIn(<CuadernoPage />);
+    await screen.findByText("uno");
+    expect(screen.getByText("2 registros")).toBeInTheDocument();
+  });
+
+  it("says 1 registro for a single record", async () => {
+    await seed([note({ id: "a", evidenceText: "uno" })]);
+    renderIn(<CuadernoPage />);
+    await screen.findByText("uno");
+    expect(screen.getByText("1 registro")).toBeInTheDocument();
+  });
+
+  it("active filters appear as chips that remove them", async () => {
+    await seed([
+      note({ id: "a", evidenceText: "uno", kind: "logro" }),
+      note({ id: "b", evidenceText: "dos", kind: "obs" }),
+    ]);
+    renderIn(<CuadernoPage />);
+    await screen.findByText("uno");
+    fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "logro" } });
+    expect(screen.queryByText("dos")).not.toBeInTheDocument();
+    expect(screen.getByText("Filtros (1)")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Quitar filtro: / }));
+    expect(screen.getByText("dos")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tipo")).toHaveValue("");
+  });
+
+  it("clearing the area chip also clears the competency", async () => {
+    await seed([note({ id: "a", evidenceText: "uno", areaId: "comunicacion", competencyId: "escribe" })]);
+    renderIn(<CuadernoPage />);
+    await screen.findByText("uno");
+    fireEvent.change(screen.getByLabelText("Área"), { target: { value: "comunicacion" } });
+    fireEvent.change(screen.getByLabelText("Competencia"), { target: { value: "escribe" } });
+    expect(screen.getByText("Filtros (2)")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Quitar filtro: Comunicación" }));
+    expect(screen.getByLabelText("Área")).toHaveValue("");
+    expect(screen.getByLabelText("Competencia")).toHaveValue("");
+  });
+
+  it("shows each child's initials on the card", async () => {
+    await seed([note({ id: "a", studentIds: ["s1"], evidenceText: "uno" })]);
+    renderIn(<CuadernoPage />);
+    await screen.findByText("uno");
+    expect(screen.getByText("LR")).toBeInTheDocument();
   });
 
   it("renders cards with kind, children and an Abrir link", async () => {

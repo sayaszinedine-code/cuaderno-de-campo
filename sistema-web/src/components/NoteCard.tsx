@@ -6,6 +6,7 @@ import { getCompetencies } from "@/curriculum";
 import { areaName } from "@/domain/areas";
 import { NOTE_KIND_LABELS, type FieldNote, type Student } from "@/domain/schema";
 import type { Storage } from "@/storage/types";
+import { Avatar } from "@/components/ui/Avatar";
 
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
@@ -69,18 +70,27 @@ export function NoteCard({
   const shown = compact ? note.evidence.slice(0, 0) : note.evidence.slice(0, 4);
 
   return (
-    <article className="card flex gap-3 p-4">
-      <time dateTime={note.date} className="w-14 shrink-0 text-center text-sm font-semibold capitalize">
-        {stamp(note.date)}
-      </time>
-      <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-sm text-muted">
-          {NOTE_KIND_LABELS[note.kind]}
-          {area ? ` · ${area}` : ""}
-          {comp ? ` · ${comp}` : ""}
+    <article className="card card-interactive flex gap-3 p-4">
+      <div className="flex w-14 shrink-0 flex-col items-center gap-2">
+        {note.wholeGroup || names.length === 0 ? (
+          <span aria-hidden="true" className="avatar bg-accent-soft size-11 text-sm">
+            ★
+          </span>
+        ) : (
+          <Avatar name={names[0]} />
+        )}
+        <time dateTime={note.date} className="text-center text-sm font-semibold capitalize">
+          {stamp(note.date)}
+        </time>
+      </div>
+      <div className="min-w-0 flex-1 space-y-2">
+        <p className="flex flex-wrap gap-1.5 text-xs font-semibold">
+          <span className="chip !min-h-0 !px-2 !py-0.5">{NOTE_KIND_LABELS[note.kind]}</span>
+          {area && <span className="chip !min-h-0 !px-2 !py-0.5 bg-success-soft">{area}</span>}
+          {comp && <span className="text-muted self-center font-normal">{comp}</span>}
         </p>
         {who.length > 0 && (
-          <ul className="flex flex-wrap gap-x-3 text-sm">
+          <ul className="flex flex-wrap gap-x-3 text-sm font-medium">
             {who.map((n) => (
               <li key={n}>{n}</li>
             ))}
@@ -101,7 +111,10 @@ export function NoteCard({
             )}
           </div>
         )}
-        <Link href={`/cuaderno/registro/?id=${encodeURIComponent(note.id)}`} className="inline-block text-sm underline">
+        <Link
+          href={`/cuaderno/registro/?id=${encodeURIComponent(note.id)}`}
+          className="text-primary inline-flex min-h-9 items-center text-sm font-semibold underline"
+        >
           Abrir
         </Link>
       </div>

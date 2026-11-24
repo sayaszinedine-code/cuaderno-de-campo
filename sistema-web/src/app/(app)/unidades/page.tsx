@@ -6,6 +6,9 @@ import { getCompetencies } from "@/curriculum";
 import { classroomLabel, todayISO } from "@/domain/classrooms";
 import { periodOf } from "@/domain/notes";
 import { UNIT_KIND_LABELS, type Period, type Unit } from "@/domain/schema";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Fab } from "@/components/ui/Fab";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 const PERIOD_IDS: Period["id"][] = ["B1", "B2", "B3", "B4"];
@@ -54,8 +57,8 @@ export default function UnidadesPage() {
   const filesOf = (u: Unit) => u.attachments.length + sessionsOf(u).reduce((n, s) => n + s.attachments.length, 0);
 
   return (
-    <div className="max-w-3xl space-y-5">
-      <h1 className="text-2xl font-semibold">Unidades</h1>
+    <div className="space-y-5">
+      <PageHeader title="Unidades" subtitle={plural(cards.length, "unidad", "unidades") + " en este bimestre"} />
       <div className="flex flex-wrap items-end gap-3">
         <label className="space-y-1">
           <span className="block">Aula</span>
@@ -77,18 +80,20 @@ export default function UnidadesPage() {
             ))}
           </select>
         </label>
-        <Link href={`/unidades/unidad/?aula=${classroom.id}&bim=${periodId}`} className="btn-primary">
-          Nueva unidad
-        </Link>
+        <span className="hidden md:inline-flex">
+          <Link href={`/unidades/unidad/?aula=${classroom.id}&bim=${periodId}`} className="btn-primary">
+            Nueva unidad
+          </Link>
+        </span>
       </div>
 
       {cards.length === 0 ? (
-        <p>Aún no hay unidades en este bimestre.</p>
+        <EmptyState icon="unidades" text="Aún no hay unidades en este bimestre." />
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
           {cards.map((u) => (
             <li key={u.id}>
-              <Link href={`/unidades/unidad/?id=${u.id}`} className="card block space-y-1 p-4">
+              <Link href={`/unidades/unidad/?id=${u.id}`} className="card card-interactive block h-full space-y-1 p-4">
                 <span className="text-muted block text-sm">{UNIT_KIND_LABELS[u.kind]}</span>
                 <span className="block text-lg font-semibold">{u.title || "Sin título"}</span>
                 {(u.start || u.end) && (
@@ -105,6 +110,7 @@ export default function UnidadesPage() {
           ))}
         </ul>
       )}
+      <Fab href={`/unidades/unidad/?aula=${classroom.id}&bim=${periodId}`} label="Nueva unidad" />
     </div>
   );
 }
