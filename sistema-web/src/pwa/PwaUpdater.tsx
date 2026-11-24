@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { registerInBrowser } from "./register";
+// Starts listening for the install offer on the very first page load.
+import "./installPrompt";
 
 /** Registers the service worker and offers a new version without reloading on its own. */
 export function PwaUpdater() {

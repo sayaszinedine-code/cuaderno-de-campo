@@ -15,6 +15,7 @@ import { AiConclusion } from "@/grades/AiConclusion";
 import { GradeCellEditor, type GradeFormValues } from "@/grades/GradeCellEditor";
 import { useIsMobile } from "@/grades/useIsMobile";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
+import { useToast } from "@/components/Toast";
 
 const PERIOD_IDS: Period["id"][] = ["B1", "B2", "B3", "B4"];
 
@@ -55,6 +56,7 @@ function CellContent({ entry, scale }: { entry: GradeEntry | undefined; scale: b
 export default function NotasPage() {
   const { storage, yearData, notes, grades, updateGrades, year } = useWorkspace();
   const mobile = useIsMobile();
+  const toast = useToast();
   const { profile } = useAccount();
   const [aiSettings, setAiSettings] = useState<AiSettings>(DEFAULT_AI_SETTINGS);
   useEffect(() => {
@@ -125,6 +127,7 @@ export default function NotasPage() {
     if (ok) {
       setOpen(null);
       setMessage("Nota guardada.");
+      toast("Nota guardada.");
     }
     return ok;
   };

@@ -4,28 +4,31 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { useAccount } from "@/components/AccountGate";
+import { Icon, type IconName } from "@/components/icons";
+import { ToastProvider } from "@/components/Toast";
 import { OfflineBadge } from "@/components/OfflineBadge";
+import { InstallButton } from "@/pwa/InstallButton";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
-type NavItem = { label: string; href?: string };
+type NavItem = { label: string; href?: string; icon: IconName };
 
 const NAV: NavItem[] = [
-  { label: "Inicio", href: "/inicio/" },
-  { label: "Cuaderno", href: "/cuaderno/" },
-  { label: "Niños", href: "/ninos/" },
-  { label: "Aulas", href: "/aulas/" },
-  { label: "Notas", href: "/notas/" },
-  { label: "Unidades", href: "/unidades/" },
-  { label: "Asistencia", href: "/asistencia/" },
-  { label: "Agenda", href: "/agenda/" },
-  { label: "Reportes", href: "/reportes/" },
+  { label: "Inicio", href: "/inicio/", icon: "inicio" },
+  { label: "Cuaderno", href: "/cuaderno/", icon: "cuaderno" },
+  { label: "Niños", href: "/ninos/", icon: "ninos" },
+  { label: "Aulas", href: "/aulas/", icon: "aulas" },
+  { label: "Notas", href: "/notas/", icon: "notas" },
+  { label: "Unidades", href: "/unidades/", icon: "unidades" },
+  { label: "Asistencia", href: "/asistencia/", icon: "asistencia" },
+  { label: "Agenda", href: "/agenda/", icon: "agenda" },
+  { label: "Reportes", href: "/reportes/", icon: "reportes" },
 ];
 
 /** Personal pages: on desktop after the main list, on mobile inside «Más». */
 const PERSONAL: NavItem[] = [
-  { label: "Perfil", href: "/perfil/" },
-  { label: "Carpeta", href: "/carpeta/" },
-  { label: "Mi cuenta", href: "/cuenta/" },
+  { label: "Perfil", href: "/perfil/", icon: "perfil" },
+  { label: "Carpeta", href: "/carpeta/", icon: "carpeta" },
+  { label: "Mi cuenta", href: "/cuenta/", icon: "cuenta" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -33,7 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { year, years, setYear, backupWarning } = useWorkspace();
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
-  const admin: NavItem[] = profile.role === "admin" ? [{ label: "Administración", href: "/admin/" }] : [];
+  const admin: NavItem[] = profile.role === "admin" ? [{ label: "Administración", href: "/admin/", icon: "admin" }] : [];
   const desktopItems: NavItem[] = [...NAV, ...PERSONAL, ...admin];
   const mobileItems = NAV.filter((i) => ["Inicio", "Cuaderno", "Niños", "Notas"].includes(i.label));
   const moreItems: NavItem[] = [
@@ -42,10 +45,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     ...admin,
   ];
 
+  const firstName = (profile.firstNames ?? "").trim().split(/\s+/)[0] ?? "";
+  const greeting = firstName ? `Hola, ${firstName}` : "Hola";
+
   const renderItem = (item: NavItem, base: string, onNavigate?: () => void) => {
     if (!item.href) {
       return (
         <span key={item.label} aria-disabled="true" className={`${base} text-muted`}>
+          <Icon name={item.icon} />
           {item.label}
           <small className="text-xs">Próximamente</small>
         </span>
@@ -58,75 +65,106 @@ export function AppShell({ children }: { children: ReactNode }) {
         href={item.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
-        className={`${base} font-medium ${active ? "bg-accent-soft" : "hover:bg-accent-soft"}`}
+        className={`${base} font-medium transition-colors ${active ? "nav-active" : "hover:bg-accent-soft"}`}
       >
+        <Icon name={item.icon} className="size-5 shrink-0" />
         {item.label}
       </Link>
     );
   };
-  const itemBase = "flex shrink-0 flex-col px-3 py-2 text-sm md:rounded-xl md:text-base";
+  const sideBase = "flex items-center gap-3 rounded-xl px-3 py-2";
+  const barBase = "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-xs";
+  const logo = (
+    // eslint-disable-next-line @next/next/no-img-element -- static export, no image optimizer
+    <img src="/icons/icon-192.png" alt="" width={36} height={36} className="size-9 rounded-xl" />
+  );
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
-      <nav aria-label="Principal" className="card hidden w-56 flex-col rounded-none border-y-0 border-l-0 p-3 md:flex">
-        {desktopItems.map((item) => renderItem(item, itemBase))}
-      </nav>
-      <nav
-        aria-label="Principal móvil"
-        className="card fixed inset-x-0 bottom-0 z-10 flex justify-around rounded-none border-x-0 border-b-0 md:hidden"
-      >
-        {mobileItems.map((item) => renderItem(item, itemBase))}
-        <button
-          type="button"
-          aria-expanded={moreOpen}
-          aria-controls="mas-menu"
-          className={`${itemBase} font-medium`}
-          onClick={() => setMoreOpen((o) => !o)}
+    <ToastProvider>
+      <div className="flex min-h-screen flex-col md:flex-row">
+        <nav
+          aria-label="Principal"
+          className="card sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 overflow-y-auto rounded-none border-y-0 border-l-0 p-3 md:flex"
         >
-          Más
-        </button>
-      </nav>
-      {moreOpen && (
-        <div
-          id="mas-menu"
-          role="menu"
-          aria-label="Más opciones"
-          className="card fixed inset-x-3 bottom-20 z-20 flex flex-col p-2 md:hidden"
-        >
-          {moreItems.map((item) => renderItem(item, "flex flex-col rounded-xl px-3 py-2", () => setMoreOpen(false)))}
-        </div>
-      )}
-      <div className="flex-1 pb-24 md:pb-0">
-        <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-8">
-          <span className="font-semibold">Cuaderno de Campo</span>
-          <div className="flex items-center gap-3 text-sm">
-            <label className="flex items-center gap-2">
-              Año escolar
-              <select
-                className="field !min-h-9 !w-auto"
-                value={year}
-                onChange={(e) => void setYear(Number(e.target.value))}
-              >
-                {years.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Link href="/perfil/" className="underline">
-              Mi perfil
-            </Link>
+          <div className="mb-3 flex items-center gap-2 px-2 py-1">
+            {logo}
+            <span className="font-bold leading-tight">Cuaderno de Campo</span>
           </div>
-        </header>
-        <OfflineBadge />
-        {backupWarning && (
-          <p role="status" className="bg-accent-soft text-foreground mx-4 rounded-xl px-4 py-2 text-sm md:mx-8">
-            Haz un respaldo de tus datos. Ve a Carpeta › Respaldos.
-          </p>
+          {desktopItems.map((item) => renderItem(item, sideBase))}
+        </nav>
+        <nav
+          aria-label="Principal móvil"
+          className="card fixed inset-x-0 bottom-0 z-10 flex justify-around gap-1 rounded-none border-x-0 border-b-0 px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] md:hidden"
+        >
+          {mobileItems.map((item) => renderItem(item, barBase))}
+          <button
+            type="button"
+            aria-expanded={moreOpen}
+            aria-controls="mas-menu"
+            className={`${barBase} font-medium ${moreOpen ? "nav-active" : ""}`}
+            onClick={() => setMoreOpen((o) => !o)}
+          >
+            <Icon name="mas" />
+            Más
+          </button>
+        </nav>
+        {moreOpen && (
+          <div
+            id="mas-menu"
+            role="menu"
+            aria-label="Más opciones"
+            className="card page-enter fixed inset-x-3 bottom-20 z-20 flex flex-col p-2 shadow-xl md:hidden"
+          >
+            {moreItems.map((item) => renderItem(item, sideBase, () => setMoreOpen(false)))}
+          </div>
         )}
-        <main className="px-4 py-4 md:px-8">{children}</main>
+        <div className="min-w-0 flex-1 pb-24 md:pb-0">
+          <header className="app-header sticky top-0 z-[5] flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-8">
+            <div className="flex items-center gap-2">
+              <span className="md:hidden">{logo}</span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-lg font-bold">{greeting}</span>
+                <span className="text-muted text-sm md:hidden">Cuaderno de Campo</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <InstallButton className="!min-h-10 !px-3 sm:!px-5" />
+              <label className="flex items-center gap-2">
+                <span className="hidden sm:inline">Año escolar</span>
+                <select
+                  aria-label="Año escolar"
+                  className="field !min-h-9 !w-auto"
+                  value={year}
+                  onChange={(e) => void setYear(Number(e.target.value))}
+                >
+                  {years.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Link
+                href="/perfil/"
+                aria-label="Mi perfil"
+                title="Mi perfil"
+                className="bg-surface hover:bg-accent-soft flex size-10 items-center justify-center rounded-full border border-border"
+              >
+                <Icon name="perfil" className="size-6" />
+              </Link>
+            </div>
+          </header>
+          <OfflineBadge />
+          {backupWarning && (
+            <p role="status" className="bg-accent-soft text-foreground mx-4 rounded-xl px-4 py-2 text-sm md:mx-8">
+              Haz un respaldo de tus datos. Ve a Carpeta › Respaldos.
+            </p>
+          )}
+          <main key={pathname} className="page-enter isolate px-4 py-4 md:px-8">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }

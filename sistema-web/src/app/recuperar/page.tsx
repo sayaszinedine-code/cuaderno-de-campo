@@ -1,13 +1,12 @@
 "use client";
 
+import { AuthCard } from "@/components/AuthCard";
 import { useEffect, useState, type FormEvent } from "react";
 import { getSupabase, sendPasswordReset } from "@/auth/client";
 import { authErrorMessage } from "@/auth/messages";
 
-const input =
-  "rounded border border-gray-400 px-3 py-2 focus-visible:outline-2 focus-visible:outline-blue-600";
-const button =
-  "rounded bg-blue-600 px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-60";
+const input = "field";
+const button = "btn-primary w-full";
 
 export default function RecuperarPage() {
   const [recovering, setRecovering] = useState(false);
@@ -60,10 +59,7 @@ export default function RecuperarPage() {
   }
 
   return (
-    <main className="mx-auto max-w-md p-8">
-      <h1 className="mb-6 text-2xl font-bold">
-        {recovering ? "Nueva contraseña" : "Recuperar contraseña"}
-      </h1>
+    <AuthCard title={recovering ? "Nueva contraseña" : "Recuperar contraseña"}>
       {recovering ? (
         <form onSubmit={onUpdate} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1">Nueva contraseña (mínimo 8 caracteres)
@@ -84,17 +80,17 @@ export default function RecuperarPage() {
         </form>
       )}
       <p className="mt-6">
-        <a href="/login/" className="text-blue-700 underline">Volver a iniciar sesión</a>
+        <a href="/login/" className="text-primary font-medium underline">Volver a iniciar sesión</a>
       </p>
-    </main>
+    </AuthCard>
   );
 }
 
 function Feedback({ error, message }: { error: string; message: string }) {
   return (
     <div aria-live="polite" className="min-h-6">
-      {error && <p role="alert" className="text-red-700">{error}</p>}
-      {message && <p role="status" className="text-green-800">{message}</p>}
+      {error && <p role="alert" className="text-attention-foreground">{error}</p>}
+      {message && <p role="status" className="bg-success-soft text-success-foreground rounded-xl p-3">{message}</p>}
     </div>
   );
 }
