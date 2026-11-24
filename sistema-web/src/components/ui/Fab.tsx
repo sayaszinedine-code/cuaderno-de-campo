@@ -6,7 +6,7 @@ export function Fab({ href, onClick, label }: { href?: string; onClick?: () => v
   const icon = <Icon name="mas-simple" className="size-7" />;
   if (href) {
     return (
-      <Link href={href} aria-label={label} title={label} className="fab md:hidden">
+      <Link href={href} aria-label={label} title={label} className="fab md:hidden" onClick={onClick}>
         {icon}
       </Link>
     );

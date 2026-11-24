@@ -22,12 +22,18 @@ export function FilterBar({
 }) {
   const details = useRef<HTMLDetailsElement>(null);
   const close = () => details.current?.removeAttribute("open");
+  /** Escape folds the panel (a native <details> does not) and puts focus back on «Filtros». */
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "Escape" || !details.current?.open) return;
+    close();
+    details.current.querySelector("summary")?.focus();
+  };
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-0 flex-1">{search}</div>
-        <details ref={details} className="filter-bar">
+        <details ref={details} className="filter-bar" onKeyDown={onKeyDown}>
           <summary className="btn-secondary cursor-pointer list-none gap-2">
             <Icon name="filtro" />
             {active.length > 0 ? `Filtros (${active.length})` : "Filtros"}

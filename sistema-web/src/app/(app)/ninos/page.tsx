@@ -145,7 +145,11 @@ export default function NinosPage() {
               Agregar niño
             </button>
           </form>
-          <Fab href="#agregar-nino" label="Agregar niño" />
+          <Fab
+            href="#agregar-nino"
+            label="Agregar niño"
+            onClick={() => document.getElementById("agregar-nino")?.querySelector("input")?.focus({ preventScroll: true })}
+          />
         </>
       )}
     </div>

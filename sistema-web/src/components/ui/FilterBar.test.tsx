@@ -55,4 +55,14 @@ describe("FilterBar", () => {
     expect(screen.queryByRole("button", { name: /Quitar filtro/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Limpiar filtros" })).toBeNull();
   });
+
+  it("Escape closes the open panel and returns focus to Filtros", () => {
+    setup();
+    const summary = screen.getByText("Filtros").closest("summary")!;
+    const details = summary.parentElement as HTMLDetailsElement;
+    details.open = true;
+    fireEvent.keyDown(screen.getByLabelText("Tipo"), { key: "Escape" });
+    expect(details.open).toBe(false);
+    expect(document.activeElement).toBe(summary);
+  });
 });

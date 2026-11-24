@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
 import { notesPath, yearDataPath } from "@/domain/paths";
@@ -62,5 +62,12 @@ describe("Niños", () => {
     await screen.findByRole("link", { name: /Rojas, Luz/ });
     expect(screen.getByRole("link", { name: "Agregar niño" })).toHaveAttribute("href", "#agregar-nino");
     expect(document.getElementById("agregar-nino")?.tagName).toBe("FORM");
+  });
+
+  it("floating Agregar niño puts the cursor in the form", async () => {
+    renderPage();
+    await screen.findByRole("link", { name: /Rojas, Luz/ });
+    fireEvent.click(screen.getByRole("link", { name: "Agregar niño" }));
+    expect(document.activeElement).toBe(screen.getByLabelText("Nombres"));
   });
 });
