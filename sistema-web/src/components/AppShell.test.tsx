@@ -97,3 +97,11 @@ describe("AppShell app feel", () => {
     expect(within(screen.getByRole("banner")).getByRole("link", { name: "Mi perfil" })).toHaveAttribute("href", expect.stringMatching(/^\/perfil\/?$/));
   });
 });
+
+describe("AppShell layering", () => {
+  it("keeps page content (e.g. sticky table columns) below the sticky header", () => {
+    role.value = "teacher";
+    render(<AppShell>x</AppShell>);
+    expect(screen.getByRole("main")).toHaveClass("isolate");
+  });
+});

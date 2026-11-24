@@ -22,7 +22,19 @@ function offerInstall() {
 }
 
 describe("InstallButton", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    act(() => {
+      window.dispatchEvent(new Event("appinstalled"));
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("appears even when the browser offered installation before it was mounted", () => {
+    mockStandalone(false);
+    offerInstall();
+    render(<InstallButton />);
+    expect(screen.getByRole("button", { name: "Instalar app" })).toBeInTheDocument();
+  });
 
   it("is hidden until the browser offers installation", () => {
     mockStandalone(false);

@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               Haz un respaldo de tus datos. Ve a Carpeta › Respaldos.
             </p>
           )}
-          <main key={pathname} className="page-enter px-4 py-4 md:px-8">
+          <main key={pathname} className="page-enter isolate px-4 py-4 md:px-8">
             {children}
           </main>
         </div>
