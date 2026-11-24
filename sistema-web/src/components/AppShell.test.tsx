@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const role = vi.hoisted(() => ({ value: "admin", warning: false }));
+const role = vi.hoisted(() => ({ value: "admin", warning: false, firstNames: "Ana Lucía" }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/inicio/" }));
-vi.mock("@/components/AccountGate", () => ({ useAccount: () => ({ profile: { role: role.value } }) }));
+vi.mock("@/components/AccountGate", () => ({ useAccount: () => ({ profile: { role: role.value, firstNames: role.firstNames } }) }));
 vi.mock("@/workspace/WorkspaceProvider", () => ({
   useWorkspace: () => ({ year: 2026, years: [2026], setYear: vi.fn(), backupWarning: role.warning }),
 }));
@@ -63,5 +63,37 @@ describe("AppShell offline badge", () => {
     render(<AppShell>x</AppShell>);
     expect(screen.getByText("Sin conexión: tus datos se guardan en tu computadora.")).toBeInTheDocument();
     spy.mockRestore();
+  });
+});
+
+describe("AppShell app feel", () => {
+  it("greets the signed-in teacher by first name", () => {
+    role.value = "teacher";
+    role.firstNames = "Ana Lucía";
+    render(<AppShell>x</AppShell>);
+    expect(within(screen.getByRole("banner")).getByText("Hola, Ana")).toBeInTheDocument();
+  });
+
+  it("greets without a name when the profile has none", () => {
+    role.value = "teacher";
+    role.firstNames = "";
+    render(<AppShell>x</AppShell>);
+    expect(within(screen.getByRole("banner")).getByText("Hola")).toBeInTheDocument();
+    expect(screen.queryByText(/Hola,/)).toBeNull();
+    role.firstNames = "Ana Lucía";
+  });
+
+  it("every nav link shows an icon", () => {
+    role.value = "admin";
+    render(<AppShell>x</AppShell>);
+    const links = within(screen.getByRole("navigation", { name: "Principal" })).getAllByRole("link");
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) expect(link.querySelector("svg")).not.toBeNull();
+  });
+
+  it("keeps the profile shortcut reachable from the header", () => {
+    role.value = "teacher";
+    render(<AppShell>x</AppShell>);
+    expect(within(screen.getByRole("banner")).getByRole("link", { name: "Mi perfil" })).toHaveAttribute("href", expect.stringMatching(/^\/perfil\/?$/));
   });
 });
