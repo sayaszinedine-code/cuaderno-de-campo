@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import { NoteCard } from "@/components/NoteCard";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -23,11 +23,12 @@ export default function CuadernoPage() {
   const [periodId, setPeriodId] = useState("");
   const [kind, setKind] = useState("");
   const [text, setText] = useState("");
-  const [status, setStatus] = useState("");
-  // Inicio links here with ?estado=pendiente to show the records still to complete.
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("estado") === "pendiente") setStatus("pending");
-  }, []);
+  // Inicio links here with ?estado=pendiente; read it up front so the list never flashes unfiltered.
+  const [status, setStatus] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("estado") === "pendiente"
+      ? "pending"
+      : "",
+  );
 
   const cycles = useMemo(
     () => (["I", "II"] as Cycle[]).filter((c) => yearData.classrooms.some((k) => k.cycle === c)),
