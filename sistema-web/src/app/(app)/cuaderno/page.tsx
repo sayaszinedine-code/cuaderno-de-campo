@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import { NoteCard } from "@/components/NoteCard";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -23,12 +23,15 @@ export default function CuadernoPage() {
   const [periodId, setPeriodId] = useState("");
   const [kind, setKind] = useState("");
   const [text, setText] = useState("");
-  // Inicio links here with ?estado=pendiente; read it up front so the list never flashes unfiltered.
-  const [status, setStatus] = useState(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("estado") === "pendiente"
-      ? "pending"
-      : "",
-  );
+  // Inicio links here with ?estado=pendiente. Next updates the URL only after the new page renders, so the
+  // parameter is read in an effect; until then (null) the list is held back so it never flashes unfiltered.
+  const [statusParam, setStatus] = useState<string | null>(null);
+  useEffect(() => {
+    setStatus((cur) =>
+      cur !== null ? cur : new URLSearchParams(window.location.search).get("estado") === "pendiente" ? "pending" : "",
+    );
+  }, []);
+  const status = statusParam ?? "";
 
   const cycles = useMemo(
     () => (["I", "II"] as Cycle[]).filter((c) => yearData.classrooms.some((k) => k.cycle === c)),
@@ -215,7 +218,7 @@ export default function CuadernoPage() {
           </select>
         </label>
       </FilterBar>
-      {notes.length === 0 ? (
+      {statusParam === null ? null : notes.length === 0 ? (
         <EmptyState icon="cuaderno" text="Todavía no hay registros. Toca «Nuevo registro» para tu primera observación." />
       ) : list.length === 0 ? (
         <EmptyState

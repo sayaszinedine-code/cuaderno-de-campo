@@ -1,6 +1,6 @@
 import { deflateSync } from "node:zlib";
 import { expect, test } from "@playwright/test";
-import { createClassroomAndStudent, mockSupabase, signUpActiveTeacher, useOpfsFolder } from "./helpers";
+import { createClassroomAndStudent, createNote, mockSupabase, signUpActiveTeacher, useOpfsFolder } from "./helpers";
 
 /** 8x8 solid-color PNG (valid zlib stream), generated here so the test needs no fixture file. */
 function makePng(): Buffer {
@@ -117,4 +117,26 @@ test("cuaderno: crear, persistir con foto, filtrar por área y eliminar; sin pet
   expect(await countPhotos()).toBe(0);
 
   expect(aiRequests).toEqual([]);
+});
+
+test("inicio: el aviso «por completar» abre Cuaderno con el filtro aplicado", async ({ page }) => {
+  const profile = await mockSupabase(page);
+  await useOpfsFolder(page);
+  await signUpActiveTeacher(page, profile);
+  await createClassroomAndStudent(page);
+  await createNote(page, { date: `${new Date().getFullYear()}-06-10`, text: "Registro completo", competency: "Resuelve problemas de cantidad" });
+
+  // A quick record: only the essentials, no area.
+  await page.goto("/cuaderno/registro/");
+  await page.getByRole("button", { name: "Valentina Quispe" }).click();
+  await page.getByLabel("¿Qué hizo o dijo? Describe los hechos").fill("Registro rápido");
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(page).toHaveURL(/\/cuaderno\/$/);
+
+  await page.goto("/inicio/");
+  await page.getByRole("link", { name: /1 registro por completar/ }).click();
+  await expect(page).toHaveURL(/\/cuaderno\/\?estado=pendiente$/);
+  await expect(page.getByRole("button", { name: "Quitar filtro: Por completar" })).toBeVisible();
+  await expect(page.getByText("Registro rápido")).toBeVisible();
+  await expect(page.getByText("Registro completo")).toHaveCount(0);
 });
