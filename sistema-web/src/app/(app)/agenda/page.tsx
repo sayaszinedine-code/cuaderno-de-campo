@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { eventsOn, newEvent, removeEvent, upcoming, upsertEvent, validateEvent } from "@/domain/agenda";
 import { todayISO } from "@/domain/classrooms";
 import { EVENT_TYPES, type AgendaEvent, type EventType } from "@/domain/schema";
@@ -47,6 +47,16 @@ export default function AgendaPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState(false);
   const [busy, setBusy] = useState(false);
+  // On client navigation (e.g. from Inicio) Next updates the URL only after this page renders, so the
+  // initial state above may not see ?dia; read it again once mounted.
+  useEffect(() => {
+    const dia = diaFromUrl(year);
+    if (dia) {
+      setDay(dia);
+      setMonth(dia.slice(0, 7));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the URL at mount matters
+  }, []);
   const [seenYear, setSeenYear] = useState(year);
   if (seenYear !== year) {
     // The open year changed: leave a selection that belongs to the previous year and close any form.
