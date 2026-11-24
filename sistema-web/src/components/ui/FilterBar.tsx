@@ -35,9 +35,11 @@ export function FilterBar({
           <div className="filter-backdrop md:hidden" onClick={close} aria-hidden="true" />
           <div className="filter-panel">
             <div className="grid gap-3 sm:grid-cols-2">{children}</div>
-            <button type="button" className="btn-primary mt-4 w-full md:hidden" onClick={close}>
-              Listo
-            </button>
+            <div className="mt-4 md:hidden">
+              <button type="button" className="btn-primary w-full" onClick={close}>
+                Listo
+              </button>
+            </div>
           </div>
         </details>
       </div>

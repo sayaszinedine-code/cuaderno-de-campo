@@ -341,15 +341,16 @@ body::before {
     z-index: 30;
     background: rgb(0 0 0 / 0.4);
   }
+  /* Sits right above the bottom navigation (the page content is its own stacking context). */
   .filter-bar[open] .filter-panel {
     position: fixed;
     inset-inline: 0;
-    bottom: 0;
+    bottom: calc(4.25rem + env(safe-area-inset-bottom));
+    max-height: calc(85vh - 4.25rem);
     z-index: 31;
-    max-height: 85vh;
     overflow-y: auto;
     margin: 0;
-    padding: 1.25rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    padding: 1.25rem 1rem 1rem;
     border-radius: 1.5rem 1.5rem 0 0;
     background: var(--surface);
     box-shadow: 0 -8px 30px rgb(0 0 0 / 0.25);

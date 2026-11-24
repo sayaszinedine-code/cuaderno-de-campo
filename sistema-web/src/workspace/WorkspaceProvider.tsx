@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/Skeleton";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createWorkspaceRepo, WorkspaceDataError, type WorkspaceRepo } from "@/domain/workspace-repo";
 import type { AgendaFile, AttendanceFile, FieldNote, GradesFile, NotesFile, TeacherProfile, UnitsFile, YearData } from "@/domain/schema";
@@ -657,7 +658,12 @@ export function WorkspaceProvider({
   return (
     <main className="mx-auto max-w-lg p-6">
       <section className="card space-y-4 p-6">
-        {phase.status === "loading" && <p>Abriendo tu cuaderno…</p>}
+        {phase.status === "loading" && (
+          <div className="space-y-4">
+            <p>Abriendo tu cuaderno…</p>
+            <Skeleton lines={3} />
+          </div>
+        )}
         {phase.status === "needs-folder" && (
           <>
             <h1 className="text-xl font-semibold">Elige dónde guardar tu cuaderno</h1>

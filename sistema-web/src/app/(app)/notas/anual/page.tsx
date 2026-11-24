@@ -12,6 +12,7 @@ import { AiConclusion } from "@/grades/AiConclusion";
 import { EvidenceList } from "@/grades/EvidenceList";
 import { GradeCellEditor, type GradeFormValues } from "@/grades/GradeCellEditor";
 import { useIsMobile } from "@/grades/useIsMobile";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 import { useToast } from "@/components/Toast";
 
@@ -81,7 +82,7 @@ export default function AnualPage() {
   if (yearData.classrooms.length === 0) {
     return (
       <div className="max-w-3xl space-y-4">
-        <h1 className="text-2xl font-semibold">Notas del año</h1>
+        <PageHeader title="Notas del año" />
         <p>Primero crea un aula en «Aulas».</p>
       </div>
     );
@@ -89,7 +90,7 @@ export default function AnualPage() {
   if (!classroom || (!student && params.nino)) {
     return (
       <div className="max-w-3xl space-y-4">
-        <h1 className="text-2xl font-semibold">Notas del año</h1>
+        <PageHeader title="Notas del año" />
         <p>No encontramos a ese niño o niña.</p>
         <Link className="underline" href="/notas/">
           Volver a Notas
@@ -100,7 +101,7 @@ export default function AnualPage() {
   if (!student) {
     return (
       <div className="max-w-3xl space-y-4">
-        <h1 className="text-2xl font-semibold">Notas del año</h1>
+        <PageHeader title="Notas del año" />
         <p>Esta aula no tiene niños activos. Agrégalos en «Niños».</p>
         <Link className="underline" href="/notas/">
           Volver a Notas

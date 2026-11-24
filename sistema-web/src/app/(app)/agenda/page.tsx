@@ -4,6 +4,7 @@ import { useState } from "react";
 import { eventsOn, newEvent, removeEvent, upcoming, upsertEvent, validateEvent } from "@/domain/agenda";
 import { todayISO } from "@/domain/classrooms";
 import { EVENT_TYPES, type AgendaEvent, type EventType } from "@/domain/schema";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 const MONTHS = [
@@ -123,7 +124,7 @@ export default function AgendaPage() {
 
   return (
     <div className="max-w-3xl space-y-4">
-      <h1 className="text-2xl font-semibold">Agenda</h1>
+      <PageHeader title="Agenda" />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button type="button" className="btn min-h-11 rounded-md border border-border px-4 font-medium" disabled={atFirst} onClick={() => shift(-1)}>

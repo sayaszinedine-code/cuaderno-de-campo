@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TeacherProfile } from "@/domain/schema";
 
@@ -93,5 +93,22 @@ describe("Inicio upcoming events", () => {
   it("shows nothing without upcoming events", () => {
     render(<InicioPage />);
     expect(screen.queryByRole("heading", { name: "Próximos 14 días" })).toBeNull();
+  });
+});
+
+describe("Inicio quick actions", () => {
+  it("offers icon shortcuts to the daily screens", () => {
+    render(<InicioPage />);
+    const nav = screen.getByRole("navigation", { name: "Accesos rápidos" });
+    for (const [name, href] of [
+      ["Nuevo registro", /^\/cuaderno\/registro\/?$/],
+      ["Asistencia", /^\/asistencia\/?$/],
+      ["Notas", /^\/notas\/?$/],
+      ["Niños", /^\/ninos\/?$/],
+    ] as const) {
+      const link = within(nav).getByRole("link", { name });
+      expect(link).toHaveAttribute("href", expect.stringMatching(href));
+      expect(link.querySelector("svg")).not.toBeNull();
+    }
   });
 });

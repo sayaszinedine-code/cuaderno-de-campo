@@ -14,6 +14,7 @@ import { EvidenceList } from "@/grades/EvidenceList";
 import { AiConclusion } from "@/grades/AiConclusion";
 import { GradeCellEditor, type GradeFormValues } from "@/grades/GradeCellEditor";
 import { useIsMobile } from "@/grades/useIsMobile";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 import { useToast } from "@/components/Toast";
 
@@ -95,7 +96,7 @@ export default function NotasPage() {
   if (!classroom || !table) {
     return (
       <div className="max-w-3xl space-y-4">
-        <h1 className="text-2xl font-semibold">Notas</h1>
+        <PageHeader title="Notas" />
         <p>Primero crea un aula en «Aulas».</p>
       </div>
     );
@@ -139,7 +140,7 @@ export default function NotasPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Notas</h1>
+      <PageHeader title="Notas" />
       <div className="grid max-w-3xl gap-3 sm:grid-cols-2">
         <label>
           Aula

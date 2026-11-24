@@ -123,7 +123,7 @@ export default function CuadernoPage() {
             <input
               className={`${sel} !pl-10`}
               type="search"
-              placeholder="Buscar en tus registros…"
+              placeholder="Buscar…"
               value={text}
               onChange={(e) => reset(setText)(e.target.value)}
             />

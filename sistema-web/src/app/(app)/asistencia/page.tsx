@@ -5,6 +5,7 @@ import { markAllPresent, markOf, setMark, summary } from "@/domain/attendance";
 import { classroomLabel, todayISO } from "@/domain/classrooms";
 import { periodOf } from "@/domain/notes";
 import { ATTENDANCE_LABELS, ATTENDANCE_MARKS, type AttendanceMark, type Period, type Student } from "@/domain/schema";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 const PERIOD_IDS: Period["id"][] = ["B1", "B2", "B3", "B4"];
@@ -56,7 +57,7 @@ export default function AsistenciaPage() {
   if (!classroom) {
     return (
       <div className="max-w-3xl space-y-4">
-        <h1 className="text-2xl font-semibold">Asistencia</h1>
+        <PageHeader title="Asistencia" />
         <p>Primero crea un aula en «Aulas».</p>
       </div>
     );
@@ -135,7 +136,7 @@ export default function AsistenciaPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Asistencia</h1>
+      <PageHeader title="Asistencia" />
       <div className="grid max-w-3xl gap-3 sm:grid-cols-2">
         <label>
           Aula

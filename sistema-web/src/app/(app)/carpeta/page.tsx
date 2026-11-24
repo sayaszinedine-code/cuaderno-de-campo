@@ -1,6 +1,7 @@
 "use client";
 
 import { BackupPanel } from "@/backup/BackupPanel";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 import { ImportLegacy } from "./ImportLegacy";
 
@@ -10,7 +11,7 @@ export default function CarpetaPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">Mi carpeta</h1>
+      <PageHeader title="Mi carpeta" />
       <section className="card space-y-2 p-5">
         <p className="text-sm text-muted">{inBrowser ? "Guardado dentro del navegador" : "Carpeta en tu computadora"}</p>
         <p className="text-lg font-medium">{storage.label}</p>
