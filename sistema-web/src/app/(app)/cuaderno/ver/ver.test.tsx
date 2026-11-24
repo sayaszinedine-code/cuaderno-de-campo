@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStorage } from "@/storage/memory";
 import { notesPath, yearDataPath } from "@/domain/paths";
@@ -41,7 +41,7 @@ const data: YearData = {
 
 const note: FieldNote = {
   id: "a", date: `${year}-03-10`, classroomId: "c1", studentIds: ["s1"], wholeGroup: false, moment: "Taller",
-  kind: "logro", performances: [], evidenceText: "Armó una torre de 8 bloques", evidence: ["a/1.jpg"],
+  kind: "logro", performances: [{ competencyId: "resuelve-problemas-de-cantidad", band: "4y", text: "Cuenta objetos hasta 10" }], evidenceText: "Armó una torre de 8 bloques", evidence: ["a/1.jpg"],
   interpretation: "Cuenta hasta 8", reflection: "Usar más material", areaId: "matematica",
   createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
 };
@@ -87,5 +87,23 @@ describe("Read view", () => {
     open("nope");
     expect(await screen.findByText("No encontramos este registro.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Volver al cuaderno" })).toBeInTheDocument();
+  });
+
+  it("lists the selected desempeños", async () => {
+    open("a");
+    await screen.findByText("Armó una torre de 8 bloques");
+    expect(screen.getByRole("heading", { name: "Desempeños" })).toBeInTheDocument();
+    expect(screen.getByText("Cuenta objetos hasta 10")).toBeInTheDocument();
+  });
+
+  it("the zoomed photo covers the whole app and closes with Escape", async () => {
+    open("a");
+    const img = await screen.findByAltText("Foto 1 del registro");
+    await waitFor(() => expect(img).toHaveAttribute("src", "blob:1"));
+    fireEvent.click(img.closest("button")!);
+    const overlay = screen.getByRole("dialog", { name: "Foto ampliada" });
+    expect(overlay.parentElement).toBe(document.body);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Foto ampliada" })).toBeNull();
   });
 });

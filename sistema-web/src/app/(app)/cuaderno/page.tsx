@@ -234,7 +234,7 @@ export default function CuadernoPage() {
         <div className="space-y-4">
           {groupByDay(list.slice(0, visible)).map((day) => (
             <section key={day.date} className="space-y-2">
-              <h2 className="text-muted sticky top-16 z-[1] text-sm font-bold tracking-wide uppercase">
+              <h2 className="text-muted pt-2 text-sm font-bold tracking-wide uppercase">
                 {dayLabel(day.date, today)}
               </h2>
               <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "@/components/icons";
 import { useThumbs } from "@/components/NoteCard";
 import { Avatar } from "@/components/ui/Avatar";
@@ -111,6 +112,17 @@ function NoteView({ note }: { note: FieldNote }) {
         </section>
       )}
 
+      {note.performances.length > 0 && (
+        <section className="card space-y-2 p-5">
+          <h2 className="text-muted text-sm font-bold uppercase">Desempeños</h2>
+          <ul className="list-disc space-y-1 pl-5">
+            {note.performances.map((p) => (
+              <li key={`${p.competencyId}-${p.band}-${p.text}`}>{p.text}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {(note.interpretation || note.reflection || note.level) && (
         <section className="card space-y-4 p-5">
           {note.interpretation && (
@@ -144,17 +156,49 @@ function NoteView({ note }: { note: FieldNote }) {
         </Link>
       )}
 
-      {zoom && (
-        <button
-          type="button"
-          aria-label="Cerrar foto"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
-          onClick={() => setZoom(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={zoom} alt="" className="max-h-full max-w-full rounded-xl" />
-        </button>
-      )}
+      {zoom && <PhotoZoom src={zoom} onClose={() => setZoom(null)} />}
     </article>
+  );
+}
+
+/**
+ * Full-screen photo. Rendered into <body> so it covers the app header and the phone navigation
+ * (page content is its own stacking context); Escape or a tap closes it and focus returns to the photo.
+ */
+function PhotoZoom({ src, onClose }: { src: string; onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const back = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      back?.focus();
+    };
+  }, [onClose]);
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Foto ampliada"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+      onClick={onClose}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" className="max-h-full max-w-full rounded-xl" />
+      <button
+        ref={closeRef}
+        type="button"
+        aria-label="Cerrar foto"
+        className="absolute top-4 right-4 flex size-12 items-center justify-center rounded-full bg-white/15 text-white"
+        onClick={onClose}
+      >
+        <Icon name="cerrar" className="size-7" />
+      </button>
+    </div>,
+    document.body,
   );
 }
