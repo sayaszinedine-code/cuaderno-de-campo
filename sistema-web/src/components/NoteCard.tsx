@@ -17,7 +17,7 @@ function stamp(date: string): string {
 }
 
 /** Loads up to `max` photos as object URLs; revokes them on unmount or when paths change. `null` = missing. */
-function useThumbs(storage: Storage, paths: string[], max: number): (string | null)[] {
+export function useThumbs(storage: Storage, paths: string[], max: number): (string | null)[] {
   const [urls, setUrls] = useState<(string | null)[]>([]);
   const key = paths.slice(0, max).join("\n");
   useEffect(() => {
@@ -116,7 +116,7 @@ export function NoteCard({
           </div>
         )}
         <Link
-          href={`/cuaderno/registro/?id=${encodeURIComponent(note.id)}`}
+          href={`/cuaderno/ver/?id=${encodeURIComponent(note.id)}`}
           className="text-primary inline-flex min-h-9 items-center text-sm font-semibold underline"
         >
           Abrir

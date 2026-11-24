@@ -135,8 +135,8 @@ describe("Cuaderno list", () => {
     expect(screen.getByText("Todo el grupo")).toBeInTheDocument();
     const links = screen.getAllByRole("link", { name: "Abrir" });
     expect(links.map((l) => l.getAttribute("href")).sort()).toEqual([
-      "/cuaderno/registro?id=a",
-      "/cuaderno/registro?id=b",
+      "/cuaderno/ver?id=a",
+      "/cuaderno/ver?id=b",
     ]);
   });
 

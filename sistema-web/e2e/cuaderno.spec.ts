@@ -105,6 +105,9 @@ test("cuaderno: crear, persistir con foto, filtrar por área y eliminar; sin pet
 
   // Eliminar
   await page.getByRole("article").filter({ hasText: "Agrupó los bloques por color" }).getByRole("link", { name: "Abrir" }).click();
+  // «Abrir» shows the read-only view; deleting happens from «Editar».
+  await expect(page.getByText("Agrupó los bloques por color")).toBeVisible();
+  await page.getByRole("link", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Eliminar registro" }).click();
   await page.getByRole("button", { name: "Sí, eliminar" }).click();
   await expect(page).toHaveURL(/\/cuaderno\/$/);
