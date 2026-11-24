@@ -7,6 +7,7 @@ import { useAccount } from "@/components/AccountGate";
 import { Icon, type IconName } from "@/components/icons";
 import { ToastProvider } from "@/components/Toast";
 import { OfflineBadge } from "@/components/OfflineBadge";
+import { InstallButton } from "@/pwa/InstallButton";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 type NavItem = { label: string; href?: string; icon: IconName };
@@ -127,6 +128,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
             <div className="flex items-center gap-3 text-sm">
+              <InstallButton className="!min-h-10 !px-3 sm:!px-5" />
               <label className="flex items-center gap-2">
                 <span className="hidden sm:inline">Año escolar</span>
                 <select
