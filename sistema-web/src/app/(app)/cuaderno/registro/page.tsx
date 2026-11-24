@@ -7,8 +7,8 @@ import { loadAiSettings, DEFAULT_AI_SETTINGS, type AiSettings } from "@/ai/setti
 import { useAccount } from "@/components/AccountGate";
 import { areaIdFor } from "@/curriculum";
 import { areasForCycles } from "@/domain/areas";
-import { activeCompetencies, byStudentName, classroomLabel } from "@/domain/classrooms";
-import { newNote, removeNote, upsertNote, validateNote, validStudents } from "@/domain/notes";
+import { activeCompetencies, byStudentName, classroomLabel, todayISO } from "@/domain/classrooms";
+import { dayLabel, newNote, removeNote, upsertNote, validateNote, validStudents } from "@/domain/notes";
 import { noteDir } from "@/domain/paths";
 import { linkedSessionsOfNote } from "@/domain/units";
 import { compressPhoto, EVIDENCE_MAX_SIZE } from "@/domain/photo";
@@ -16,6 +16,8 @@ import { LEVELS, MOMENTS, NOTE_KIND_LABELS, type FieldNote, type Level, type Not
 import { AiNoteAction } from "@/notes/AiActions";
 import { EvidencePhotos } from "@/notes/EvidencePhotos";
 import { PerformancePicker } from "@/notes/PerformancePicker";
+import { Icon } from "@/components/icons";
+import { Avatar } from "@/components/ui/Avatar";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 import { useToast } from "@/components/Toast";
 
@@ -97,6 +99,13 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
     const n = newNote({ classroomId });
     return last.moment && (MOMENTS as readonly string[]).includes(last.moment) ? { ...n, moment: last.moment } : n;
   });
+  /** Open on desktop and for notes that already have an area; folded for quick capture on phones. */
+  const [completeOpen] = useState(
+    () =>
+      !!existing?.areaId ||
+      typeof window.matchMedia !== "function" ||
+      window.matchMedia("(min-width: 768px)").matches,
+  );
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -286,7 +295,7 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
       studentIds: note.studentIds.includes(id) ? note.studentIds.filter((s) => s !== id) : [...note.studentIds, id],
     });
   const chip = (on: boolean) =>
-    `rounded-full border px-3 py-1 ${on ? "bg-primary text-white" : "bg-white"}`;
+    `inline-flex items-center gap-2 rounded-full border border-border py-1 pr-3 pl-1 ${on ? "bg-primary text-primary-foreground" : "bg-surface"}`;
 
   return (
     <form onSubmit={onSave} className="max-w-2xl space-y-5">
@@ -320,227 +329,250 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
         <p className="text-sm text-muted">Guarda el registro antes de abrir la sesión.</p>
       )}
 
-      <label className="block space-y-1">
-        <span>Fecha</span>
-        <input className="field" type="date" value={note.date} onChange={(e) => e.target.value && patch({ date: e.target.value })} />
-      </label>
+      <details className="card px-4 py-3">
+        <summary className="cursor-pointer list-none font-medium">
+          {`${dayLabel(note.date, todayISO())} · ${classroom.name} · ${note.moment}`}{" "}
+          <span className="text-primary underline">Cambiar</span>
+        </summary>
+        <div className="mt-3 space-y-4">
+          <label className="block space-y-1">
+            <span>Fecha</span>
+            <input className="field" type="date" value={note.date} onChange={(e) => e.target.value && patch({ date: e.target.value })} />
+          </label>
 
-      <label className="block space-y-1">
-        <span>Aula</span>
-        <select
-          className="field"
-          value={note.classroomId}
-          onChange={(e) =>
-            patch({
-              classroomId: e.target.value,
-              studentIds: [],
-              wholeGroup: false,
-              areaId: undefined,
-              competencyId: undefined,
-              performances: [],
-            })
-          }
-        >
-          {yearData.classrooms.map((c) => (
-            <option key={c.id} value={c.id}>
-              {classroomLabel(c)}
-            </option>
-          ))}
-        </select>
-      </label>
+          <label className="block space-y-1">
+            <span>Aula</span>
+            <select
+              className="field"
+              value={note.classroomId}
+              onChange={(e) =>
+                patch({
+                  classroomId: e.target.value,
+                  studentIds: [],
+                  wholeGroup: false,
+                  areaId: undefined,
+                  competencyId: undefined,
+                  performances: [],
+                })
+              }
+            >
+              {yearData.classrooms.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {classroomLabel(c)}
+                </option>
+              ))}
+            </select>
+          </label>
 
-      <fieldset className="space-y-2">
-        <legend>Niños y niñas</legend>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            aria-pressed={note.wholeGroup}
-            className={chip(note.wholeGroup)}
-            onClick={() => patch({ wholeGroup: !note.wholeGroup, studentIds: [] })}
-          >
-            Todo el grupo
-          </button>
-          {[...students, ...archivedChips].map((s) => {
-            const on = note.studentIds.includes(s.id);
-            return (
-              <button key={s.id} type="button" aria-pressed={on} className={chip(on)} onClick={() => toggleStudent(s.id)}>
-                {`${s.firstNames} ${s.lastNames}`.trim()}
-                {s.active ? "" : " (archivado)"}
-              </button>
-            );
-          })}
+          <label className="block space-y-1">
+            <span>Momento de la jornada</span>
+            <select className="field" value={note.moment} onChange={(e) => patch({ moment: e.target.value })}>
+              {(MOMENTS as readonly string[]).includes(note.moment) ? null : <option value={note.moment}>{note.moment}</option>}
+              {MOMENTS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
+
         </div>
-      </fieldset>
+      </details>
 
-      <label className="block space-y-1">
-        <span>Momento de la jornada</span>
-        <select className="field" value={note.moment} onChange={(e) => patch({ moment: e.target.value })}>
-          {(MOMENTS as readonly string[]).includes(note.moment) ? null : <option value={note.moment}>{note.moment}</option>}
-          {MOMENTS.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="block space-y-1">
-        <span>Tipo</span>
-        <select className="field" value={note.kind} onChange={(e) => patch({ kind: e.target.value as NoteKind })}>
-          {(Object.keys(NOTE_KIND_LABELS) as NoteKind[]).map((k) => (
-            <option key={k} value={k}>
-              {NOTE_KIND_LABELS[k]}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Evidencias</h2>
-        <label className="block space-y-1">
-          <span>¿Qué hizo o dijo? Describe los hechos</span>
-          <textarea
-            ref={evidenceRef}
-            className="field"
-            rows={4}
-            value={note.evidenceText}
-            onChange={(e) => patch({ evidenceText: e.target.value })}
-          />
-        </label>
-        <AiNoteAction
-          kind="objective"
-          settings={aiSettings}
-          note={note}
-          classroom={classroom}
-          yearStudents={yearData.students}
-          noteStudents={noteStudents}
-          schoolYear={year}
-          storage={storage}
-          onPatch={patch}
-        />
-        <EvidencePhotos storage={storage} paths={note.evidence} onRemove={removePhoto} disabled={busy} />
-        <AiNoteAction
-          kind="photo"
-          settings={aiSettings}
-          note={note}
-          classroom={classroom}
-          yearStudents={yearData.students}
-          noteStudents={noteStudents}
-          schoolYear={year}
-          storage={storage}
-          onPatch={patch}
-        />
-        <label className="block space-y-1">
-          <span>Agregar fotos</span>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="field"
-            onChange={(e) => {
-              const files = Array.from(e.target.files ?? []);
-              e.target.value = "";
-              void addPhotos(files);
-            }}
-          />
-        </label>
-      </section>
-
-      <AiNoteAction
-        kind="suggest"
-        settings={aiSettings}
-        note={note}
-        classroom={classroom}
-        yearStudents={yearData.students}
-        noteStudents={noteStudents}
-        schoolYear={year}
-        storage={storage}
-        onPatch={patch}
-      />
-
-      <label className="block space-y-1">
-        <span>Área</span>
-        <select
-          className="field"
-          value={note.areaId ?? ""}
-          onChange={(e) => patch({ areaId: e.target.value || undefined, competencyId: undefined, performances: [] })}
-        >
-          <option value="">Sin área</option>
-          {areas.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="block space-y-1">
-        <span>Competencia</span>
-        <select
-          className="field"
-          value={note.competencyId ?? ""}
-          disabled={!note.areaId}
-          onChange={(e) => patch({ competencyId: e.target.value || undefined, performances: [] })}
-        >
-          <option value="">Sin competencia</option>
-          {areaCompetencies.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {note.competencyId && (
+      <section aria-label="Lo esencial" className="space-y-5">
         <fieldset className="space-y-2">
-          <legend>Desempeños</legend>
-          <PerformancePicker
-            key={note.competencyId}
-            classroom={classroom}
-            students={noteStudents}
-            competencyId={note.competencyId}
-            date={note.date}
-            schoolYear={year}
-            selected={note.performances}
-            onChange={(performances) => patch({ performances })}
-          />
+          <legend>Niños y niñas</legend>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              aria-pressed={note.wholeGroup}
+              className={chip(note.wholeGroup)}
+              onClick={() => patch({ wholeGroup: !note.wholeGroup, studentIds: [] })}
+            >
+              Todo el grupo
+            </button>
+            {[...students, ...archivedChips].map((s) => {
+              const on = note.studentIds.includes(s.id);
+              return (
+                <button key={s.id} type="button" aria-pressed={on} className={chip(on)} onClick={() => toggleStudent(s.id)}>
+                  <Avatar name={`${s.firstNames} ${s.lastNames}`} size="sm" />
+                  {`${s.firstNames} ${s.lastNames}`.trim()}
+                  {s.active ? "" : " (archivado)"}
+                </button>
+              );
+            })}
+          </div>
         </fieldset>
-      )}
 
-      <label className="block space-y-1">
-        <span>Interpretación en relación al desempeño</span>
-        <textarea className="field" rows={3} value={note.interpretation} onChange={(e) => patch({ interpretation: e.target.value })} />
-      </label>
-      <AiNoteAction
-        kind="interpretation"
-        settings={aiSettings}
-        note={note}
-        classroom={classroom}
-        yearStudents={yearData.students}
-        noteStudents={noteStudents}
-        schoolYear={year}
-        storage={storage}
-        onPatch={patch}
-      />
+        <section className="space-y-3">
+          <h3 className="font-semibold">Evidencias</h3>
+          <label className="block space-y-1">
+            <span>¿Qué hizo o dijo? Describe los hechos</span>
+            <textarea
+              ref={evidenceRef}
+              className="field"
+              rows={4}
+              value={note.evidenceText}
+              onChange={(e) => patch({ evidenceText: e.target.value })}
+            />
+          </label>
+          <AiNoteAction
+            kind="objective"
+            settings={aiSettings}
+            note={note}
+            classroom={classroom}
+            yearStudents={yearData.students}
+            noteStudents={noteStudents}
+            schoolYear={year}
+            storage={storage}
+            onPatch={patch}
+          />
+          <EvidencePhotos storage={storage} paths={note.evidence} onRemove={removePhoto} disabled={busy} />
+          <AiNoteAction
+            kind="photo"
+            settings={aiSettings}
+            note={note}
+            classroom={classroom}
+            yearStudents={yearData.students}
+            noteStudents={noteStudents}
+            schoolYear={year}
+            storage={storage}
+            onPatch={patch}
+          />
+          <label className="photo-button">
+            <Icon name="camara" className="size-7" />
+            <span>Agregar fotos</span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                void addPhotos(files);
+              }}
+            />
+          </label>
+        </section>
 
-      <label className="block space-y-1">
-        <span>Reflexión docente en relación a la actividad</span>
-        <textarea className="field" rows={3} value={note.reflection} onChange={(e) => patch({ reflection: e.target.value })} />
-      </label>
-
-      {!hideLevel && (
         <label className="block space-y-1">
-          <span>Nivel de logro (opcional)</span>
-          <select className="field" value={note.level ?? ""} onChange={(e) => patch({ level: (e.target.value || undefined) as Level | undefined })}>
-            <option value="">Sin nivel</option>
-            {LEVELS.map((l) => (
-              <option key={l} value={l}>
-                {l}
+          <span>Tipo</span>
+          <select className="field" value={note.kind} onChange={(e) => patch({ kind: e.target.value as NoteKind })}>
+            {(Object.keys(NOTE_KIND_LABELS) as NoteKind[]).map((k) => (
+              <option key={k} value={k}>
+                {NOTE_KIND_LABELS[k]}
               </option>
             ))}
           </select>
         </label>
-      )}
+
+      </section>
+
+      <details open={completeOpen} className="complete-now space-y-5">
+        <summary className="btn-secondary w-full cursor-pointer list-none justify-between">
+          Completar ahora
+          <span className="text-muted text-sm font-normal">Área, competencia, desempeños…</span>
+        </summary>
+        <div className="mt-5 space-y-5">
+          <AiNoteAction
+            kind="suggest"
+            settings={aiSettings}
+            note={note}
+            classroom={classroom}
+            yearStudents={yearData.students}
+            noteStudents={noteStudents}
+            schoolYear={year}
+            storage={storage}
+            onPatch={patch}
+          />
+
+          <label className="block space-y-1">
+            <span>Área</span>
+            <select
+              className="field"
+              value={note.areaId ?? ""}
+              onChange={(e) => patch({ areaId: e.target.value || undefined, competencyId: undefined, performances: [] })}
+            >
+              <option value="">Sin área</option>
+              {areas.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span>Competencia</span>
+            <select
+              className="field"
+              value={note.competencyId ?? ""}
+              disabled={!note.areaId}
+              onChange={(e) => patch({ competencyId: e.target.value || undefined, performances: [] })}
+            >
+              <option value="">Sin competencia</option>
+              {areaCompetencies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {note.competencyId && (
+            <fieldset className="space-y-2">
+              <legend>Desempeños</legend>
+              <PerformancePicker
+                key={note.competencyId}
+                classroom={classroom}
+                students={noteStudents}
+                competencyId={note.competencyId}
+                date={note.date}
+                schoolYear={year}
+                selected={note.performances}
+                onChange={(performances) => patch({ performances })}
+              />
+            </fieldset>
+          )}
+
+          <label className="block space-y-1">
+            <span>Interpretación en relación al desempeño</span>
+            <textarea className="field" rows={3} value={note.interpretation} onChange={(e) => patch({ interpretation: e.target.value })} />
+          </label>
+          <AiNoteAction
+            kind="interpretation"
+            settings={aiSettings}
+            note={note}
+            classroom={classroom}
+            yearStudents={yearData.students}
+            noteStudents={noteStudents}
+            schoolYear={year}
+            storage={storage}
+            onPatch={patch}
+          />
+
+          <label className="block space-y-1">
+            <span>Reflexión docente en relación a la actividad</span>
+            <textarea className="field" rows={3} value={note.reflection} onChange={(e) => patch({ reflection: e.target.value })} />
+          </label>
+
+          {!hideLevel && (
+            <label className="block space-y-1">
+              <span>Nivel de logro (opcional)</span>
+              <select className="field" value={note.level ?? ""} onChange={(e) => patch({ level: (e.target.value || undefined) as Level | undefined })}>
+                <option value="">Sin nivel</option>
+                {LEVELS.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+        </div>
+      </details>
 
       <div aria-live="polite">
         {error && (
@@ -552,8 +584,8 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
         {message && <p role="status">{message}</p>}
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <button type="submit" className="btn-primary" disabled={busy}>
+      <div className="form-actions flex flex-wrap gap-3">
+        <button type="submit" className="btn-primary min-w-40 flex-1 md:flex-none" disabled={busy}>
           Guardar
         </button>
         <button type="button" className="btn-secondary" disabled={busy} onClick={() => void onCancel()}>

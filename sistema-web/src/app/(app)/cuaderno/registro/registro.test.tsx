@@ -548,3 +548,79 @@ describe("Registro page", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Quitar foto 1" })).toBeEnabled());
   });
 });
+
+describe("Registro quick capture", () => {
+  const follows = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+  const completeSummary = () => screen.getByText("Completar ahora").closest("summary")!;
+
+  it("puts the essentials before «Completar ahora»", async () => {
+    await seed();
+    renderPage();
+    await screen.findByRole("button", { name: "Luz Paz" });
+    const after = completeSummary();
+    for (const el of [
+      screen.getByText("Niños y niñas"),
+      screen.getByLabelText("¿Qué hizo o dijo? Describe los hechos"),
+      screen.getByLabelText("Agregar fotos"),
+      screen.getByLabelText("Tipo"),
+    ])
+      expect(follows(el, after)).toBe(true);
+    expect(follows(after, screen.getByLabelText("Área"))).toBe(true);
+  });
+
+  it("summarises date, aula and moment and keeps them editable", async () => {
+    await seed();
+    renderPage();
+    await screen.findByRole("button", { name: "Luz Paz" });
+    const summary = screen.getByText(/Cambiar/).closest("summary")!;
+    expect(summary).toHaveTextContent("Hoy");
+    expect(summary).toHaveTextContent("Girasoles");
+    expect(screen.getByLabelText("Fecha")).toBeInTheDocument();
+    expect(screen.getByLabelText("Aula")).toBeInTheDocument();
+    expect(screen.getByLabelText("Momento de la jornada")).toBeInTheDocument();
+  });
+
+  it("opens «Completar ahora» for an existing note with an area", async () => {
+    await seed({ notes: [existing({ areaId: "comunicacion" })] });
+    window.history.pushState({}, "", "/cuaderno/registro/?id=n1");
+    vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    renderPage();
+    await screen.findByDisplayValue("Armó una torre");
+    expect((completeSummary().parentElement as HTMLDetailsElement).open).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it("folds «Completar ahora» for a new note on a phone", async () => {
+    await seed();
+    vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    renderPage();
+    await screen.findByRole("button", { name: "Luz Paz" });
+    expect((completeSummary().parentElement as HTMLDetailsElement).open).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("quick save with the folded section saves the note without area", async () => {
+    await seed();
+    vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    renderPage();
+    await fillBasics();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText("Registro guardado.")).toBeInTheDocument();
+    const [n] = await savedNotes();
+    expect(n).toMatchObject({ studentIds: ["s1"], evidenceText: "Dijo «yo solita»" });
+    expect(n.areaId).toBeUndefined();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("Registro photo button", () => {
+  it("shows «Agregar fotos» as a big camera button over a hidden file input", async () => {
+    await seed();
+    renderPage();
+    await screen.findByRole("button", { name: "Luz Paz" });
+    const input = screen.getByLabelText("Agregar fotos");
+    expect(input).toHaveAttribute("type", "file");
+    expect(input).toHaveClass("sr-only");
+    expect(input.closest("label")!.querySelector("svg")).not.toBeNull();
+  });
+});

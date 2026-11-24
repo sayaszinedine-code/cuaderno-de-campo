@@ -21,6 +21,7 @@ export const ICON_NAMES = [
   "filtro",
   "cerrar",
   "mas-simple",
+  "camara",
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
@@ -109,6 +110,12 @@ const PATHS: Record<IconName, ReactNode> = {
   filtro: <path d="M4 5h16l-6 7.5V19l-4 1.5v-8z" />,
   cerrar: <path d="M6 6l12 12M18 6 6 18" />,
   "mas-simple": <path d="M12 5v14M5 12h14" />,
+  camara: (
+    <>
+      <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </>
+  ),
 };
 
 export function Icon({ name, className = "size-5" }: { name: IconName; className?: string }) {

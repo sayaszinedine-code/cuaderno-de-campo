@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import { NoteCard } from "@/components/NoteCard";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -10,7 +10,8 @@ import { FilterBar, type ActiveFilter } from "@/components/ui/FilterBar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getCompetenciesByArea, type Cycle } from "@/curriculum";
 import { areasForCycles } from "@/domain/areas";
-import { filterNotes } from "@/domain/notes";
+import { todayISO } from "@/domain/classrooms";
+import { dayLabel, filterNotes, groupByDay } from "@/domain/notes";
 import { NOTE_KINDS, NOTE_KIND_LABELS, type NoteKind } from "@/domain/schema";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
@@ -22,6 +23,15 @@ export default function CuadernoPage() {
   const [periodId, setPeriodId] = useState("");
   const [kind, setKind] = useState("");
   const [text, setText] = useState("");
+  // Inicio links here with ?estado=pendiente. Next updates the URL only after the new page renders, so the
+  // parameter is read in an effect; until then (null) the list is held back so it never flashes unfiltered.
+  const [statusParam, setStatus] = useState<string | null>(null);
+  useEffect(() => {
+    setStatus((cur) =>
+      cur !== null ? cur : new URLSearchParams(window.location.search).get("estado") === "pendiente" ? "pending" : "",
+    );
+  }, []);
+  const status = statusParam ?? "";
 
   const cycles = useMemo(
     () => (["I", "II"] as Cycle[]).filter((c) => yearData.classrooms.some((k) => k.cycle === c)),
@@ -50,10 +60,11 @@ export default function CuadernoPage() {
         periodId: (periodId || undefined) as "B1" | "B2" | "B3" | "B4" | undefined,
         kind: (kind || undefined) as NoteKind | undefined,
         text,
+        status: (status || undefined) as "pending" | "complete" | undefined,
         periods: yearData.periods,
         students: yearData.students,
       }),
-    [notes, studentId, areaId, competencyId, periodId, kind, text, yearData],
+    [notes, studentId, areaId, competencyId, periodId, kind, text, status, yearData],
   );
 
   const PAGE = 30;
@@ -92,11 +103,17 @@ export default function CuadernoPage() {
       onClear: () => reset(setPeriodId)(""),
     },
     kind && { key: "kind", label: NOTE_KIND_LABELS[kind as NoteKind] ?? kind, onClear: () => reset(setKind)("") },
+    status && {
+      key: "status",
+      label: status === "pending" ? "Por completar" : "Completos",
+      onClear: () => reset(setStatus)(""),
+    },
   ].filter((f): f is ActiveFilter => Boolean(f));
   const clearAll = () => {
-    [setStudentId, setAreaId, setCompetencyId, setPeriodId, setKind].forEach((set) => set(""));
+    [setStudentId, setAreaId, setCompetencyId, setPeriodId, setKind, setStatus].forEach((set) => set(""));
     setVisible(PAGE);
   };
+  const today = todayISO();
   const count = `${list.length} ${list.length === 1 ? "registro" : "registros"}`;
 
   return (
@@ -192,8 +209,16 @@ export default function CuadernoPage() {
             ))}
           </select>
         </label>
+        <label>
+          Estado
+          <select className={sel} value={status} onChange={(e) => reset(setStatus)(e.target.value)}>
+            <option value="">Todos</option>
+            <option value="pending">Por completar</option>
+            <option value="complete">Completos</option>
+          </select>
+        </label>
       </FilterBar>
-      {notes.length === 0 ? (
+      {statusParam === null ? null : notes.length === 0 ? (
         <EmptyState icon="cuaderno" text="Todavía no hay registros. Toca «Nuevo registro» para tu primera observación." />
       ) : list.length === 0 ? (
         <EmptyState
@@ -207,11 +232,18 @@ export default function CuadernoPage() {
         />
       ) : (
         <div className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-            {list.slice(0, visible).map((n) => (
-              <NoteCard key={n.id} note={n} students={yearData.students} storage={storage} />
-            ))}
-          </div>
+          {groupByDay(list.slice(0, visible)).map((day) => (
+            <section key={day.date} className="space-y-2">
+              <h2 className="text-muted pt-2 text-sm font-bold tracking-wide uppercase">
+                {dayLabel(day.date, today)}
+              </h2>
+              <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                {day.notes.map((n) => (
+                  <NoteCard key={n.id} note={n} students={yearData.students} storage={storage} />
+                ))}
+              </div>
+            </section>
+          ))}
           <p className="text-sm text-muted">
             Mostrando {Math.min(visible, list.length)} de {list.length} registros
           </p>

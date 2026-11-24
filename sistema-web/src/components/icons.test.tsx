@@ -4,7 +4,7 @@ import { Icon, ICON_NAMES } from "./icons";
 
 describe("Icon", () => {
   it("renders a decorative svg for every icon name", () => {
-    expect(ICON_NAMES.length).toBe(20);
+    expect(ICON_NAMES.length).toBe(21);
     for (const name of ICON_NAMES) {
       const { container, unmount } = render(<Icon name={name} />);
       const svg = container.querySelector("svg");

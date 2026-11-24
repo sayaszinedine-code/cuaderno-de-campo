@@ -135,8 +135,8 @@ describe("Cuaderno list", () => {
     expect(screen.getByText("Todo el grupo")).toBeInTheDocument();
     const links = screen.getAllByRole("link", { name: "Abrir" });
     expect(links.map((l) => l.getAttribute("href")).sort()).toEqual([
-      "/cuaderno/registro?id=a",
-      "/cuaderno/registro?id=b",
+      "/cuaderno/ver?id=a",
+      "/cuaderno/ver?id=b",
     ]);
   });
 
@@ -267,5 +267,62 @@ describe("Inicio shortcuts", () => {
     renderIn(<InicioPage />);
     await screen.findByRole("link", { name: "Nuevo registro" });
     await waitFor(() => expect(screen.queryByText(/sin observaciones/)).not.toBeInTheDocument());
+  });
+});
+
+describe("Cuaderno timeline and pending status", () => {
+  it("groups records under day headings", async () => {
+    await seed([note({ id: "a", date: todayISO(), evidenceText: "hoy pasó" })]);
+    renderIn(<CuadernoPage />);
+    await screen.findByText("hoy pasó");
+    expect(screen.getByRole("heading", { level: 2, name: "Hoy" })).toBeInTheDocument();
+  });
+
+  it("tags a record without area as Por completar", async () => {
+    await seed([note({ id: "a", evidenceText: "rápido" })]);
+    renderIn(<CuadernoPage />);
+    const card = (await screen.findByText("rápido")).closest("article")!;
+    expect(within(card).getByText("Por completar")).toBeInTheDocument();
+  });
+
+  it("the Estado filter shows only pending records", async () => {
+    await seed([
+      note({ id: "a", evidenceText: "sin área" }),
+      note({ id: "b", evidenceText: "con área", areaId: "matematica" }),
+    ]);
+    renderIn(<CuadernoPage />);
+    await screen.findByText("sin área");
+    const estado = screen.getByLabelText("Estado");
+    expect(within(estado).getAllByRole("option").map((o) => o.textContent)).toEqual(["Todos", "Por completar", "Completos"]);
+    fireEvent.change(estado, { target: { value: "pending" } });
+    expect(screen.queryByText("con área")).not.toBeInTheDocument();
+    expect(screen.getByText("sin área")).toBeInTheDocument();
+  });
+
+  it("?estado=pendiente pre-selects the filter and its chip clears it", async () => {
+    window.history.pushState({}, "", "/cuaderno/?estado=pendiente");
+    await seed([
+      note({ id: "a", evidenceText: "sin área" }),
+      note({ id: "b", evidenceText: "con área", areaId: "matematica" }),
+    ]);
+    renderIn(<CuadernoPage />);
+    await screen.findByText("sin área");
+    expect(screen.queryByText("con área")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Quitar filtro: Por completar" }));
+    expect(screen.getByText("con área")).toBeInTheDocument();
+  });
+
+  it("Inicio links to the records still to complete", async () => {
+    await seed([note({ id: "a", evidenceText: "x" }), note({ id: "b", evidenceText: "y" }), note({ id: "c", evidenceText: "z", areaId: "matematica" })]);
+    renderIn(<InicioPage />);
+    const link = await screen.findByRole("link", { name: /2 registros por completar/ });
+    expect(link).toHaveAttribute("href", expect.stringMatching(/^\/cuaderno\/?\?estado=pendiente$/));
+  });
+
+  it("Inicio shows no reminder when everything is complete", async () => {
+    await seed([note({ id: "c", evidenceText: "z", areaId: "matematica" })]);
+    renderIn(<InicioPage />);
+    await screen.findByText(/Últimos registros/);
+    expect(screen.queryByText(/por completar/)).not.toBeInTheDocument();
   });
 });

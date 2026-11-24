@@ -122,6 +122,8 @@ export function filterNotes(
     periodId?: Period["id"];
     kind?: NoteKind;
     text?: string;
+    /** "pending" = still without an area (see isPending). */
+    status?: "pending" | "complete";
     periods: Period[];
     students: Student[];
   },
@@ -137,6 +139,7 @@ export function filterNotes(
       if (!direct && !group) return false;
     }
     if (q.areaId && n.areaId !== q.areaId) return false;
+    if (q.status && isPending(n) !== (q.status === "pending")) return false;
     if (q.competencyId && n.competencyId !== q.competencyId) return false;
     if (q.periodId && periodOf(n.date, q.periods) !== q.periodId) return false;
     if (q.kind && n.kind !== q.kind) return false;
@@ -174,4 +177,36 @@ export function studentsWithoutRecentNotes(
       s.active &&
       !recent.some((n) => n.studentIds.includes(s.id) || (n.wholeGroup && n.classroomId === s.classroomId)),
   );
+}
+
+/** A quick record saved in class is «Por completar» until it gets an area. */
+export function isPending(n: FieldNote): boolean {
+  return !n.areaId;
+}
+
+const MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const utcDay = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Date.UTC(y, m - 1, d) / 86_400_000;
+};
+
+/** «Hoy», «Ayer», «12 nov», or «12 nov 2025» when the year differs from today's. */
+export function dayLabel(date: string, today: string): string {
+  const diff = utcDay(today) - utcDay(date);
+  if (diff === 0) return "Hoy";
+  if (diff === 1) return "Ayer";
+  const [y, m, d] = date.split("-").map(Number);
+  const base = `${d} ${MONTHS_SHORT[m - 1] ?? ""}`;
+  return y === Number(today.slice(0, 4)) ? base : `${base} ${y}`;
+}
+
+/** Consecutive records of the same date, in the given order. */
+export function groupByDay(notes: FieldNote[]): { date: string; notes: FieldNote[] }[] {
+  const groups: { date: string; notes: FieldNote[] }[] = [];
+  for (const n of notes) {
+    const last = groups[groups.length - 1];
+    if (last && last.date === n.date) last.notes.push(n);
+    else groups.push({ date: n.date, notes: [n] });
+  }
+  return groups;
 }

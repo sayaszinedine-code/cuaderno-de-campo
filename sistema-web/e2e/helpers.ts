@@ -155,6 +155,7 @@ export async function createNote(page: Page, opts: { date: string; text: string;
   await page.goto("/cuaderno/registro/");
   await expect(page.getByRole("heading", { name: "Nuevo registro" })).toBeVisible();
   await page.getByRole("button", { name: "Valentina Quispe" }).click();
+  await page.getByText("Cambiar", { exact: true }).click(); // date, aula and moment are folded behind «Cambiar»
   await page.getByLabel("Fecha").fill(opts.date);
   await page.getByLabel("¿Qué hizo o dijo? Describe los hechos").fill(opts.text);
   await page.getByLabel(/^Área/).selectOption({ label: "Matemática" });
