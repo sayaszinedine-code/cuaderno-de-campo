@@ -612,3 +612,15 @@ describe("Registro quick capture", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("Registro photo button", () => {
+  it("shows «Agregar fotos» as a big camera button over a hidden file input", async () => {
+    await seed();
+    renderPage();
+    await screen.findByRole("button", { name: "Luz Paz" });
+    const input = screen.getByLabelText("Agregar fotos");
+    expect(input).toHaveAttribute("type", "file");
+    expect(input).toHaveClass("sr-only");
+    expect(input.closest("label")!.querySelector("svg")).not.toBeNull();
+  });
+});

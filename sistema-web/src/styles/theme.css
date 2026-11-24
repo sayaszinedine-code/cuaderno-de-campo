@@ -374,3 +374,23 @@ body::before {
     }
   }
 }
+
+@layer components {
+  /* Registro: big camera button over a visually hidden file input. */
+  .photo-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 3.5rem;
+    border: 2px dashed var(--primary);
+    border-radius: 1.25rem;
+    color: var(--primary);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .photo-button:focus-within {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

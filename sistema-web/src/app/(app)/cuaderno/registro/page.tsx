@@ -16,6 +16,7 @@ import { LEVELS, MOMENTS, NOTE_KIND_LABELS, type FieldNote, type Level, type Not
 import { AiNoteAction } from "@/notes/AiActions";
 import { EvidencePhotos } from "@/notes/EvidencePhotos";
 import { PerformancePicker } from "@/notes/PerformancePicker";
+import { Icon } from "@/components/icons";
 import { Avatar } from "@/components/ui/Avatar";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 import { useToast } from "@/components/Toast";
@@ -438,13 +439,14 @@ function Form({ existing }: { existing: FieldNote | undefined }) {
             storage={storage}
             onPatch={patch}
           />
-          <label className="block space-y-1">
+          <label className="photo-button">
+            <Icon name="camara" className="size-7" />
             <span>Agregar fotos</span>
             <input
               type="file"
               accept="image/*"
               multiple
-              className="field"
+              className="sr-only"
               onChange={(e) => {
                 const files = Array.from(e.target.files ?? []);
                 e.target.value = "";
