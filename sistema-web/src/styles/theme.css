@@ -296,3 +296,62 @@ body::before {
     animation: none;
   }
 }
+
+/* Filter bar (see components/ui/FilterBar.tsx). */
+.filter-bar > summary::-webkit-details-marker {
+  display: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--foreground);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.filter-panel {
+  margin-top: 0.75rem;
+}
+/* Desktop: the panel drops below the search across the full row. */
+@media (min-width: 768px) {
+  .filter-bar[open] {
+    flex-basis: 100%;
+    order: 3;
+  }
+  .filter-bar[open] > summary {
+    margin-left: auto;
+  }
+  .filter-panel {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
+    background: var(--surface);
+  }
+}
+/* Phones: bottom sheet over a dimmed backdrop. */
+@media (max-width: 767px) {
+  .filter-bar[open] .filter-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgb(0 0 0 / 0.4);
+  }
+  .filter-bar[open] .filter-panel {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 31;
+    max-height: 85vh;
+    overflow-y: auto;
+    margin: 0;
+    padding: 1.25rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    border-radius: 1.5rem 1.5rem 0 0;
+    background: var(--surface);
+    box-shadow: 0 -8px 30px rgb(0 0 0 / 0.25);
+    animation: fade-up 200ms ease-out;
+  }
+}
