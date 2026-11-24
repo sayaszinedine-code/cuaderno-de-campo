@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getCompetencies } from "@/curriculum";
 import { areaName } from "@/domain/areas";
+import { isPending } from "@/domain/notes";
 import { NOTE_KIND_LABELS, type FieldNote, type Student } from "@/domain/schema";
 import type { Storage } from "@/storage/types";
 import { Avatar } from "@/components/ui/Avatar";
@@ -87,6 +88,9 @@ export function NoteCard({
         <p className="flex flex-wrap gap-1.5 text-xs font-semibold">
           <span className="chip !min-h-0 !px-2 !py-0.5">{NOTE_KIND_LABELS[note.kind]}</span>
           {area && <span className="chip !min-h-0 !px-2 !py-0.5 bg-success-soft">{area}</span>}
+          {isPending(note) && (
+            <span className="chip !min-h-0 !px-2 !py-0.5 bg-warning-soft text-warning-foreground">Por completar</span>
+          )}
           {comp && <span className="text-muted self-center font-normal">{comp}</span>}
         </p>
         {who.length > 0 && (
@@ -102,9 +106,9 @@ export function NoteCard({
             {shown.map((p, i) =>
               thumbs[i] ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={p} src={thumbs[i] ?? ""} alt={`Foto ${i + 1} del registro`} className="h-16 w-16 rounded-lg object-cover" />
+                <img key={p} src={thumbs[i] ?? ""} alt={`Foto ${i + 1} del registro`} className="h-24 w-24 rounded-xl object-cover" />
               ) : (
-                <span key={p} className="flex h-16 w-16 items-center justify-center rounded-lg bg-accent-soft p-1 text-center text-xs text-muted">
+                <span key={p} className="flex h-24 w-24 items-center justify-center rounded-xl bg-accent-soft p-1 text-center text-xs text-muted">
                   {thumbs.length === 0 ? "…" : "Foto no disponible"}
                 </span>
               ),

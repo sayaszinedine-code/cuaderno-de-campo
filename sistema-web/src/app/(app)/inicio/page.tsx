@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useAccount } from "@/components/AccountGate";
 import { upcoming } from "@/domain/agenda";
 import { todayISO } from "@/domain/classrooms";
-import { studentsWithoutRecentNotes } from "@/domain/notes";
+import { isPending, studentsWithoutRecentNotes } from "@/domain/notes";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 export default function InicioPage() {
@@ -27,6 +27,7 @@ export default function InicioPage() {
     year === Number(today.slice(0, 4)) ? studentsWithoutRecentNotes(notes, yearData.students, today) : [];
 
   const soon = upcoming(agenda, today).slice(0, 5);
+  const pendingCount = notes.filter(isPending).length;
 
   return (
     <div className="space-y-6">
@@ -51,6 +52,13 @@ export default function InicioPage() {
           </Link>
         ))}
       </nav>
+      {pendingCount > 0 && (
+        <Link href="/cuaderno/?estado=pendiente" className="card-interactive bg-warning-soft text-warning-foreground border-border flex items-center gap-3 rounded-[1.25rem] border p-4 font-semibold">
+          <Icon name="cuaderno" className="size-6" />
+          {`${pendingCount} ${pendingCount === 1 ? "registro" : "registros"} por completar`}
+          <span className="ml-auto text-sm underline">Completar</span>
+        </Link>
+      )}
       {neglected.length > 0 && (
         <section className="card space-y-1 p-5">
           <p className="font-medium">
