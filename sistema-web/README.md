@@ -49,6 +49,8 @@ Son valores públicos (se incluyen en el sitio), pero no subas `.env.local` al r
 
 ## 3. Publicar en Netlify (gratis)
 
+> Compilar (`npm run build`) necesita internet: descarga una vez las fuentes Fredoka y Nunito y las guarda dentro del sitio. La app publicada funciona sin conexión.
+
 El repositorio ya trae `netlify.toml` en la raíz: compila `sistema-web/` con `npm run build`, publica `out/` y fija las cabeceras que necesita la app instalable.
 
 **Opción A — conectado al repositorio (recomendada; cada cambio se publica solo):**

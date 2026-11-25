@@ -3,9 +3,10 @@ import { Fredoka, Nunito } from "next/font/google";
 import { PwaUpdater } from "@/pwa/PwaUpdater";
 import "./globals.css";
 
-// Self-hosted at build time: the app keeps its fonts offline.
-const display = Fredoka({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-fredoka" });
-const body = Nunito({ subsets: ["latin"], weight: ["400", "600", "700", "800"], variable: "--font-nunito" });
+// Variable fonts (every weight in one file), self-hosted at build time so the app keeps them offline.
+// `next build` downloads them once, so building needs internet; the built app does not.
+const display = Fredoka({ subsets: ["latin"], variable: "--font-fredoka" });
+const body = Nunito({ subsets: ["latin"], variable: "--font-nunito" });
 
 export const metadata: Metadata = {
   title: "Cuaderno de Campo",

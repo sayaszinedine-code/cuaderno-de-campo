@@ -345,7 +345,7 @@ function Form({ existing, aula, bim }: { existing: Unit | undefined; aula: strin
               <p className="text-sm text-muted">Guarda la unidad antes de abrir sesiones.</p>
             </>
           ) : (
-            <Link href={`/unidades/sesion/?unidad=${existing.id}`} className="btn-secondary inline-block">
+            <Link href={`/unidades/sesion/?unidad=${existing.id}`} className="btn-secondary">
               Nueva sesión
             </Link>
           )}
