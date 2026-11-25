@@ -105,10 +105,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             aria-expanded={moreOpen}
             aria-controls="mas-menu"
-            className={`${barBase} font-medium ${moreOpen ? "nav-active" : ""}`}
+            className={`${barBase} sec-lila font-semibold ${moreOpen ? "bg-[var(--sec-soft)] text-[var(--sec)]" : ""}`}
             onClick={() => setMoreOpen((o) => !o)}
           >
-            <Icon name="mas" />
+            <span className="flex size-8 items-center justify-center rounded-[10px] bg-[var(--sec-soft)] text-[var(--sec)]">
+              <Icon name="mas" className="size-5" />
+            </span>
             Más
           </button>
         </nav>
