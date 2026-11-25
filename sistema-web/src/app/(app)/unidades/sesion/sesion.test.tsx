@@ -14,7 +14,7 @@ const pick = vi.hoisted(() => ({
 }));
 vi.mock("@/storage/pick", () => pick);
 const push = vi.hoisted(() => vi.fn());
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }), usePathname: () => "/unidades/" }));
 vi.mock("@/components/AccountGate", () => ({
   useAccount: () => ({ refresh: vi.fn(), profile: { id: "u1" } }),
 }));

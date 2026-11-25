@@ -64,7 +64,7 @@ function NoteView({ note }: { note: FieldNote }) {
       </div>
 
       <header className="space-y-2">
-        <p className="text-muted text-sm font-semibold uppercase">
+        <p className="text-muted text-sm font-semibold">
           {[dayLabel(note.date, todayISO()), classroom?.name, note.moment].filter(Boolean).join(" · ")}
         </p>
         <div className="flex flex-wrap gap-1.5 text-xs font-semibold">
@@ -91,7 +91,7 @@ function NoteView({ note }: { note: FieldNote }) {
       </ul>
 
       <section className="card space-y-2 p-5">
-        <h2 className="text-muted text-sm font-bold uppercase">Qué hizo o dijo</h2>
+        <h2 className="font-display text-sm font-semibold text-[var(--c-rosa)]">Qué hizo o dijo</h2>
         <p className="text-lg whitespace-pre-line">{note.evidenceText}</p>
       </section>
 
@@ -114,7 +114,7 @@ function NoteView({ note }: { note: FieldNote }) {
 
       {note.performances.length > 0 && (
         <section className="card space-y-2 p-5">
-          <h2 className="text-muted text-sm font-bold uppercase">Desempeños</h2>
+          <h2 className="font-display text-sm font-semibold text-[var(--c-rosa)]">Desempeños</h2>
           <ul className="list-disc space-y-1 pl-5">
             {note.performances.map((p) => (
               <li key={`${p.competencyId}-${p.band}-${p.text}`}>{p.text}</li>
@@ -127,19 +127,19 @@ function NoteView({ note }: { note: FieldNote }) {
         <section className="card space-y-4 p-5">
           {note.interpretation && (
             <div>
-              <h2 className="text-muted text-sm font-bold uppercase">Interpretación</h2>
+              <h2 className="font-display text-sm font-semibold text-[var(--c-rosa)]">Interpretación</h2>
               <p className="whitespace-pre-line">{note.interpretation}</p>
             </div>
           )}
           {note.reflection && (
             <div>
-              <h2 className="text-muted text-sm font-bold uppercase">Reflexión docente</h2>
+              <h2 className="font-display text-sm font-semibold text-[var(--c-rosa)]">Reflexión docente</h2>
               <p className="whitespace-pre-line">{note.reflection}</p>
             </div>
           )}
           {note.level && (
             <div>
-              <h2 className="text-muted text-sm font-bold uppercase">Nivel de logro</h2>
+              <h2 className="font-display text-sm font-semibold text-[var(--c-rosa)]">Nivel de logro</h2>
               <p className="text-lg font-bold">{note.level}</p>
             </div>
           )}

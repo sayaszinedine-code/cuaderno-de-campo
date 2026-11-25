@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { sectionColor } from "@/components/sections";
 import { useAccount } from "@/components/AccountGate";
 import { upcoming } from "@/domain/agenda";
 import { todayISO } from "@/domain/classrooms";
@@ -45,9 +46,13 @@ export default function InicioPage() {
           <Link
             key={q.href}
             href={q.href}
-            className={`card card-interactive flex flex-col items-start gap-2 p-4 font-semibold ${i === 0 ? "nav-active" : ""}`}
+            className={`sec-${sectionColor(q.href)} card-interactive flex flex-col items-start gap-3 rounded-[1.25rem] p-4 font-bold ${
+              i === 0 ? "bg-[var(--sec)] text-[var(--surface)]" : "bg-[var(--sec-soft)] text-[var(--sec)]"
+            }`}
           >
-            <Icon name={q.icon} className="size-7" />
+            <span className="flex size-10 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--sec)]">
+              <Icon name={q.icon} className="size-6" />
+            </span>
             {q.label}
           </Link>
         ))}

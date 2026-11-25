@@ -1,10 +1,12 @@
 "use client";
 
+import { Logo, Wordmark } from "@/components/Logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { useAccount } from "@/components/AccountGate";
 import { Icon, type IconName } from "@/components/icons";
+import { sectionColor } from "@/components/sections";
 import { ToastProvider } from "@/components/Toast";
 import { OfflineBadge } from "@/components/OfflineBadge";
 import { InstallButton } from "@/pwa/InstallButton";
@@ -58,26 +60,28 @@ export function AppShell({ children }: { children: ReactNode }) {
         </span>
       );
     }
-    const active = pathname === item.href;
+    const here = pathname.endsWith("/") ? pathname : `${pathname}/`;
+    const active = here.startsWith(item.href);
     return (
       <Link
         key={item.label}
         href={item.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
-        className={`${base} font-medium transition-colors ${active ? "nav-active" : "hover:bg-accent-soft"}`}
+        className={`${base} sec-${sectionColor(item.href)} font-semibold transition-colors ${
+          active ? "bg-[var(--sec-soft)] text-[var(--sec)]" : "hover:bg-[var(--sec-soft)]"
+        }`}
       >
-        <Icon name={item.icon} className="size-5 shrink-0" />
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--sec-soft)] text-[var(--sec)]">
+          <Icon name={item.icon} className="size-5" />
+        </span>
         {item.label}
       </Link>
     );
   };
   const sideBase = "flex items-center gap-3 rounded-xl px-3 py-2";
   const barBase = "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-xs";
-  const logo = (
-    // eslint-disable-next-line @next/next/no-img-element -- static export, no image optimizer
-    <img src="/icons/icon-192.png" alt="" width={36} height={36} className="size-9 rounded-xl" />
-  );
+  const logo = <Logo size={40} className="shrink-0" />;
 
   return (
     <ToastProvider>
@@ -88,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <div className="mb-3 flex items-center gap-2 px-2 py-1">
             {logo}
-            <span className="font-bold leading-tight">Cuaderno de Campo</span>
+            <Wordmark className="text-lg" />
           </div>
           {desktopItems.map((item) => renderItem(item, sideBase))}
         </nav>
@@ -101,10 +105,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             aria-expanded={moreOpen}
             aria-controls="mas-menu"
-            className={`${barBase} font-medium ${moreOpen ? "nav-active" : ""}`}
+            className={`${barBase} sec-lila font-semibold ${moreOpen ? "bg-[var(--sec-soft)] text-[var(--sec)]" : ""}`}
             onClick={() => setMoreOpen((o) => !o)}
           >
-            <Icon name="mas" />
+            <span className="flex size-8 items-center justify-center rounded-[10px] bg-[var(--sec-soft)] text-[var(--sec)]">
+              <Icon name="mas" className="size-5" />
+            </span>
             Más
           </button>
         </nav>

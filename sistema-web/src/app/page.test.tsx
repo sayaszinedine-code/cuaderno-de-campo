@@ -25,3 +25,16 @@ describe("Home", () => {
     expect(screen.queryByText(/Yosselin/i)).toBeNull();
   });
 });
+
+describe("Home colors", () => {
+  it("each feature card has its own section color", () => {
+    render(<Home />);
+    const items = screen.getAllByRole("listitem");
+    expect(items.map((li) => [...li.classList].find((c) => c.startsWith("sec-")))).toEqual([
+      "sec-rosa",
+      "sec-naranja",
+      "sec-lila",
+      "sec-lima",
+    ]);
+  });
+});

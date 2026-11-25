@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const role = vi.hoisted(() => ({ value: "admin", warning: false, firstNames: "Ana Lucía" }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/inicio/" }));
+const role = vi.hoisted(() => ({ value: "admin", warning: false, firstNames: "Ana Lucía", path: "/inicio/" }));
+vi.mock("next/navigation", () => ({ usePathname: () => role.path }));
 vi.mock("@/components/AccountGate", () => ({ useAccount: () => ({ profile: { role: role.value, firstNames: role.firstNames } }) }));
 vi.mock("@/workspace/WorkspaceProvider", () => ({
   useWorkspace: () => ({ year: 2026, years: [2026], setYear: vi.fn(), backupWarning: role.warning }),
@@ -103,5 +103,27 @@ describe("AppShell layering", () => {
     role.value = "teacher";
     render(<AppShell>x</AppShell>);
     expect(screen.getByRole("main")).toHaveClass("isolate");
+  });
+});
+
+describe("AppShell section colors", () => {
+  it("each nav link carries its section color", () => {
+    role.value = "teacher";
+    render(<AppShell>x</AppShell>);
+    const side = screen.getByRole("navigation", { name: "Principal" });
+    expect(within(side).getByRole("link", { name: "Cuaderno" })).toHaveClass("sec-rosa");
+    expect(within(side).getByRole("link", { name: "Niños" })).toHaveClass("sec-celeste");
+    expect(within(side).getByRole("link", { name: "Notas" })).toHaveClass("sec-naranja");
+    expect(within(side).getByRole("link", { name: "Asistencia" })).toHaveClass("sec-lima");
+  });
+
+  it("marks the parent section as current on sub-routes", () => {
+    role.value = "teacher";
+    role.path = "/cuaderno/registro/";
+    render(<AppShell>x</AppShell>);
+    const side = screen.getByRole("navigation", { name: "Principal" });
+    expect(within(side).getByRole("link", { name: "Cuaderno" })).toHaveAttribute("aria-current", "page");
+    expect(within(side).getByRole("link", { name: "Inicio" })).not.toHaveAttribute("aria-current");
+    role.path = "/inicio/";
   });
 });
