@@ -138,16 +138,25 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-attention-soft: var(--attention-soft);
   --color-attention-foreground: var(--attention-foreground);
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-nunito), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-fredoka), var(--font-nunito), system-ui, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-nunito), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 1.0625rem;
   line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-fredoka), var(--font-nunito), system-ui, sans-serif;
+  letter-spacing: 0.005em;
 }
 
 /* Line-art pattern from the client's deck, kept faint behind the content. */

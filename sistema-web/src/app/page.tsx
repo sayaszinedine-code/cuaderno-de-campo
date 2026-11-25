@@ -1,3 +1,4 @@
+import { Logo, Wordmark } from "@/components/Logo";
 import { Icon, type IconName } from "@/components/icons";
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
@@ -11,9 +12,10 @@ export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center gap-12 px-5 py-12">
       <section className="page-enter flex flex-col items-center gap-5 text-center">
-        {/* eslint-disable-next-line @next/next/no-img-element -- static export, no image optimizer */}
-        <img src="/icons/icon-192.png" alt="" width={88} height={88} className="size-22 rounded-3xl shadow-lg" />
-        <h1 className="text-4xl font-bold sm:text-5xl">Cuaderno de Campo</h1>
+        <Logo size={96} className="drop-shadow-md" />
+        <h1 className="text-5xl sm:text-6xl">
+          <Wordmark />
+        </h1>
         <p className="text-muted max-w-xl text-lg">
           Tu cuaderno de campo, notas y sesiones de Educación Inicial, en un solo lugar.
         </p>

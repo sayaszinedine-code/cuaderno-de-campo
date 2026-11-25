@@ -1,5 +1,6 @@
 "use client";
 
+import { Logo, Wordmark } from "@/components/Logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -80,10 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
   const sideBase = "flex items-center gap-3 rounded-xl px-3 py-2";
   const barBase = "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-xs";
-  const logo = (
-    // eslint-disable-next-line @next/next/no-img-element -- static export, no image optimizer
-    <img src="/icons/icon-192.png" alt="" width={36} height={36} className="size-9 rounded-xl" />
-  );
+  const logo = <Logo size={40} className="shrink-0" />;
 
   return (
     <ToastProvider>
@@ -94,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <div className="mb-3 flex items-center gap-2 px-2 py-1">
             {logo}
-            <span className="font-bold leading-tight">Cuaderno de Campo</span>
+            <Wordmark className="text-lg" />
           </div>
           {desktopItems.map((item) => renderItem(item, sideBase))}
         </nav>
