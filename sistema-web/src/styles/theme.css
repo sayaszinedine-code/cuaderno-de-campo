@@ -1,74 +1,123 @@
-/* Design tokens. Light by default; dark via prefers-color-scheme or [data-theme="dark"]. */
+/* Design tokens: pastel palette from the «Cuaderno de Campo 2026» deck. Light by default;
+   dark via prefers-color-scheme or [data-theme="dark"]. Each color has a strong tone (text, icons,
+   buttons; ≥ 4.5:1 on its soft tone and on the surface) and a soft tone (backgrounds). */
 :root {
-  --background: #fbfaf5;
-  --foreground: #1f2b2e;
+  --background: #fff9f0;
+  --foreground: #3b2f5c;
   --surface: #ffffff;
-  --border: #d9e4e2;
-  --muted: #5b6b6f;
-  --primary: #1f8a86;
-  --primary-hover: #176f6c;
+  --border: #f1e3d3;
+  --muted: #6d6386;
+  --c-rosa: #c2186b;
+  --c-rosa-soft: #ffe0f0;
+  --c-celeste: #0b6fa3;
+  --c-celeste-soft: #ddf4ff;
+  --c-naranja: #a65400;
+  --c-naranja-soft: #ffefd6;
+  --c-lima: #3f6b00;
+  --c-lima-soft: #eafbc8;
+  --c-lila: #7136c4;
+  --c-lila-soft: #f0e6ff;
+  --c-amarillo: #8a5a00;
+  --c-amarillo-soft: #fff3d6;
+  --primary: #c2186b;
+  --primary-hover: #a3125a;
+  --primary-shadow: #7d0d45;
   --primary-foreground: #ffffff;
-  --accent: #f6c445;
-  --accent-soft: #fdf0c4;
-  --danger-soft: #fde4e1;
-  --success: #1d7a3a;
-  --success-soft: #d8f0dc;
-  --success-foreground: #14532b;
-  --warning-soft: #ffe8c2;
-  --warning-foreground: #7a4a00;
-  --attention-soft: #fde4e1;
-  --attention-foreground: #8a2a22;
-  --pattern-opacity: 0.5;
+  --accent: #f2b705;
+  --accent-soft: #fff3d6;
+  --danger-soft: #ffe0e6;
+  --success: #3f6b00;
+  --success-soft: #eafbc8;
+  --success-foreground: #2f5000;
+  --warning-soft: #ffefd6;
+  --warning-foreground: #8a4600;
+  --attention-soft: #ffe0e6;
+  --attention-foreground: #9c1238;
+  --pattern-opacity: 0.35;
   --pattern-filter: none;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #14201f;
-    --foreground: #e8f0ee;
-    --surface: #1c2c2b;
-    --border: #2f4543;
-    --muted: #9fb3b0;
-    --primary: #4fc3bd;
-    --primary-hover: #6fd3cd;
-    --primary-foreground: #0d1b1a;
-    --accent: #f2c13d;
-    --accent-soft: #4a3d12;
-    --danger-soft: #4d2320;
-  --success: #4fc37a;
-  --success-soft: #1f4a2e;
-  --success-foreground: #bff0cf;
-  --warning-soft: #4d3a12;
-  --warning-foreground: #ffd98a;
-  --attention-soft: #4d2320;
-  --attention-foreground: #ffc2bb;
-    --pattern-opacity: 0.07;
+    --background: #1b1626;
+    --foreground: #f1ecfa;
+    --surface: #262036;
+    --border: #3a3150;
+    --muted: #b5aacb;
+    --c-rosa: #ff8dc2;
+    --c-rosa-soft: #4a1f36;
+    --c-celeste: #7ccbf5;
+    --c-celeste-soft: #15384d;
+    --c-naranja: #ffb866;
+    --c-naranja-soft: #45300f;
+    --c-lima: #b5e06a;
+    --c-lima-soft: #2a3a12;
+    --c-lila: #c9a6ff;
+    --c-lila-soft: #33244f;
+    --c-amarillo: #f2cf6b;
+    --c-amarillo-soft: #3f3311;
+    --primary: #ff8dc2;
+    --primary-hover: #ffa8d1;
+    --primary-shadow: #b0477c;
+    --primary-foreground: #2a0d1c;
+    --accent: #f2cf6b;
+    --accent-soft: #3f3311;
+    --danger-soft: #4d2030;
+    --success: #b5e06a;
+    --success-soft: #2a3a12;
+    --success-foreground: #d4f29e;
+    --warning-soft: #45300f;
+    --warning-foreground: #ffd49a;
+    --attention-soft: #4d2030;
+    --attention-foreground: #ffb3c4;
+    --pattern-opacity: 0.06;
     --pattern-filter: invert(1);
   }
 }
 
 :root[data-theme="dark"] {
-  --background: #14201f;
-  --foreground: #e8f0ee;
-  --surface: #1c2c2b;
-  --border: #2f4543;
-  --muted: #9fb3b0;
-  --primary: #4fc3bd;
-  --primary-hover: #6fd3cd;
-  --primary-foreground: #0d1b1a;
-  --accent: #f2c13d;
-  --accent-soft: #4a3d12;
-  --danger-soft: #4d2320;
-  --success: #4fc37a;
-  --success-soft: #1f4a2e;
-  --success-foreground: #bff0cf;
-  --warning-soft: #4d3a12;
-  --warning-foreground: #ffd98a;
-  --attention-soft: #4d2320;
-  --attention-foreground: #ffc2bb;
-  --pattern-opacity: 0.07;
+  --background: #1b1626;
+  --foreground: #f1ecfa;
+  --surface: #262036;
+  --border: #3a3150;
+  --muted: #b5aacb;
+  --c-rosa: #ff8dc2;
+  --c-rosa-soft: #4a1f36;
+  --c-celeste: #7ccbf5;
+  --c-celeste-soft: #15384d;
+  --c-naranja: #ffb866;
+  --c-naranja-soft: #45300f;
+  --c-lima: #b5e06a;
+  --c-lima-soft: #2a3a12;
+  --c-lila: #c9a6ff;
+  --c-lila-soft: #33244f;
+  --c-amarillo: #f2cf6b;
+  --c-amarillo-soft: #3f3311;
+  --primary: #ff8dc2;
+  --primary-hover: #ffa8d1;
+  --primary-shadow: #b0477c;
+  --primary-foreground: #2a0d1c;
+  --accent: #f2cf6b;
+  --accent-soft: #3f3311;
+  --danger-soft: #4d2030;
+  --success: #b5e06a;
+  --success-soft: #2a3a12;
+  --success-foreground: #d4f29e;
+  --warning-soft: #45300f;
+  --warning-foreground: #ffd49a;
+  --attention-soft: #4d2030;
+  --attention-foreground: #ffb3c4;
+  --pattern-opacity: 0.06;
   --pattern-filter: invert(1);
 }
+
+/* One color per section (see components/sections.ts): sets --sec / --sec-soft. */
+.sec-rosa { --sec: var(--c-rosa); --sec-soft: var(--c-rosa-soft); }
+.sec-celeste { --sec: var(--c-celeste); --sec-soft: var(--c-celeste-soft); }
+.sec-naranja { --sec: var(--c-naranja); --sec-soft: var(--c-naranja-soft); }
+.sec-lima { --sec: var(--c-lima); --sec-soft: var(--c-lima-soft); }
+.sec-lila { --sec: var(--c-lila); --sec-soft: var(--c-lila-soft); }
+.sec-amarillo { --sec: var(--c-amarillo); --sec-soft: var(--c-amarillo-soft); }
 
 @theme inline {
   --color-background: var(--background);
@@ -113,6 +162,8 @@ body::before {
   pointer-events: none;
 }
 
+/* Base components live in a cascade layer so Tailwind utilities can adjust them. */
+@layer components {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -134,6 +185,11 @@ body::before {
 .btn-primary {
   background: var(--primary);
   color: var(--primary-foreground);
+  box-shadow: 0 3px 0 var(--primary-shadow);
+}
+.btn-primary:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--primary-shadow);
 }
 .btn-primary:hover {
   background: var(--primary-hover);
@@ -161,6 +217,7 @@ body::before {
 }
 .field:read-only {
   color: var(--muted);
+}
 }
 
 :focus-visible {
