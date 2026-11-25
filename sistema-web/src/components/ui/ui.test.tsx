@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/ninos/" }));
 import { avatarHue, initials, Avatar } from "./Avatar";
 import { EmptyState } from "./EmptyState";
 import { Fab } from "./Fab";
@@ -64,5 +66,12 @@ describe("Skeleton", () => {
     const { container } = render(<Skeleton lines={3} />);
     expect(container.firstElementChild).toHaveAttribute("aria-hidden", "true");
     expect(container.querySelectorAll(".skeleton").length).toBe(3);
+  });
+});
+
+describe("PageHeader section color", () => {
+  it("takes the color of the current section", () => {
+    const { container } = render(<PageHeader title="Niños" />);
+    expect(container.firstElementChild).toHaveClass("sec-celeste");
   });
 });

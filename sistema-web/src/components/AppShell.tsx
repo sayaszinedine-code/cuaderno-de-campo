@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { useAccount } from "@/components/AccountGate";
 import { Icon, type IconName } from "@/components/icons";
+import { sectionColor } from "@/components/sections";
 import { ToastProvider } from "@/components/Toast";
 import { OfflineBadge } from "@/components/OfflineBadge";
 import { InstallButton } from "@/pwa/InstallButton";
@@ -58,16 +59,21 @@ export function AppShell({ children }: { children: ReactNode }) {
         </span>
       );
     }
-    const active = pathname === item.href;
+    const here = pathname.endsWith("/") ? pathname : `${pathname}/`;
+    const active = here.startsWith(item.href);
     return (
       <Link
         key={item.label}
         href={item.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
-        className={`${base} font-medium transition-colors ${active ? "nav-active" : "hover:bg-accent-soft"}`}
+        className={`${base} sec-${sectionColor(item.href)} font-semibold transition-colors ${
+          active ? "bg-[var(--sec-soft)] text-[var(--sec)]" : "hover:bg-[var(--sec-soft)]"
+        }`}
       >
-        <Icon name={item.icon} className="size-5 shrink-0" />
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--sec-soft)] text-[var(--sec)]">
+          <Icon name={item.icon} className="size-5" />
+        </span>
         {item.label}
       </Link>
     );

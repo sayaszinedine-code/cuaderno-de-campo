@@ -323,8 +323,8 @@ body::before {
   width: 3.5rem;
   height: 3.5rem;
   border-radius: 999px;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: var(--sec, var(--primary));
+  color: var(--surface);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
   transition: transform 120ms ease;
 }

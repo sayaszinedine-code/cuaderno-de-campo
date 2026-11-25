@@ -71,7 +71,7 @@ export function NoteCard({
   const shown = compact ? note.evidence.slice(0, 0) : note.evidence.slice(0, 4);
 
   return (
-    <article className="card card-interactive flex gap-3 p-4">
+    <article className="card card-interactive flex gap-3 border-l-[6px] border-l-[var(--c-rosa)] p-4">
       <div className="flex w-14 shrink-0 flex-col items-center gap-2">
         {note.wholeGroup || names.length === 0 ? (
           <span aria-hidden="true" className="avatar bg-accent-soft size-11 text-sm">
