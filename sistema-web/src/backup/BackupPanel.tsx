@@ -1,11 +1,11 @@
 "use client";
 
+import { deliverFile } from "@/apk/saveFile";
 import { useEffect, useRef, useState } from "react";
 import { useWorkspace } from "@/workspace/WorkspaceProvider";
 
 export const REPLACE_CONFIRMATION = "Esto reemplazará los datos de esta carpeta. Se hará antes un respaldo de seguridad.";
 const NAME_HINT = "Cambia el nombre de esos archivos en tu carpeta y vuelve a intentarlo.";
-const DOWNLOAD_REVOKE_DELAY_MS = 1000;
 
 type Picked = { file: File; createdAt: string; count: number; hasData: boolean };
 
@@ -13,18 +13,6 @@ const formatDate = (iso: string): string => {
   const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" });
 };
-
-function downloadBlob(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob);
-  try {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = name;
-    link.click();
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_REVOKE_DELAY_MS);
-  }
-}
 
 export function BackupPanel() {
   const { storage, backupDate, backupError, backupBusy, runBackup, restoreBackupFile } = useWorkspace();
@@ -68,7 +56,7 @@ export function BackupPanel() {
     try {
       const blob = await storage.readFile(`Respaldos/${saved}`);
       if (!blob) throw new Error("missing");
-      downloadBlob(blob, saved);
+      await deliverFile(blob, saved);
     } catch {
       if (mounted.current) setError("No se pudo descargar el respaldo.");
     }

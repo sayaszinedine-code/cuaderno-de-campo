@@ -1,3 +1,4 @@
+import { deliverFile } from "@/apk/saveFile";
 import type { Storage } from "@/storage/types";
 import { safeName } from "./paths";
 import type { Attachment } from "./schema";
@@ -6,7 +7,6 @@ export const ATTACHMENT_EXTENSIONS = [
   ".doc", ".docx", ".pdf", ".ppt", ".pptx", ".xls", ".xlsx", ".odt", ".odp", ".ods", ".txt", ".jpg", ".jpeg", ".png",
 ] as const;
 export const ATTACHMENT_MAX_SIZE = 25 * 1024 * 1024;
-const DOWNLOAD_REVOKE_DELAY_MS = 1000;
 
 const extensionOf = (name: string): string => {
   const i = name.lastIndexOf(".");
@@ -63,13 +63,5 @@ export async function saveAttachment(
 export async function openAttachment(storage: Storage, a: Attachment): Promise<void> {
   const blob = await storage.readFile(a.path);
   if (!blob) throw new Error("Attachment not found");
-  const url = URL.createObjectURL(blob);
-  try {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = a.name;
-    link.click();
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_REVOKE_DELAY_MS);
-  }
+  await deliverFile(blob, a.name);
 }

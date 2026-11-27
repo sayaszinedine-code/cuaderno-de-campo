@@ -29,6 +29,10 @@ npm run apk      # compila y copia a sistema-web/public/descargas/cuaderno-de-ca
 Después publica la web (ver `sistema-web/README.md`): la nueva APK queda en `/descargas/cuaderno-de-campo.apk` y la
 página `/descargar/` ya apunta ahí.
 
+## Versión
+
+Antes de recompilar para publicar, sube `versionCode` (y `versionName`) en `android/app/build.gradle`.
+
 ## Firma
 
 Se compila con `assembleDebug`, firmada con la clave de depuración de esta computadora (`~/.android/debug.keystore`).

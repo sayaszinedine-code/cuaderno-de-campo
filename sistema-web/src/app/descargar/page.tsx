@@ -53,7 +53,7 @@ export default function DescargarPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>La primera vez necesitas internet; después funciona sin conexión.</li>
           <li>Se actualiza sola: cada mejora de la web llega a la app sin reinstalar.</li>
-          <li>Tus datos se guardan en el celular. Haz respaldos seguido desde Carpeta › Respaldos.</li>
+          <li>Tus datos se guardan en el celular. Haz respaldos seguido desde Carpeta › Respaldos: la app te deja guardarlos en Drive, en Archivos o enviarlos por WhatsApp.</li>
           <li>No reemplaza la app anterior del cuaderno: pueden estar las dos instaladas.</li>
         </ul>
       </section>

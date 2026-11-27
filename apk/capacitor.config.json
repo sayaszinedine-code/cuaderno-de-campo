@@ -6,10 +6,13 @@
   "server": {
     "url": "https://cuaderno-de-campo-inicial.netlify.app/inicio/",
     "errorPath": "index.html",
-    "allowNavigation": ["cuaderno-de-campo-inicial.netlify.app"]
+    "allowNavigation": [
+      "cuaderno-de-campo-inicial.netlify.app"
+    ]
   },
   "android": {
     "appendUserAgent": "CuadernoDeCampoApp",
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
   }
 }
