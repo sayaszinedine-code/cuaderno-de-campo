@@ -22,7 +22,7 @@ export default function DescargarPage() {
         Volver al inicio
       </Link>
       <header className="flex items-center gap-4">
-        <Logo size={72} />
+        <Logo size={72} className="shrink-0" />
         <div>
           <h1 className="text-3xl font-bold sm:text-4xl">Instala la app en tu Android</h1>
           <p className="text-muted">La misma app de la web, con tu misma cuenta y tus colores de siempre.</p>
