@@ -1,0 +1,18 @@
+{
+  "appId": "pe.cuadernodecampo.web",
+  "appName": "Cuaderno de Campo",
+  "webDir": "www",
+  "backgroundColor": "#FFF9F0",
+  "server": {
+    "url": "https://cuaderno-de-campo-inicial.netlify.app/inicio/",
+    "errorPath": "index.html",
+    "allowNavigation": [
+      "cuaderno-de-campo-inicial.netlify.app"
+    ]
+  },
+  "android": {
+    "appendUserAgent": "CuadernoDeCampoApp",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}

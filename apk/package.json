@@ -1,0 +1,17 @@
+{
+  "name": "cuaderno-de-campo-apk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android app that opens the Cuaderno de Campo web system",
+  "scripts": {
+    "assets": "node scripts/build-assets.mjs",
+    "apk": "npx cap sync android && cd android && ./gradlew assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk ../../sistema-web/public/descargas/cuaderno-de-campo.apk"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.4",
+    "@capacitor/core": "^6.2.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.4"
+  }
+}

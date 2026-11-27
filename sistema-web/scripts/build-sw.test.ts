@@ -62,6 +62,12 @@ describe("buildServiceWorker", () => {
     ]);
   });
 
+  it("never precaches the Android download", () => {
+    put("descargas/cuaderno-de-campo.apk", Buffer.alloc(1024, 3));
+    const { files } = buildServiceWorker(outDir);
+    expect(files.some((f) => f.endsWith(".apk"))).toBe(false);
+  });
+
   it("reports the precache total size", () => {
     const { totalBytes } = buildServiceWorker(outDir);
     expect(totalBytes).toBeGreaterThan(800 * 1024);

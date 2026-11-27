@@ -86,3 +86,17 @@ describe("InstallButton in the app header", () => {
     expect(screen.getByRole("banner").querySelector("button")).toHaveAccessibleName("Instalar app");
   });
 });
+
+describe("InstallButton inside the Android app", () => {
+  it("never shows: the app is already installed", () => {
+    mockStandalone(false);
+    const spy = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 CuadernoDeCampoApp");
+    render(<InstallButton />);
+    offerInstall();
+    expect(screen.queryByRole("button", { name: "Instalar app" })).toBeNull();
+    spy.mockRestore();
+    act(() => {
+      window.dispatchEvent(new Event("appinstalled"));
+    });
+  });
+});

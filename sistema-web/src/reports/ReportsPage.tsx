@@ -1,5 +1,6 @@
 "use client";
 
+import { deliverFile } from "@/apk/saveFile";
 import { useEffect, useRef, useState } from "react";
 import { byStudentName, classroomLabel, todayISO } from "@/domain/classrooms";
 import { periodOf } from "@/domain/notes";
@@ -9,8 +10,6 @@ import { useWorkspace } from "@/workspace/WorkspaceProvider";
 import { attendanceWorkbook, gradesWorkbook, saveReport } from "./excel";
 
 const PERIOD_IDS: Period["id"][] = ["B1", "B2", "B3", "B4"];
-const OPEN_REVOKE_DELAY_MS = 60_000;
-const DOWNLOAD_REVOKE_DELAY_MS = 1000;
 
 const RANGE_ERROR = "La fecha «Desde» no puede ser posterior a «Hasta».";
 const PROFILE_NOTICE = "Completa tu perfil para que aparezca en los reportes.";
@@ -19,24 +18,6 @@ type Saved = { name: string; blob: Blob; skippedPhotos: number };
 type CardState = { busy: boolean; error: string; saved: Saved | null };
 type Built = { base: string; suffix?: string; blob: Blob; skippedPhotos?: number };
 const IDLE: CardState = { busy: false, error: "", saved: null };
-
-function openBlob(blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), OPEN_REVOKE_DELAY_MS);
-}
-
-function downloadBlob(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob);
-  try {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = name;
-    link.click();
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_REVOKE_DELAY_MS);
-  }
-}
 
 const fullName = (s: Pick<Student, "firstNames" | "lastNames">) => `${s.firstNames} ${s.lastNames}`.trim();
 
@@ -64,13 +45,13 @@ function ReportCard(props: { title: string; hint?: string; blocked?: string; sta
             </p>
           )}
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn-secondary" onClick={() => state.saved && openBlob(state.saved.blob)}>
+            <button type="button" className="btn-secondary" onClick={() => state.saved && void deliverFile(state.saved.blob, state.saved.name, "view")}>
               Abrir
             </button>
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => state.saved && downloadBlob(state.saved.blob, state.saved.name)}
+              onClick={() => state.saved && void deliverFile(state.saved.blob, state.saved.name)}
             >
               Descargar
             </button>

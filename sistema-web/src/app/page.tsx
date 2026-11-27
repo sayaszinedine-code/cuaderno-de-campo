@@ -1,3 +1,4 @@
+import { AndroidDownloadLink } from "@/apk/AndroidDownloadLink";
 import { Logo, Wordmark } from "@/components/Logo";
 import { Icon, type IconName } from "@/components/icons";
 
@@ -26,6 +27,7 @@ export default function Home() {
           <a href="/registro/" className="btn-secondary">
             Crear una cuenta
           </a>
+          <AndroidDownloadLink />
         </div>
       </section>
 
