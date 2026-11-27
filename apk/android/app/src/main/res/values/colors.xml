@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pastel palette of the web app (sistema-web/src/styles/theme.css). -->
+    <color name="colorPrimary">#C2186B</color>
+    <color name="colorPrimaryDark">#E0408F</color>
+    <color name="colorAccent">#E0408F</color>
+</resources>
