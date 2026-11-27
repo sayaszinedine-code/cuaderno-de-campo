@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import Home from "./page";
 
 describe("Home", () => {
@@ -36,5 +36,22 @@ describe("Home colors", () => {
       "sec-lila",
       "sec-lima",
     ]);
+  });
+});
+
+describe("Home Android download", () => {
+  it("links to the Android download", () => {
+    render(<Home />);
+    expect(screen.getByRole("link", { name: /Descargar para Android/ })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/descargar\/?$/),
+    );
+  });
+
+  it("hides the download inside the Android app", async () => {
+    const spy = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 CuadernoDeCampoApp");
+    render(<Home />);
+    await waitFor(() => expect(screen.queryByRole("link", { name: /Descargar para Android/ })).toBeNull());
+    spy.mockRestore();
   });
 });

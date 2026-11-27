@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons";
+import { isInApk } from "@/apk/inApk";
 import { getInstallOffer, getServerInstallOffer, promptInstall, subscribeInstallOffer } from "./installPrompt";
 
 function isInstalled(): boolean {
@@ -12,7 +13,7 @@ function isInstalled(): boolean {
 export function InstallButton({ className = "" }: { className?: string }) {
   const offer = useSyncExternalStore(subscribeInstallOffer, getInstallOffer, getServerInstallOffer);
 
-  if (!offer || isInstalled()) return null;
+  if (!offer || isInstalled() || isInApk()) return null;
   return (
     <button type="button" className={`btn-primary gap-2 ${className}`} onClick={() => void promptInstall()}>
       <Icon name="instalar" />
